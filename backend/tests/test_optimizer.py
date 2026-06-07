@@ -22,7 +22,7 @@ from app.optimizer.nsga2 import OptimizationConfig, optimize_cds
 from app.optimizer.repair import repair_cds
 from app.optimizer.scoring import ScoreConfig, motif_violations, score_sequence
 from app.services.data_refresh_service import data_catalog, record_data_baseline_event, refresh_reference_data
-from app.services.data_snapshot_service import build_data_snapshot_bundle
+from app.services.data_snapshot_service import build_data_snapshot_bundle, verify_data_snapshot_bundle
 from app.services.data_provenance_service import data_provenance_audit
 from app.services.data_lock_service import build_data_lockfile, verify_data_lockfile, write_data_lockfile
 from app.services.data_refresh_plan_bundle_service import build_data_refresh_plan_bundle, verify_data_refresh_plan_bundle
@@ -1966,9 +1966,17 @@ def test_data_snapshot_bundle_contains_core_manifests() -> None:
         assert artifact_manifest["artifact_type"] == "data_snapshot_bundle"
         assert artifact_manifest["manifest_hash"]
         assert any(item["path"] == "snapshot_manifest.json" for item in artifact_manifest["files"])
-    verification = verify_artifact_bundle(bundle)
+    verification = verify_data_snapshot_bundle(bundle)
     assert verification["status"] == "pass"
+    assert verification["semantic_status"] == "pass"
     assert verification["checked_files"] == verification["file_count"]
+    assert verification["semantic_checks"]["snapshot_manifest_hash"] == "pass"
+    assert verification["semantic_checks"]["snapshot_file_listing"] == "pass"
+    assert verification["semantic_checks"]["structured_manifest_hash"] == "pass"
+    assert verification["snapshot_manifest_hash"]
+    assert verification["structured_manifest_hash"]
+    assert verification["external_snapshot_file_count"] >= 1
+    assert verification["rag_index_hash"]
 
 
 def test_data_lockfile_can_be_written_and_verified() -> None:

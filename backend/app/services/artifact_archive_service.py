@@ -12,6 +12,7 @@ from typing import Any
 
 from app.config import get_settings
 from app.services.export_manifest_service import verify_artifact_bundle
+from app.services.data_snapshot_service import verify_data_snapshot_bundle
 from app.services.data_release_bundle_service import verify_data_release_bundle
 from app.services.data_refresh_plan_bundle_service import verify_data_refresh_plan_bundle
 from app.services.optimizer_benchmark_bundle_service import verify_optimizer_benchmark_bundle
@@ -458,6 +459,8 @@ def workflow_trace_archive_summary(limit: int = 20, *, verify_files: bool = True
 
 def _verify_export_bundle(content: bytes) -> dict[str, Any]:
     verification = verify_artifact_bundle(content)
+    if verification.get("artifact_type") == "data_snapshot_bundle":
+        return verify_data_snapshot_bundle(content)
     if verification.get("artifact_type") == "data_release_bundle":
         return verify_data_release_bundle(content)
     if verification.get("artifact_type") == "qc_report_bundle":
@@ -487,6 +490,8 @@ def _archive_metadata(metadata: dict[str, Any] | None, verification: dict[str, A
         enriched["structured_import_semantic_verification"] = _structured_import_semantic_metadata(verification)
     if verification.get("artifact_type") == "data_refresh_plan_bundle":
         enriched["data_refresh_plan_semantic_verification"] = _data_refresh_plan_semantic_metadata(verification)
+    if verification.get("artifact_type") == "data_snapshot_bundle":
+        enriched["data_snapshot_semantic_verification"] = _data_snapshot_semantic_metadata(verification)
     if verification.get("artifact_type") == "data_release_bundle":
         enriched["data_release_semantic_verification"] = _data_release_semantic_metadata(verification)
     if verification.get("artifact_type") == "rag_evaluation_bundle":
@@ -620,6 +625,25 @@ def _data_release_semantic_metadata(verification: dict[str, Any]) -> dict[str, A
         "semantic_warnings": verification.get("semantic_warnings") or [],
         "indexed_at": _utc_now(),
         "index_schema": "agentic-rag-data-release-semantic-index-v1",
+    }
+
+
+def _data_snapshot_semantic_metadata(verification: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": verification.get("status"),
+        "semantic_status": verification.get("semantic_status"),
+        "snapshot_manifest_hash": verification.get("snapshot_manifest_hash"),
+        "structured_manifest_hash": verification.get("structured_manifest_hash"),
+        "rag_index_hash": verification.get("rag_index_hash"),
+        "external_snapshot_file_count": verification.get("external_snapshot_file_count"),
+        "snapshot_file_count": verification.get("snapshot_file_count"),
+        "checked_files": verification.get("checked_files"),
+        "file_count": verification.get("file_count"),
+        "manifest_hash": verification.get("manifest_hash"),
+        "semantic_errors": verification.get("semantic_errors") or [],
+        "semantic_warnings": verification.get("semantic_warnings") or [],
+        "indexed_at": _utc_now(),
+        "index_schema": "agentic-rag-data-snapshot-semantic-index-v1",
     }
 
 

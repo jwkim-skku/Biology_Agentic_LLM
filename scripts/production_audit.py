@@ -53,6 +53,7 @@ API_CHECKS = [
     {"name": "security_status", "path": "/security/status"},
     {"name": "storage_status", "path": "/storage/status"},
     {"name": "data_provenance", "path": "/data/provenance"},
+    {"name": "data_snapshot_bundle_verify", "path": "/data/snapshot/verify"},
     {"name": "data_release_bundle_verify", "path": "/data/release/export/verify"},
     {"name": "external_sources", "path": "/data/external-sources"},
     {"name": "rag_diagnostics", "path": "/rag/diagnostics"},
@@ -455,6 +456,7 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("optimizer diagnostics status is fail")
     if name in {
         "data_release_bundle_verify",
+        "data_snapshot_bundle_verify",
         "rag_evaluation_bundle_verify",
         "rag_regression_bundle_verify",
         "optimizer_benchmark_bundle_verify",
@@ -510,6 +512,17 @@ def api_failures(name: str, details: Any) -> list[str]:
                 failures.append(f"Data release bundle does not verify {caveat_check}.")
         if checks.get("external_snapshot_reference_coverage") != "pass":
             failures.append("Data release bundle does not verify external_snapshot_reference_coverage.")
+    if name == "data_snapshot_bundle_verify":
+        checks = payload.get("semantic_checks") or {}
+        for hash_check in ["snapshot_manifest_hash", "structured_manifest_hash"]:
+            if checks.get(hash_check) != "pass" or not payload.get(hash_check):
+                failures.append(f"Data snapshot bundle does not verify {hash_check}.")
+        if checks.get("snapshot_file_listing") != "pass":
+            failures.append("Data snapshot bundle does not verify snapshot_file_listing.")
+        if checks.get("rag_index_hash") != "pass" or not payload.get("rag_index_hash"):
+            failures.append("Data snapshot bundle does not expose rag_index_hash.")
+        if checks.get("external_snapshot_files") != "pass" or not payload.get("external_snapshot_file_count"):
+            failures.append("Data snapshot bundle does not include external source snapshot files.")
     if name == "rag_regression_bundle_verify":
         checks = payload.get("semantic_checks") or {}
         if checks.get("results_hash") != "pass" or not payload.get("results_hash"):

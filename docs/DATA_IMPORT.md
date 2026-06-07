@@ -282,7 +282,7 @@ Invoke-WebRequest `
   -OutFile .\agentic_rag_data_snapshot.zip
 ```
 
-The snapshot includes structured data files, external source snapshots, document extract JSON, `evidence_seed.json`, `rag_index.json`, refresh log, and machine-readable manifests with SHA-256 hashes. Every exported snapshot also includes `artifact_manifest.json`, which records each ZIP member's byte size, media type, SHA-256 digest, and a manifest hash for reproducibility checks.
+The snapshot includes structured data files, external source snapshots, document extract JSON, `evidence_seed.json`, `rag_index.json`, refresh log, and machine-readable manifests with SHA-256 hashes. Every exported snapshot also includes `artifact_manifest.json`, which records each ZIP member's byte size, media type, SHA-256 digest, and a manifest hash for reproducibility checks. The verifier also returns `snapshot_manifest_hash`, `structured_manifest_hash`, `rag_index_hash`, `external_snapshot_file_count`, and semantic checks for required files and snapshot file-list consistency.
 
 Verify a freshly rebuilt snapshot bundle:
 

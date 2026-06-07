@@ -60,7 +60,7 @@ from app.services.data_release_lock_service import verify_data_release_lock, wri
 from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
 from app.services.data_refresh_service import data_catalog, record_data_baseline_event, refresh_log, refresh_reference_data, validate_refresh_plan
 from app.services.data_refresh_plan_bundle_service import build_data_refresh_plan_bundle, verify_data_refresh_plan_bundle
-from app.services.data_snapshot_service import build_data_snapshot_bundle
+from app.services.data_snapshot_service import build_data_snapshot_bundle, verify_data_snapshot_bundle
 from app.services.deployment_readiness_service import deployment_readiness
 from app.services.ensembl_client import EnsemblClientError
 from app.services.evidence_service import search_evidence
@@ -1719,7 +1719,7 @@ def data_snapshot_bundle_endpoint(api_request: Request) -> Response:
 
 @router.get("/data/snapshot/verify", response_model=ApiResponse)
 def data_snapshot_bundle_verify_endpoint(api_request: Request) -> ApiResponse:
-    verification = verify_artifact_bundle(build_data_snapshot_bundle())
+    verification = verify_data_snapshot_bundle(build_data_snapshot_bundle())
     _audit(
         api_request,
         "artifact_verify",

@@ -22,8 +22,7 @@ from app.services.artifact_archive_service import (
 from app.services.artifact_object_store_service import artifact_object_store_status
 from app.services.data_provenance_service import data_provenance_audit
 from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
-from app.services.data_snapshot_service import build_data_snapshot_bundle
-from app.services.export_manifest_service import verify_artifact_bundle
+from app.services.data_snapshot_service import build_data_snapshot_bundle, verify_data_snapshot_bundle
 from app.services.governance_service import build_governance_attestation_bundle, verify_governance_attestation_bundle
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark
 from app.services.rag_embedding_service import rag_embedding_status
@@ -50,7 +49,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
     optimizer = evaluate_optimizer_benchmark()
     folding = rna_folding_status()
     memory = agent_memory_summary()
-    snapshot_verification = verify_artifact_bundle(build_data_snapshot_bundle())
+    snapshot_verification = verify_data_snapshot_bundle(build_data_snapshot_bundle())
     storage = storage_status()
     signing = signing_status()
     signing_ready = _signing_ready(signing)
