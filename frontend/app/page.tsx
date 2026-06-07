@@ -795,6 +795,13 @@ type DeploymentReadinessStatus = {
 
 type ProductionAuditStatus = {
   audit_hash?: string;
+  evidence_hashes?: {
+    hash_schema?: string;
+    algorithm?: string;
+    evidence_count?: number;
+    combined_hash?: string;
+    items?: Record<string, string>;
+  };
   generated_at?: string;
   cache_policy?: {
     ttl_seconds?: number;
@@ -4094,6 +4101,10 @@ export default function Dashboard() {
             </div>
             <div className="governance-card">
               <span>Hash {productionAudit?.audit_hash?.slice(0, 16) ?? "n/a"}</span>
+              <span>
+                Evidence hash {productionAudit?.evidence_hashes?.combined_hash?.slice(0, 10) ?? "n/a"} /{" "}
+                {productionAudit?.evidence_hashes?.evidence_count ?? "n/a"} files
+              </span>
               <span>
                 Bundle {productionAudit?.verification?.artifact_verification?.checked_files ?? "n/a"}/
                 {productionAudit?.verification?.artifact_verification?.file_count ?? "n/a"} files

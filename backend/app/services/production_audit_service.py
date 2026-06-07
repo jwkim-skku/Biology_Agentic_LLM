@@ -312,6 +312,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         },
         "operator_notes": _operator_notes(summary),
     }
+    payload["evidence_hashes"] = _evidence_hashes(payload["evidence"])
     payload["audit_hash"] = _hash_without_signatures(payload)
     signatures = signatures_for_hash(payload["audit_hash"], signed_field="audit_hash")
     if signatures:
@@ -334,6 +335,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
         bundle = ManifestedZip(archive, "production_audit_bundle", metadata)
         bundle.writestr("production_audit.json", _json(audit))
         bundle.writestr("production_audit.md", render_production_audit_markdown(audit))
+        bundle.writestr("evidence_hashes.json", _json(audit["evidence_hashes"]))
         bundle.writestr("evidence/deployment_readiness.json", _json(audit["evidence"]["deployment_readiness"]))
         bundle.writestr("evidence/promotion_summary.json", _json(audit["evidence"]["promotion_summary"]))
         bundle.writestr("evidence/security.json", _json(audit["evidence"]["security"]))
@@ -385,6 +387,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             audit = json.loads(archive.read("production_audit.json").decode("utf-8"))
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
+            evidence_hashes = json.loads(archive.read("evidence_hashes.json").decode("utf-8"))
             audit_hash = audit.get("audit_hash")
             summary = audit.get("summary") or {}
             evidence = audit.get("evidence") or {}
@@ -408,6 +411,14 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 workflow_trace_archive == (evidence.get("workflow_trace_archive_semantics") or {}),
                 "evidence/workflow_trace_archive_semantics.json does not match production_audit.json evidence.",
             )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "evidence_hashes_payload",
+                evidence_hashes == (audit.get("evidence_hashes") or {}),
+                "evidence_hashes.json does not match production_audit.json evidence_hashes.",
+            )
+            _verify_evidence_hashes(archive, evidence, evidence_hashes, semantic_checks, errors)
             latest_trace = (workflow_trace_archive.get("latest_artifacts") or [{}])[0]
             checked_traces = int(workflow_trace_archive.get("checked_count") or 0)
             _record_semantic_check(
@@ -754,6 +765,76 @@ def _operator_notes(summary: dict[str, Any]) -> list[str]:
 
 def _hash_without_signatures(payload: dict[str, Any]) -> str:
     return _hash_payload({key: value for key, value in payload.items() if key not in {"audit_hash", "audit_signature", "audit_signatures"}})
+
+
+def _evidence_hashes(evidence: dict[str, Any]) -> dict[str, Any]:
+    items = {
+        f"evidence/{name}.json": _hash_payload(payload)
+        for name, payload in sorted(evidence.items())
+    }
+    return {
+        "hash_schema": "agentic-rag-production-audit-evidence-hashes-v1",
+        "algorithm": "sha256-json-canonical",
+        "evidence_count": len(items),
+        "items": items,
+        "combined_hash": _hash_payload(items),
+    }
+
+
+def _verify_evidence_hashes(
+    archive: ZipFile,
+    evidence: dict[str, Any],
+    evidence_hashes: dict[str, Any],
+    semantic_checks: dict[str, str],
+    errors: list[str],
+) -> None:
+    items = evidence_hashes.get("items") if isinstance(evidence_hashes, dict) else None
+    if not isinstance(items, dict):
+        _record_semantic_check(semantic_checks, errors, "evidence_hashes_schema", False, "evidence_hashes.json items must be an object.")
+        return
+    expected_paths = {f"evidence/{name}.json" for name in evidence}
+    actual_paths = set(str(path) for path in items)
+    _record_semantic_check(
+        semantic_checks,
+        errors,
+        "evidence_hashes_schema",
+        evidence_hashes.get("hash_schema") == "agentic-rag-production-audit-evidence-hashes-v1"
+        and evidence_hashes.get("algorithm") == "sha256-json-canonical",
+        "evidence_hashes.json schema or algorithm is not recognized.",
+    )
+    _record_semantic_check(
+        semantic_checks,
+        errors,
+        "evidence_hashes_count",
+        int(evidence_hashes.get("evidence_count") or -1) == len(evidence) and actual_paths == expected_paths,
+        "evidence_hashes.json does not cover every production audit evidence item.",
+    )
+    mismatches: list[str] = []
+    for path in sorted(expected_paths):
+        try:
+            payload = json.loads(archive.read(path).decode("utf-8"))
+        except (KeyError, json.JSONDecodeError, UnicodeDecodeError):
+            mismatches.append(path)
+            continue
+        if payload != evidence.get(path.removeprefix("evidence/").removesuffix(".json")):
+            mismatches.append(path)
+            continue
+        if items.get(path) != _hash_payload(payload):
+            mismatches.append(path)
+    _record_semantic_check(
+        semantic_checks,
+        errors,
+        "evidence_file_hashes",
+        not mismatches,
+        "Production audit evidence file hashes are missing or mismatched: " + ", ".join(mismatches[:8]),
+    )
+    _record_semantic_check(
+        semantic_checks,
+        errors,
+        "evidence_hashes_combined",
+        evidence_hashes.get("combined_hash") == _hash_payload(items),
+        "evidence_hashes.json combined_hash does not match items.",
+    )
 
 
 def _verify_audit_signature(audit: dict[str, Any]) -> dict[str, Any]:

@@ -395,6 +395,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "## Timing" in markdown
     assert "## Promotion Summary" in markdown
     assert "Total seconds" in markdown
+    assert audit["evidence_hashes"]["hash_schema"] == "agentic-rag-production-audit-evidence-hashes-v1"
+    assert audit["evidence_hashes"]["evidence_count"] == len(audit["evidence"])
+    assert len(audit["evidence_hashes"]["combined_hash"]) == 64
     assert audit["promotion_summary"]["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
     assert audit["promotion_summary"]["items"]
     optimizer_item = next(item for item in audit["promotion_summary"]["items"] if item["area"] == "optimizer")
@@ -421,11 +424,17 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["workflow_trace_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_hash"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_steps"] == "pass"
+    assert verification["semantic_checks"]["evidence_hashes_payload"] == "pass"
+    assert verification["semantic_checks"]["evidence_hashes_schema"] == "pass"
+    assert verification["semantic_checks"]["evidence_hashes_count"] == "pass"
+    assert verification["semantic_checks"]["evidence_file_hashes"] == "pass"
+    assert verification["semantic_checks"]["evidence_hashes_combined"] == "pass"
     assert verification["semantic_checks"]["attention_gates_hash"] == "pass"
     assert verification["semantic_checks"]["required_actions_hash"] == "pass"
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "production_audit.md" in names
+        assert "evidence_hashes.json" in names
         assert "evidence/promotion_summary.json" in names
         assert "evidence/timings.json" in names
         assert "evidence/data_refresh_plan_archive_semantics.json" in names
@@ -438,8 +447,11 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json"))
+        evidence_hashes = json.loads(archive.read("evidence_hashes.json"))
         assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
         assert len(deployment_readiness["required_actions_hash"]) == 64
+        assert evidence_hashes == audit["evidence_hashes"]
+        assert evidence_hashes["items"]["evidence/promotion_summary.json"] == audit["evidence_hashes"]["items"]["evidence/promotion_summary.json"]
 
 
 def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
