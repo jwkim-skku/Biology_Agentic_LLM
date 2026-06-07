@@ -1114,6 +1114,12 @@ type RagDiagnosticsStatus = {
       base_url: string;
       configured_model: string;
       configured_dimensions: number;
+      cache?: {
+        cache_schema: string;
+        path: string;
+        entries: number;
+        enabled: boolean;
+      };
     };
     sentence_transformers?: {
       package_available: boolean;
@@ -3407,6 +3413,10 @@ export default function Dashboard() {
               <span>
                 OpenAI key {ragDiagnostics?.embedding_backend?.openai?.api_key_configured ? "set" : "not set"} / dims{" "}
                 {ragDiagnostics?.embedding_backend?.openai?.configured_dimensions ?? ragDiagnostics?.embedding_backend?.embedding_dimensions ?? "n/a"}
+              </span>
+              <span>
+                OpenAI cache {ragDiagnostics?.embedding_backend?.openai?.cache?.entries ?? "n/a"} entries /{" "}
+                {ragDiagnostics?.embedding_backend?.openai?.cache?.enabled ? "on" : "off"}
               </span>
               <span>
                 Vector {ragDiagnostics?.vector_store_readiness?.target_backend ?? ragDiagnostics?.vector_store_readiness?.runtime?.target_backend ?? "n/a"} /{" "}
