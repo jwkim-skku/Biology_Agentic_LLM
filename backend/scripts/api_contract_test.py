@@ -163,6 +163,7 @@ def main() -> int:
     failures: list[str] = []
     paths = spec.get("paths", {})
     schemas = spec.get("components", {}).get("schemas", {})
+    api_paths = {path for path in paths if path.startswith("/api/v1/")}
 
     for path, methods in sorted(REQUIRED_PATHS.items()):
         if path not in paths:
@@ -172,6 +173,10 @@ def main() -> int:
         missing_methods = methods - actual_methods
         if missing_methods:
             failures.append(f"{path} missing methods: {', '.join(sorted(missing_methods))}")
+
+    unexpected_paths = sorted(api_paths - set(REQUIRED_PATHS))
+    if unexpected_paths:
+        failures.append(f"unexpected API paths missing from REQUIRED_PATHS: {', '.join(unexpected_paths)}")
 
     for schema in sorted(REQUIRED_SCHEMAS):
         if schema not in schemas:
@@ -192,6 +197,7 @@ def main() -> int:
         "required_paths": len(REQUIRED_PATHS),
         "required_schemas": len(REQUIRED_SCHEMAS),
         "path_count": len(paths),
+        "unexpected_paths": unexpected_paths,
         "schema_count": len(schemas),
         "failures": failures,
     }
