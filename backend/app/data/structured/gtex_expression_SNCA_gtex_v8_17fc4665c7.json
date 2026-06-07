@@ -15,10 +15,10 @@
     "summary": "SNCA median expression in Brain_Substantia_nigra is 34.1163 TPM in gtex_v8.",
     "source_url": "https://gtexportal.org/home/",
     "source_request_url": "https://gtexportal.org/api/v2/expression/medianGeneExpression?gencodeId=ENSG00000145335.15&tissueSiteDetailId=Brain_Substantia_nigra&datasetId=gtex_v8&itemsPerPage=25",
-    "source_payload_sha256": "84c053f082492a596f49b4cfabd112d27a68a4df223124ef6a5cf78924fd8c0d",
-    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_84c053f082492a59.json",
+    "source_payload_sha256": "dfbcb3427fbf227b2834ef9a2cc965677a1cd69443a53f8ffac587072cd9beb7",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_dfbcb3427fbf227b.json",
     "source_record_id": "Brain_Substantia_nigra",
-    "ingested_at": "2026-06-06T15:53:31.081756+00:00"
+    "ingested_at": "2026-06-07T12:19:19.898061+00:00"
   },
   {
     "id": "gtex_snca_brain_caudate_basal_ganglia",
@@ -36,10 +36,10 @@
     "summary": "SNCA median expression in Brain_Caudate_basal_ganglia is 23.656 TPM in gtex_v8.",
     "source_url": "https://gtexportal.org/home/",
     "source_request_url": "https://gtexportal.org/api/v2/expression/medianGeneExpression?gencodeId=ENSG00000145335.15&tissueSiteDetailId=Brain_Caudate_basal_ganglia&datasetId=gtex_v8&itemsPerPage=25",
-    "source_payload_sha256": "6458486c71c6c181c71eb0b07091272ff516815b57061c5e6b428edb1013d68e",
-    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_6458486c71c6c181.json",
+    "source_payload_sha256": "30dc39e0b2ed7d1203d7428a5dbc4674942d2f7b6b4a2496a884f26edc2df13a",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_30dc39e0b2ed7d12.json",
     "source_record_id": "Brain_Caudate_basal_ganglia",
-    "ingested_at": "2026-06-06T15:53:31.876110+00:00"
+    "ingested_at": "2026-06-07T12:19:20.641235+00:00"
   },
   {
     "id": "gtex_snca_brain_cortex",
@@ -57,10 +57,10 @@
     "summary": "SNCA median expression in Brain_Cortex is 58.8223 TPM in gtex_v8.",
     "source_url": "https://gtexportal.org/home/",
     "source_request_url": "https://gtexportal.org/api/v2/expression/medianGeneExpression?gencodeId=ENSG00000145335.15&tissueSiteDetailId=Brain_Cortex&datasetId=gtex_v8&itemsPerPage=25",
-    "source_payload_sha256": "4caa32b19e38a535035433666932babe1eccbcee20686727267caa7d8b58f0fc",
-    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_4caa32b19e38a535.json",
+    "source_payload_sha256": "3d2b3821895a8137f003e119b932a4d36247e258dc5632e11a7b4d9b6b00523c",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_3d2b3821895a8137.json",
     "source_record_id": "Brain_Cortex",
-    "ingested_at": "2026-06-06T15:53:32.650689+00:00"
+    "ingested_at": "2026-06-07T12:19:21.420903+00:00"
   },
   {
     "id": "gtex_snca_brain_hippocampus",
@@ -78,9 +78,9 @@
     "summary": "SNCA median expression in Brain_Hippocampus is 30.3309 TPM in gtex_v8.",
     "source_url": "https://gtexportal.org/home/",
     "source_request_url": "https://gtexportal.org/api/v2/expression/medianGeneExpression?gencodeId=ENSG00000145335.15&tissueSiteDetailId=Brain_Hippocampus&datasetId=gtex_v8&itemsPerPage=25",
-    "source_payload_sha256": "0501b037534db398bd27c56e52787f2abe01d1ce7448dc9002cfc952925483a7",
-    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_0501b037534db398.json",
+    "source_payload_sha256": "ef04a7dbfc2a1dd335b5538161a8760653e8790100e659dc2dc377d0bab1889f",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\gtex_ef04a7dbfc2a1dd3.json",
     "source_record_id": "Brain_Hippocampus",
-    "ingested_at": "2026-06-06T15:53:33.438528+00:00"
+    "ingested_at": "2026-06-07T12:19:22.039414+00:00"
   }
 ]

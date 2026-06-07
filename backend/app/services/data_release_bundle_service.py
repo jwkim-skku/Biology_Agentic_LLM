@@ -57,11 +57,13 @@ def build_data_release_bundle() -> bytes:
         "structured_manifest_hash": manifest.get("manifest_hash"),
         "record_count": len(records),
         "structured_file_count": len(manifest.get("files") or []),
+        "external_snapshot_reference_count": len(_external_snapshot_paths(records)),
         "quality_status": quality.get("status"),
         "provenance_status": provenance.get("status"),
         "release_lock_status": release_lock.get("status"),
         "promotion_status": _promotion_status(quality, provenance, release_lock),
         "contains_source_bytes": True,
+        "contains_external_snapshot_bytes": True,
     }
     buffer = BytesIO()
     with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
@@ -83,6 +85,8 @@ def build_data_release_bundle() -> bytes:
         bundle.writestr("records.csv", _records_csv(records))
         for source_path in _structured_source_files():
             bundle.write_file(source_path, f"structured_sources/{source_path.name}")
+        for snapshot_path in _external_snapshot_paths(records):
+            bundle.write_file(snapshot_path, f"external_source_snapshots/{snapshot_path.name}")
         bundle.write_artifact_manifest()
     return buffer.getvalue()
 
@@ -233,6 +237,20 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_errors.append("Data release bundle does not include all structured source bytes.")
         semantic_checks["structured_source_bytes"] = "fail"
 
+    snapshot_files = [name for name in zip_names if name.startswith("external_source_snapshots/") and not name.endswith("/")]
+    expected_snapshot_files = _int_or_none(release_manifest.get("external_snapshot_reference_count"))
+    if expected_snapshot_files is None:
+        semantic_warnings.append("Data release bundle does not record external snapshot reference count.")
+        semantic_checks["external_snapshot_bytes"] = "warning"
+    elif expected_snapshot_files == 0:
+        semantic_warnings.append("Data release bundle has no external source snapshot references.")
+        semantic_checks["external_snapshot_bytes"] = "warning"
+    elif len(snapshot_files) >= expected_snapshot_files:
+        semantic_checks["external_snapshot_bytes"] = "pass"
+    else:
+        semantic_errors.append("Data release bundle does not include all referenced external source snapshot bytes.")
+        semantic_checks["external_snapshot_bytes"] = "fail"
+
     promotion_status = str(release_manifest.get("promotion_status") or "unknown")
     if promotion_status == "fail":
         semantic_errors.append("Data release promotion status is fail.")
@@ -265,6 +283,8 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "release_lock_status": release_lock.get("status"),
         "promotion_status": promotion_status,
         "structured_source_file_count": len(source_files),
+        "external_snapshot_file_count": len(snapshot_files),
+        "external_snapshot_reference_count": expected_snapshot_files,
     }
 
 
@@ -283,6 +303,18 @@ def _structured_source_files() -> list[Path]:
     if not STRUCTURED_DIR.exists():
         return []
     return sorted(path for path in STRUCTURED_DIR.glob("*") if path.is_file() and path.suffix.lower() in {".json", ".csv"})
+
+
+def _external_snapshot_paths(records: list[dict[str, Any]]) -> list[Path]:
+    paths: dict[str, Path] = {}
+    for record in records:
+        raw_path = record.get("source_snapshot_path")
+        if not raw_path:
+            continue
+        path = Path(str(raw_path))
+        if path.exists() and path.is_file():
+            paths[str(path.resolve())] = path
+    return sorted(paths.values(), key=lambda item: item.name)
 
 
 def _records_jsonl(records: list[dict[str, Any]]) -> str:
