@@ -16,6 +16,19 @@ from app.optimizer.repair import repair_cds
 from app.optimizer.scoring import ScoreConfig, SequenceScores, score_sequence
 
 
+OPTIMIZER_ALGORITHM = "seeded_nsga2"
+SEED_STRATEGY_VERSION = "deterministic-tradeoff-seeds-v1"
+DETERMINISTIC_SEED_VARIANTS = [
+    "native_cds",
+    "max_human_codon_usage",
+    "max_target_codon_availability",
+    "min_gc",
+    "max_gc",
+    "target_gc_balance",
+    "min_cpg",
+]
+
+
 @dataclass(frozen=True)
 class OptimizationConfig:
     population_size: int = 48
@@ -32,6 +45,41 @@ class OptimizationConfig:
         data = asdict(self)
         data["score_config"] = self.score_config.to_dict()
         return data
+
+
+def optimizer_search_strategy(config: OptimizationConfig | None = None) -> dict:
+    config = config or OptimizationConfig()
+    return {
+        "strategy_schema": "agentic-rag-optimizer-search-strategy-v1",
+        "algorithm": OPTIMIZER_ALGORITHM,
+        "seed_strategy": SEED_STRATEGY_VERSION,
+        "deterministic_seed_variants": list(DETERMINISTIC_SEED_VARIANTS),
+        "stochastic_operator": {
+            "rng_seed": config.seed,
+            "mutation_rate": config.mutation_rate,
+            "crossover_rate": config.crossover_rate,
+            "population_size": config.population_size,
+            "generations": config.generations,
+        },
+        "repair_policy": {
+            "enabled": config.enable_repair,
+            "repair_passes": config.repair_passes,
+        },
+        "selection_policy": "NSGA-II non-dominated sorting with crowding-distance truncation; final recommendation is selected by downstream feasible composite policy.",
+        "reproducibility": {
+            "deterministic_given_config": True,
+            "config_hash_inputs": [
+                "native_cds",
+                "seed",
+                "population_size",
+                "generations",
+                "mutation_rate",
+                "crossover_rate",
+                "repair_passes",
+                "score_config",
+            ],
+        },
+    }
 
 
 @dataclass(frozen=True)

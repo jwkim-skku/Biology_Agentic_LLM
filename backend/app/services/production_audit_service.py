@@ -456,7 +456,7 @@ def _promotion_summary(
 ) -> dict[str, Any]:
     optimizer_seed_strategy = (
         (optimizer.get("optimizer") or {})
-        .get("default_config", {})
+        .get("search_strategy", {})
         .get("seed_strategy")
     )
     items = [

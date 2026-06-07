@@ -58,6 +58,7 @@ from app.services.run_export_service import build_run_export_bundle
 from app.services.sequence_policy_service import audit_sequence_policy
 from app.services.job_store import complete_job, create_job, get_job, list_jobs, mark_job_running
 from app.services.metrics_service import metrics_prometheus, metrics_snapshot, record_request
+from app.services.optimizer_benchmark_bundle_service import build_optimizer_benchmark_bundle, verify_optimizer_benchmark_bundle
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark, optimizer_benchmark_cases
 from app.services.optimizer_diagnostics_service import optimizer_diagnostics
 from app.services.production_audit_service import (
@@ -284,6 +285,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "Total seconds" in markdown
     assert audit["promotion_summary"]["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
     assert audit["promotion_summary"]["items"]
+    optimizer_item = next(item for item in audit["promotion_summary"]["items"] if item["area"] == "optimizer")
+    assert "deterministic-tradeoff-seeds-v1" in optimizer_item["detail"]
     assert "structured_import_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "structured_import_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
@@ -577,7 +580,28 @@ def test_optimizer_diagnostics_reports_operational_quality_bands() -> None:
     assert diagnostics["quality_bands"]["candidate_diversity"] in {"pass", "warning", "fail"}
     assert diagnostics["quality_bands"]["constraint_control"] in {"pass", "warning", "fail"}
     assert "maximize_cai" in diagnostics["optimizer"]["objectives"]
+    assert diagnostics["optimizer"]["algorithm"] == "seeded_nsga2"
+    assert diagnostics["optimizer"]["seed_strategy"] == "deterministic-tradeoff-seeds-v1"
+    assert diagnostics["optimizer"]["search_strategy"]["strategy_schema"] == "agentic-rag-optimizer-search-strategy-v1"
+    assert "min_cpg" in diagnostics["optimizer"]["search_strategy"]["deterministic_seed_variants"]
     assert diagnostics["recommendations"]
+
+
+def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
+    bundle = build_optimizer_benchmark_bundle()
+    verification = verify_optimizer_benchmark_bundle(bundle)
+    assert verification["status"] in {"pass", "warning"}
+    assert verification["semantic_checks"]["search_strategy_schema"] == "pass"
+    assert verification["semantic_checks"]["optimizer_algorithm"] == "pass"
+    assert verification["semantic_checks"]["optimizer_seed_strategy"] == "pass"
+    with ZipFile(BytesIO(bundle)) as archive:
+        names = set(archive.namelist())
+        assert "search_strategy.json" in names
+        search_strategy = json.loads(archive.read("search_strategy.json"))
+        manifest = json.loads(archive.read("bundle_manifest.json"))
+        assert search_strategy["strategy_schema"] == "agentic-rag-optimizer-search-strategy-v1"
+        assert search_strategy["algorithm"] == manifest["optimizer_algorithm"]
+        assert search_strategy["seed_strategy"] == manifest["optimizer_seed_strategy"]
 
 
 def test_repair_removes_synonymous_forbidden_motif() -> None:

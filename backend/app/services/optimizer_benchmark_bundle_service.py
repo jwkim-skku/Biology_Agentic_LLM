@@ -7,7 +7,7 @@ from io import BytesIO, StringIO
 from typing import Any
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
 
-from app.optimizer.nsga2 import OptimizationConfig
+from app.optimizer.nsga2 import OptimizationConfig, optimizer_search_strategy
 from app.optimizer.scoring import ScoreConfig
 from app.services.export_manifest_service import ManifestedZip, verify_artifact_bundle
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark, optimizer_benchmark_cases
@@ -26,6 +26,7 @@ REQUIRED_OPTIMIZER_BENCHMARK_FILES = {
     "candidate_diagnostics.json",
     "stress_gate.json",
     "rna_folding_status.json",
+    "search_strategy.json",
     "optimizer_config.json",
     "score_config.json",
     "structured_manifest.json",
@@ -38,6 +39,7 @@ def build_optimizer_benchmark_bundle() -> bytes:
     stress = optimizer_stress_gate()
     folding = rna_folding_status()
     cases = optimizer_benchmark_cases()
+    search_strategy = optimizer_search_strategy()
     metadata = {
         "bundle_schema": "agentic-rag-optimizer-benchmark-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -48,6 +50,8 @@ def build_optimizer_benchmark_bundle() -> bytes:
         "stress_status": stress.get("status"),
         "rna_folding_status": folding.get("status"),
         "rna_folding_backend": folding.get("active_backend"),
+        "optimizer_algorithm": search_strategy.get("algorithm"),
+        "optimizer_seed_strategy": search_strategy.get("seed_strategy"),
         "structured_manifest_hash": structured_manifest().get("manifest_hash"),
     }
     buffer = BytesIO()
@@ -58,6 +62,7 @@ def build_optimizer_benchmark_bundle() -> bytes:
         bundle.writestr("diagnostics.json", _json(diagnostics))
         bundle.writestr("stress_gate.json", _json(stress))
         bundle.writestr("rna_folding_status.json", _json(folding))
+        bundle.writestr("search_strategy.json", _json(search_strategy))
         bundle.writestr("cases.json", _json(cases))
         bundle.writestr("case_metrics.csv", _case_metrics_csv(benchmark.get("results") or []))
         bundle.writestr("candidate_diagnostics.json", _json(_candidate_diagnostics(benchmark.get("results") or [])))
@@ -99,6 +104,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
                     "diagnostics": _read_json(archive, "diagnostics.json"),
                     "stress_gate": _read_json(archive, "stress_gate.json"),
                     "rna_folding_status": _read_json(archive, "rna_folding_status.json"),
+                    "search_strategy": _read_json(archive, "search_strategy.json"),
                     "cases": _read_json(archive, "cases.json"),
                     "candidate_diagnostics": _read_json(archive, "candidate_diagnostics.json"),
                     "optimizer_config": _read_json(archive, "optimizer_config.json"),
@@ -116,6 +122,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
     diagnostics = payloads.get("diagnostics") or {}
     stress = payloads.get("stress_gate") or {}
     folding = payloads.get("rna_folding_status") or {}
+    search_strategy = payloads.get("search_strategy") or {}
     cases = payloads.get("cases") or {}
     candidate_diagnostics = payloads.get("candidate_diagnostics") or {}
     structured = payloads.get("structured_manifest") or {}
@@ -158,6 +165,26 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["rna_folding_schema"] = "fail"
     else:
         semantic_checks["rna_folding_schema"] = "pass"
+
+    if search_strategy.get("strategy_schema") != "agentic-rag-optimizer-search-strategy-v1":
+        semantic_errors.append("search_strategy.json strategy_schema is invalid.")
+        semantic_checks["search_strategy_schema"] = "fail"
+    else:
+        semantic_checks["search_strategy_schema"] = "pass"
+
+    strategy_algorithms = {str(value) for value in [manifest.get("optimizer_algorithm"), metadata.get("optimizer_algorithm"), search_strategy.get("algorithm")] if value}
+    if len(strategy_algorithms) != 1:
+        semantic_errors.append("Optimizer algorithm disagrees across benchmark bundle files.")
+        semantic_checks["optimizer_algorithm"] = "fail"
+    else:
+        semantic_checks["optimizer_algorithm"] = "pass"
+
+    seed_strategies = {str(value) for value in [manifest.get("optimizer_seed_strategy"), metadata.get("optimizer_seed_strategy"), search_strategy.get("seed_strategy")] if value}
+    if len(seed_strategies) != 1:
+        semantic_errors.append("Optimizer seed strategy disagrees across benchmark bundle files.")
+        semantic_checks["optimizer_seed_strategy"] = "fail"
+    else:
+        semantic_checks["optimizer_seed_strategy"] = "pass"
 
     folding_statuses = {str(value) for value in [manifest.get("rna_folding_status"), metadata.get("rna_folding_status"), folding.get("status")] if value}
     if len(folding_statuses) > 1:

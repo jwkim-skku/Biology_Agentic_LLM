@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.optimizer.nsga2 import OptimizationConfig
+from app.optimizer.nsga2 import OptimizationConfig, optimizer_search_strategy
 from app.optimizer.scoring import ScoreConfig
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark, optimizer_benchmark_cases
 from app.services.optimizer_stress_service import optimizer_stress_gate
@@ -14,6 +14,7 @@ def optimizer_diagnostics() -> dict[str, Any]:
     cases = optimizer_benchmark_cases()
     stress = optimizer_stress_gate()
     folding = rna_folding_status()
+    search_strategy = optimizer_search_strategy()
     weak_cases = [
         {
             "case_id": result["case_id"],
@@ -34,7 +35,9 @@ def optimizer_diagnostics() -> dict[str, Any]:
         else "pass",
         "diagnostics_schema": "agentic-rag-optimizer-diagnostics-v1",
         "optimizer": {
-            "algorithm": "seeded_nsga2",
+            "algorithm": search_strategy["algorithm"],
+            "search_strategy": search_strategy,
+            "seed_strategy": search_strategy["seed_strategy"],
             "default_config": OptimizationConfig().to_dict(),
             "default_score_config": ScoreConfig().to_dict(),
             "objectives": [
