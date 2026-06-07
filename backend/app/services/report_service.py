@@ -132,6 +132,7 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
     optimizer_manifest = optimizer_reproducibility_manifest(design)
     data_quality = structured_quality_gate()
     optimizer_stress = optimizer_stress_gate()
+    target_structured_evidence = _target_structured_evidence_summary(design.get("evidence", {}))
 
     return {
         "project_metadata": {
@@ -159,6 +160,7 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
         "optimization_settings": design.get("optimization_config", {}),
         "optimizer_reproducibility": optimizer_manifest,
         "data_quality": _data_quality_summary(data_quality),
+        "target_structured_evidence": target_structured_evidence,
         "optimizer_stress": _optimizer_stress_summary(optimizer_stress),
         "score_summary": {
             "native": native_scores,
@@ -238,6 +240,7 @@ def export_qc_report_markdown(report: dict[str, Any]) -> str:
     diagnostics = report.get("candidate_diagnostics", {})
     optimizer_reproducibility = report.get("optimizer_reproducibility", {})
     data_quality = report.get("data_quality", {})
+    target_structured = report.get("target_structured_evidence", {})
     optimizer_stress = report.get("optimizer_stress", {})
     lines = [
         "# Gene Therapy Design QC Report",
@@ -271,6 +274,9 @@ def export_qc_report_markdown(report: dict[str, Any]) -> str:
         "",
         "## Data Quality Evidence",
         *_data_quality_lines(data_quality),
+        "",
+        "## Target Structured Evidence",
+        *_target_structured_evidence_lines(target_structured),
         "",
         "## Optimizer Stress Evidence",
         *_optimizer_stress_lines(optimizer_stress),
@@ -476,6 +482,59 @@ def _data_quality_summary(gate: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _target_structured_evidence_summary(evidence: dict[str, Any]) -> dict[str, Any]:
+    context = evidence.get("structured_context") or {}
+    records = list(context.get("records") or [])
+    coverage = dict(context.get("coverage") or {})
+    live_records = [record for record in records if _target_record_is_live(record)]
+    seed_records = [record for record in records if _target_record_is_seed(record)]
+    snapshot_records = [record for record in records if record.get("source_snapshot_path")]
+    release_pinned_records = [record for record in records if record.get("release")]
+    datasets = sorted({str(record.get("dataset")) for record in records if record.get("dataset")})
+    genes = sorted({str(record.get("gene")) for record in records if record.get("gene")})
+    regions = sorted({str(record.get("brain_region")) for record in records if record.get("brain_region")})
+    cell_types = sorted({str(record.get("cell_type")) for record in records if record.get("cell_type")})
+    status = "missing" if not records else "warning" if seed_records else "pass"
+    return {
+        "status": status,
+        "coverage": coverage,
+        "matched_record_count": len(records),
+        "live_record_count": len(live_records),
+        "seed_record_count": len(seed_records),
+        "release_pinned_record_count": len(release_pinned_records),
+        "snapshot_record_count": len(snapshot_records),
+        "datasets": datasets,
+        "genes": genes[:12],
+        "brain_regions": regions[:12],
+        "cell_types": cell_types[:12],
+        "top_records": [_target_record_summary(record) for record in records[:8]],
+    }
+
+
+def _target_record_summary(record: dict[str, Any]) -> dict[str, Any]:
+    summary = {
+        "id": record.get("id"),
+        "dataset": record.get("dataset"),
+        "release": record.get("release"),
+        "gene": record.get("gene"),
+        "brain_region": record.get("brain_region"),
+        "cell_type": record.get("cell_type"),
+        "confidence": record.get("confidence"),
+        "match_score": record.get("match_score"),
+        "source_file": record.get("_source_file"),
+        "source_payload_sha256": record.get("source_payload_sha256"),
+        "source_snapshot_path": record.get("source_snapshot_path"),
+        "is_live": _target_record_is_live(record),
+        "is_seed": _target_record_is_seed(record),
+    }
+    if record.get("median_expression") is not None:
+        summary["median_expression"] = record.get("median_expression")
+        summary["unit"] = record.get("unit")
+    if record.get("number_of_cells") is not None:
+        summary["number_of_cells"] = record.get("number_of_cells")
+    return summary
+
+
 def _optimizer_stress_summary(gate: dict[str, Any]) -> dict[str, Any]:
     return {
         "stress_schema": gate.get("stress_schema"),
@@ -587,6 +646,46 @@ def _data_quality_lines(summary: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _target_structured_evidence_lines(summary: dict[str, Any]) -> list[str]:
+    if not summary:
+        return ["- n/a"]
+    coverage = summary.get("coverage") or {}
+    lines = [
+        f"- Status: {summary.get('status', 'n/a')}",
+        f"- Matched records: {summary.get('matched_record_count', 'n/a')}",
+        f"- Live / seed records: {summary.get('live_record_count', 'n/a')} / {summary.get('seed_record_count', 'n/a')}",
+        f"- Release-pinned / snapshot records: {summary.get('release_pinned_record_count', 'n/a')} / {summary.get('snapshot_record_count', 'n/a')}",
+        f"- Coverage: GTEx {coverage.get('gtex_gene_expression', coverage.get('gtex', 'n/a'))}, Allen {coverage.get('allen', 'n/a')}, CUSTOM {coverage.get('custom', 'n/a')}, tRNA {coverage.get('trna', 'n/a')}",
+        f"- Datasets: {', '.join(summary.get('datasets') or []) or 'n/a'}",
+    ]
+    top_records = summary.get("top_records") or []
+    if top_records:
+        lines.append("- Top matched structured records:")
+        for record in top_records[:5]:
+            detail = []
+            if record.get("gene"):
+                detail.append(str(record["gene"]))
+            if record.get("brain_region"):
+                detail.append(str(record["brain_region"]))
+            if record.get("cell_type"):
+                detail.append(str(record["cell_type"]))
+            if record.get("median_expression") is not None:
+                detail.append(f"{record.get('median_expression')} {record.get('unit', '')}".strip())
+            if record.get("number_of_cells") is not None:
+                detail.append(f"{record.get('number_of_cells')} cells")
+            lines.append(
+                "- {dataset}: {record_id} ({release}; match {match}; {kind}){detail}".format(
+                    dataset=record.get("dataset", "unknown"),
+                    record_id=record.get("id", "n/a"),
+                    release=record.get("release", "n/a"),
+                    match=_format_score(record.get("match_score")),
+                    kind="live" if record.get("is_live") else "seed/local" if record.get("is_seed") else "release-pinned",
+                    detail=f" - {', '.join(detail)}" if detail else "",
+                )
+            )
+    return lines
+
+
 def _optimizer_stress_lines(summary: dict[str, Any]) -> list[str]:
     if not summary:
         return ["- n/a"]
@@ -655,6 +754,18 @@ def _score_config_from_design(design: dict[str, Any]) -> ScoreConfig:
         "codon_availability_weights": tuple(sorted((score_config.get("codon_availability_weights") or {}).items())),
     }
     return ScoreConfig(**kwargs)
+
+
+def _target_record_is_live(record: dict[str, Any]) -> bool:
+    release = str(record.get("release") or "").lower()
+    return bool(record.get("source_request_url") and record.get("source_payload_sha256") and record.get("source_snapshot_path") and "seed" not in release)
+
+
+def _target_record_is_seed(record: dict[str, Any]) -> bool:
+    release = str(record.get("release") or "").lower()
+    source_file = str(record.get("_source_file") or "").lower()
+    summary = str(record.get("summary") or "").lower()
+    return "seed" in release or "seed" in source_file or "placeholder" in summary
 
 
 def _markdown_line_to_html(line: str) -> str:

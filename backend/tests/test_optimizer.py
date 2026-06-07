@@ -943,6 +943,8 @@ def test_qc_report_contains_rationale() -> None:
     assert report["project_metadata"]["optimizer_manifest_hash"] == report["optimizer_reproducibility"]["manifest_hash"]
     assert report["optimizer_reproducibility"]["repair_policy"]["enabled"] is True
     assert "maximize_cai" in report["optimizer_reproducibility"]["objective_inventory"]
+    assert report["target_structured_evidence"]["matched_record_count"] >= 1
+    assert "top_records" in report["target_structured_evidence"]
     markdown = export_qc_report(report, "markdown")
     html = export_qc_report(report, "html")
     json_report = export_qc_report(report, "json")
@@ -950,6 +952,7 @@ def test_qc_report_contains_rationale() -> None:
     assert "# Gene Therapy Design QC Report" in markdown
     assert "## QC Gate" in markdown
     assert "## Candidate Diagnostics" in markdown
+    assert "## Target Structured Evidence" in markdown
     assert "## Optimizer Reproducibility" in markdown
     assert "<html" in html
     assert '"project_metadata"' in json_report
