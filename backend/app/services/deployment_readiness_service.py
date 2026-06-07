@@ -15,6 +15,7 @@ from app.services.artifact_archive_service import (
 )
 from app.services.artifact_object_store_service import artifact_object_store_status
 from app.services.data_provenance_service import data_provenance_audit
+from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
 from app.services.data_snapshot_service import build_data_snapshot_bundle
 from app.services.export_manifest_service import verify_artifact_bundle
 from app.services.governance_service import build_governance_attestation_bundle, verify_governance_attestation_bundle
@@ -36,6 +37,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
     validation = validate_structured_records()
     structured_quality = structured_quality_gate()
     provenance = data_provenance_audit()
+    data_release_bundle = verify_data_release_bundle(build_data_release_bundle())
     rag = rag_status()
     embedding = rag_embedding_status()
     rag_regression = evaluate_rag_regression()
@@ -118,6 +120,26 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
             },
             fail_message="Structured data quality gate failed.",
             warn_message="Structured data has seed/local priors, missing live coverage, or source coverage gaps.",
+        ),
+        _gate(
+            "data_release_bundle",
+            data_release_bundle["status"] in {"pass", "warning"} and data_release_bundle["semantic_status"] in {"pass", "warning"},
+            _warning=data_release_bundle["status"] == "pass"
+            and data_release_bundle["semantic_status"] == "pass"
+            and data_release_bundle["promotion_status"] == "pass",
+            details={
+                "status": data_release_bundle["status"],
+                "semantic_status": data_release_bundle["semantic_status"],
+                "promotion_status": data_release_bundle["promotion_status"],
+                "record_count": data_release_bundle["record_count"],
+                "structured_manifest_hash": data_release_bundle["structured_manifest_hash"],
+                "structured_source_file_count": data_release_bundle["structured_source_file_count"],
+                "required_files": data_release_bundle["semantic_checks"].get("required_files"),
+                "record_rows": data_release_bundle["semantic_checks"].get("record_rows"),
+                "structured_source_bytes": data_release_bundle["semantic_checks"].get("structured_source_bytes"),
+            },
+            fail_message="Data release evidence bundle verification failed.",
+            warn_message="Data release bundle is semantically valid but still has promotion caveats.",
         ),
         _gate(
             "rag_regression",

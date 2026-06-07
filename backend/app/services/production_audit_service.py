@@ -24,6 +24,7 @@ from app.services.artifact_archive_service import (
 from app.services.artifact_object_store_service import artifact_object_store_status
 from app.services.audit_log_service import audit_summary
 from app.services.data_provenance_service import data_provenance_audit
+from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
 from app.services.deployment_readiness_service import deployment_readiness
 from app.services.export_manifest_service import ManifestedZip, verify_artifact_bundle
 from app.services.external_data_service import external_source_status
@@ -89,6 +90,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
     storage = _timed("storage", timings, storage_status)
     provenance = _timed("data_provenance", timings, data_provenance_audit)
     structured_quality = _timed("structured_quality", timings, structured_quality_gate)
+    data_release_bundle = _timed("data_release_bundle", timings, lambda: verify_data_release_bundle(build_data_release_bundle()))
     rag = _timed("rag_diagnostics", timings, rag_diagnostics)
     embedding = _timed("rag_embedding", timings, rag_embedding_status)
     optimizer = _timed("optimizer_diagnostics", timings, optimizer_diagnostics)
@@ -141,6 +143,15 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             structured_quality.get("status") in {"pass", "warning"},
             structured_quality.get("status") == "pass",
             structured_quality,
+        ),
+        _check(
+            "data_release_bundle",
+            data_release_bundle.get("status") in {"pass", "warning"}
+            and data_release_bundle.get("semantic_status") in {"pass", "warning"},
+            data_release_bundle.get("status") == "pass"
+            and data_release_bundle.get("semantic_status") == "pass"
+            and data_release_bundle.get("promotion_status") == "pass",
+            data_release_bundle,
         ),
         _check("external_source_coverage", _external_coverage_ok(external_sources), True, external_sources),
         _check("rag_diagnostics", rag.get("status") in {"pass", "warning"}, rag.get("status") == "pass", rag),
@@ -212,6 +223,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             "storage": storage,
             "data_provenance": provenance,
             "structured_quality": structured_quality,
+            "data_release_bundle": data_release_bundle,
             "external_sources": external_sources,
             "rag_diagnostics": rag,
             "rag_embedding": embedding,
@@ -260,6 +272,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
         bundle.writestr("evidence/storage.json", _json(audit["evidence"]["storage"]))
         bundle.writestr("evidence/data_provenance.json", _json(audit["evidence"]["data_provenance"]))
         bundle.writestr("evidence/structured_quality.json", _json(audit["evidence"]["structured_quality"]))
+        bundle.writestr("evidence/data_release_bundle.json", _json(audit["evidence"]["data_release_bundle"]))
         bundle.writestr("evidence/external_sources.json", _json(audit["evidence"]["external_sources"]))
         bundle.writestr("evidence/rag_diagnostics.json", _json(audit["evidence"]["rag_diagnostics"]))
         bundle.writestr("evidence/rag_embedding.json", _json(audit["evidence"]["rag_embedding"]))

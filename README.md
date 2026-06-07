@@ -17,6 +17,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - Baseline audit recording for local seed/ingested data so reproducibility checks can start before a live external refresh.
 - Data lockfile support for pinning and drift-checking a reproducible data/RAG/document state.
 - Data release lockfile support for pinning structured dataset releases, file hashes, and release drift independently from runtime refresh state.
+- Data release bundle verification in deployment readiness and production audit evidence, including required file, row-count, source-byte, and promotion-status checks.
 - Data snapshot ZIP export for structured data, document extracts, RAG index, refresh log, manifests, and artifact-level SHA-256 audit manifests.
 - External source snapshot coverage and backfill controls for reproducible bundled/manual structured records.
 - Seeded NSGA-II synonymous optimizer with repair and manufacturing-policy scoring for GC/CpG/motif/polyA/splice/restriction-site/codon-pair/5-prime-GC/hairpin/secondary-structure-proxy/complexity constraints.
