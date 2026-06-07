@@ -775,6 +775,14 @@ type DeploymentReadinessStatus = {
     warning: number;
     fail: number;
   };
+  attention_gates?: string[];
+  required_actions?: Array<{
+    gate: string;
+    status: string;
+    priority: string;
+    message: string;
+    action: string;
+  }>;
   gates: Array<{
     name: string;
     status: string;
@@ -3935,7 +3943,7 @@ export default function Dashboard() {
               <span>Pass {deploymentReadiness?.summary?.pass ?? "n/a"}</span>
               <span>Warn {deploymentReadiness?.summary?.warning ?? "n/a"}</span>
               <span>Fail {deploymentReadiness?.summary?.fail ?? "n/a"}</span>
-              <span>Gates {deploymentReadiness?.gates?.length ?? "n/a"}</span>
+              <span>Actions {deploymentReadiness?.required_actions?.length ?? "n/a"}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>
@@ -3947,6 +3955,12 @@ export default function Dashboard() {
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>
             <div className="metrics-list">
+              {(deploymentReadiness?.required_actions ?? []).slice(0, 3).map((item) => (
+                <article key={`${item.gate}-${item.priority}`}>
+                  <strong>{item.gate.replaceAll("_", " ")} - {item.priority}</strong>
+                  <span>{item.action}</span>
+                </article>
+              ))}
               {readinessAttentionGates(deploymentReadiness).map((gate) => (
                 <article key={gate.name}>
                   <strong>{gate.name.replaceAll("_", " ")} - {gate.status}</strong>

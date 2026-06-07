@@ -400,6 +400,11 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
 def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
     readiness = deployment_readiness(openapi)
+    assert set(readiness["attention_gates"]) == {gate["name"] for gate in readiness["gates"] if gate["status"] != "pass"}
+    assert all(action["gate"] in readiness["attention_gates"] for action in readiness["required_actions"])
+    assert all(action["priority"] in {"blocking", "promotion"} for action in readiness["required_actions"])
+    if readiness["required_actions"]:
+        assert readiness["required_actions"][0]["action"]
     rag_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["cases_hash"]) == 64
     assert len(rag_gate["details"]["results_hash"]) == 64

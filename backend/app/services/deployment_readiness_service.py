@@ -515,11 +515,14 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
         "fail": sum(1 for gate in gates if gate["status"] == "fail"),
     }
     status = "fail" if counts["fail"] else "warning" if counts["warning"] else "pass"
+    required_actions = _required_actions(gates)
     return {
         "status": status,
         "deployment_ready": counts["fail"] == 0,
         "production_ready": counts["fail"] == 0 and counts["warning"] == 0,
         "summary": counts,
+        "attention_gates": [gate["name"] for gate in gates if gate["status"] != "pass"],
+        "required_actions": required_actions,
         "gates": gates,
     }
 
@@ -553,6 +556,55 @@ def _gate(
         status = "pass"
         message = "Gate passed."
     return {"name": name, "status": status, "message": message, "details": details}
+
+
+def _required_actions(gates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    actions = []
+    for gate in gates:
+        if gate["status"] == "pass":
+            continue
+        actions.append(
+            {
+                "gate": gate["name"],
+                "status": gate["status"],
+                "priority": "blocking" if gate["status"] == "fail" else "promotion",
+                "message": gate["message"],
+                "action": _gate_action(gate),
+            }
+        )
+    return actions
+
+
+def _gate_action(gate: dict[str, Any]) -> str:
+    name = gate["name"]
+    details = gate.get("details") or {}
+    if name == "structured_data":
+        return "Resolve structured validation errors and warnings, then rebuild manifests and RAG evidence."
+    if name == "data_provenance":
+        caveats = details.get("trna_prior_caveats") or {}
+        return str(caveats.get("operator_action") or "Refresh provenance, release locks, and external source snapshots.")
+    if name == "structured_quality":
+        actions = details.get("operator_actions") or []
+        return str(actions[0]) if actions else "Replace seed/local priors with release-pinned structured data."
+    if name == "data_release_bundle":
+        return "Regenerate the data release bundle after resolving promotion caveats and missing snapshot evidence."
+    if name == "rag_embedding_backend":
+        return "Configure a pinned biomedical sentence-transformers model or OpenAI embedding backend, rebuild the RAG index, and rerun regression."
+    if name == "rna_folding_backend":
+        return "Install ViennaRNA RNAfold, set RNA_FOLDING_BACKEND=rnafold, and rerun optimizer diagnostics."
+    if name == "storage":
+        return "Use STORAGE_BACKEND=postgres with DATABASE_URL and verify storage migration parity."
+    if name == "security":
+        return "Enable API auth, explicit API_KEY_ROLES, and positive RATE_LIMIT_PER_MINUTE."
+    if name == "artifact_signing":
+        return "Configure HMAC or Ed25519 artifact signing before promotion."
+    if name == "artifact_object_store":
+        return str(details.get("recommendation") or "Configure managed object-store mirroring for immutable archive retention.")
+    if name.endswith("_archive_semantics"):
+        return "Export a fresh semantic artifact bundle and verify archive freshness before promotion."
+    if name == "agent_memory":
+        return "Persist at least one reviewed design run so agent memory has reusable design evidence."
+    return gate["message"]
 
 
 def _signing_ready(signing: dict[str, Any]) -> bool:
