@@ -402,15 +402,20 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert data_release_gate["details"]["status"] in {"pass", "warning"}
     assert data_release_gate["details"]["latest_records_hash"] is None or len(data_release_gate["details"]["latest_records_hash"]) == 64
     assert data_release_gate["details"]["latest_records_csv_hash"] is None or len(data_release_gate["details"]["latest_records_csv_hash"]) == 64
+    assert data_release_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
+    assert data_release_gate["details"]["freshness_warning_hours"] > 0
     refresh_plan_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_refresh_plan_archive_semantics")
     assert refresh_plan_gate["details"]["status"] in {"pass", "warning"}
     assert refresh_plan_gate["details"]["latest_operation_count"] is None or refresh_plan_gate["details"]["latest_operation_count"] >= 1
+    assert refresh_plan_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
     vector_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_vector_index_archive_semantics")
     assert vector_archive_gate["details"]["status"] in {"pass", "warning"}
     assert vector_archive_gate["details"]["latest_chunk_count"] is None or vector_archive_gate["details"]["latest_chunk_count"] >= 1
+    assert vector_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
     optimizer_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark_archive_semantics")
     assert optimizer_archive_gate["details"]["status"] in {"pass", "warning"}
     assert optimizer_archive_gate["details"]["latest_stress_status"] in {None, "pass", "warning"}
+    assert optimizer_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:

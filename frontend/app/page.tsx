@@ -3884,9 +3884,12 @@ export default function Dashboard() {
               <span>Gates {deploymentReadiness?.gates?.length ?? "n/a"}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
+              <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
+              <span>Plan fresh {deploymentGateFreshness(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
+              <span>Vector fresh {deploymentGateFreshness(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>
             <div className="metrics-list">
@@ -5058,6 +5061,19 @@ function readinessAttentionGates(readiness?: DeploymentReadinessStatus | null) {
 
 function deploymentGateStatus(readiness: DeploymentReadinessStatus | null | undefined, name: string) {
   return readiness?.gates?.find((gate) => gate.name === name)?.status ?? "n/a";
+}
+
+function deploymentGateFreshness(readiness: DeploymentReadinessStatus | null | undefined, name: string) {
+  const details = readiness?.gates?.find((gate) => gate.name === name)?.details;
+  if (!details) return "n/a";
+  return formatArchiveFreshness({
+    freshness_status: typeof details.freshness_status === "string" ? details.freshness_status : undefined,
+    latest_age_hours: typeof details.latest_age_hours === "number" ? details.latest_age_hours : null,
+    latest_created_at: typeof details.latest_created_at === "string" ? details.latest_created_at : null,
+    freshness_policy: {
+      warning_hours: typeof details.freshness_warning_hours === "number" ? details.freshness_warning_hours : undefined,
+    },
+  });
 }
 
 function deploymentTrnaCaveatCount(readiness: DeploymentReadinessStatus | null | undefined) {

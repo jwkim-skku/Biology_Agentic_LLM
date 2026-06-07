@@ -367,6 +367,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "semantic_pass_count": qc_archive["semantic_pass_count"],
                 "semantic_warning_count": qc_archive["semantic_warning_count"],
                 "semantic_fail_count": qc_archive["semantic_fail_count"],
+                **_archive_freshness_details(qc_archive),
             },
             fail_message="Archived QC bundle semantic verification failed.",
             warn_message="Archived QC bundles have semantic warnings.",
@@ -387,6 +388,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_external_snapshot_referenced_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("external_snapshot_referenced_count"),
                 "latest_external_snapshot_contained_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("external_snapshot_contained_count"),
                 "latest_external_snapshot_missing_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("external_snapshot_missing_count"),
+                **_archive_freshness_details(data_release_archive),
             },
             fail_message="Archived data release semantic verification failed.",
             warn_message="Archived data release bundles have semantic warnings.",
@@ -404,6 +406,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_operation_count": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("operation_count"),
                 "latest_validation_status": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("validation_status"),
                 "latest_dataset_id": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("dataset_id"),
+                **_archive_freshness_details(data_refresh_plan_archive),
             },
             fail_message="Archived data refresh plan semantic verification failed.",
             warn_message="Archived data refresh plan bundles have semantic warnings.",
@@ -418,6 +421,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "semantic_pass_count": import_archive["semantic_pass_count"],
                 "semantic_warning_count": import_archive["semantic_warning_count"],
                 "semantic_fail_count": import_archive["semantic_fail_count"],
+                **_archive_freshness_details(import_archive),
             },
             fail_message="Archived structured import audit semantic verification failed.",
             warn_message="Archived structured import audit bundles have semantic warnings.",
@@ -432,6 +436,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "semantic_pass_count": rag_archive["semantic_pass_count"],
                 "semantic_warning_count": rag_archive["semantic_warning_count"],
                 "semantic_fail_count": rag_archive["semantic_fail_count"],
+                **_archive_freshness_details(rag_archive),
             },
             fail_message="Archived RAG evaluation bundle semantic verification failed.",
             warn_message="Archived RAG evaluation bundles have semantic warnings.",
@@ -446,6 +451,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "semantic_pass_count": rag_regression_archive["semantic_pass_count"],
                 "semantic_warning_count": rag_regression_archive["semantic_warning_count"],
                 "semantic_fail_count": rag_regression_archive["semantic_fail_count"],
+                **_archive_freshness_details(rag_regression_archive),
             },
             fail_message="Archived RAG regression bundle semantic verification failed.",
             warn_message="Archived RAG regression bundles have semantic warnings.",
@@ -464,6 +470,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_embedding_dimensions": (rag_vector_index_archive.get("latest_artifacts") or [{}])[0].get("embedding_dimensions"),
                 "latest_recommended_backend": (rag_vector_index_archive.get("latest_artifacts") or [{}])[0].get("recommended_backend"),
                 "latest_structured_manifest_hash": (rag_vector_index_archive.get("latest_artifacts") or [{}])[0].get("structured_manifest_hash"),
+                **_archive_freshness_details(rag_vector_index_archive),
             },
             fail_message="Archived RAG vector index bundle semantic verification failed.",
             warn_message="Archived RAG vector index bundles have semantic warnings.",
@@ -483,6 +490,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_stress_status": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("stress_status"),
                 "latest_case_count": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("case_count"),
                 "latest_cases_hash": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("cases_hash"),
+                **_archive_freshness_details(optimizer_archive),
             },
             fail_message="Archived optimizer benchmark bundle semantic verification failed.",
             warn_message="Archived optimizer benchmark bundles have semantic warnings.",
@@ -501,6 +509,16 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
         "production_ready": counts["fail"] == 0 and counts["warning"] == 0,
         "summary": counts,
         "gates": gates,
+    }
+
+
+def _archive_freshness_details(summary: dict[str, Any]) -> dict[str, Any]:
+    policy = summary.get("freshness_policy") or {}
+    return {
+        "freshness_status": summary.get("freshness_status"),
+        "latest_created_at": summary.get("latest_created_at"),
+        "latest_age_hours": summary.get("latest_age_hours"),
+        "freshness_warning_hours": policy.get("warning_hours"),
     }
 
 
