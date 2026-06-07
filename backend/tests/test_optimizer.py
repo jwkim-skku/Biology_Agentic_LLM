@@ -407,6 +407,8 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     refresh_plan_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_refresh_plan_archive_semantics")
     assert refresh_plan_gate["details"]["status"] in {"pass", "warning"}
     assert refresh_plan_gate["details"]["latest_operation_count"] is None or refresh_plan_gate["details"]["latest_operation_count"] >= 1
+    assert refresh_plan_gate["details"]["latest_request_hash"] is None or len(refresh_plan_gate["details"]["latest_request_hash"]) == 64
+    assert refresh_plan_gate["details"]["latest_operations_hash"] is None or len(refresh_plan_gate["details"]["latest_operations_hash"]) == 64
     assert refresh_plan_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
     vector_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_vector_index_archive_semantics")
     assert vector_archive_gate["details"]["status"] in {"pass", "warning"}
@@ -738,6 +740,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 "latest_artifacts": [
                     {
                         "operation_count": 2,
+                        "request_hash": valid_hash,
+                        "operations_hash": valid_hash,
                         "validation_status": "pass",
                         "dataset_id": "gtex_v8",
                         "structured_manifest_hash": valid_hash,
@@ -751,6 +755,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"validation_status": "pass"}]}},
     )
     assert "operation_count" in " ".join(refresh_plan_failures)
+    assert "request_hash" in " ".join(refresh_plan_failures)
+    assert "operations_hash" in " ".join(refresh_plan_failures)
     assert "dataset_id" in " ".join(refresh_plan_failures)
     assert "structured_manifest_hash" in " ".join(refresh_plan_failures)
     assert module.api_failures(
@@ -1504,6 +1510,10 @@ def test_data_catalog_and_refresh_plan() -> None:
     assert verification["status"] in {"pass", "warning"}
     assert verification["semantic_checks"]["dry_run"] == "pass"
     assert verification["semantic_checks"]["operation_count_csv"] == "pass"
+    assert verification["semantic_checks"]["request_hash"] == "pass"
+    assert verification["semantic_checks"]["operations_hash"] == "pass"
+    assert len(verification["request_hash"]) == 64
+    assert len(verification["operations_hash"]) == 64
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_data_refresh_plan_bundle",
@@ -1513,13 +1523,19 @@ def test_data_catalog_and_refresh_plan() -> None:
     )
     semantic = archived["metadata"]["data_refresh_plan_semantic_verification"]
     assert semantic["operation_count"] >= 1
+    assert semantic["request_hash"] == verification["request_hash"]
+    assert semantic["operations_hash"] == verification["operations_hash"]
     assert semantic["dataset_id"] == "gtex_v8"
     summary = data_refresh_plan_archive_summary(limit=5, verify_files=False)
     assert summary["verification_mode"] == "indexed"
     assert summary["freshness_status"] == "fresh"
     assert summary["latest_age_hours"] is not None
     assert any(
-        item["artifact_id"] == archived["artifact_id"] and item["operation_count"] >= 1 and item["dataset_id"] == "gtex_v8"
+        item["artifact_id"] == archived["artifact_id"]
+        and item["operation_count"] >= 1
+        and item["request_hash"] == verification["request_hash"]
+        and item["operations_hash"] == verification["operations_hash"]
+        and item["dataset_id"] == "gtex_v8"
         for item in summary["latest_artifacts"]
     )
 

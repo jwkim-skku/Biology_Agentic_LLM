@@ -532,6 +532,10 @@ def api_failures(name: str, details: Any) -> list[str]:
         checked_count = int(payload.get("checked_count") or 0)
         if checked_count and int(latest.get("operation_count") or 0) < 1:
             failures.append("latest data refresh plan archive is missing operation_count")
+        if checked_count and not latest.get("request_hash"):
+            failures.append("latest data refresh plan archive is missing request_hash")
+        if checked_count and not latest.get("operations_hash"):
+            failures.append("latest data refresh plan archive is missing operations_hash")
         if checked_count and not latest.get("validation_status"):
             failures.append("latest data refresh plan archive is missing validation_status")
         if checked_count and not latest.get("dataset_id"):

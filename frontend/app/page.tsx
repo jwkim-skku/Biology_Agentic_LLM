@@ -825,6 +825,8 @@ type ProductionAuditStatus = {
         artifact_id: string;
         semantic_status?: string;
         operation_count?: number | null;
+        request_hash?: string | null;
+        operations_hash?: string | null;
         validation_status?: string | null;
         structured_manifest_hash?: string | null;
         release_lock_status?: string | null;
@@ -1105,6 +1107,8 @@ type DataRefreshPlanArchiveSemanticSummary = ArchiveSemanticFreshness & {
     artifact_id: string;
     semantic_status?: string;
     operation_count?: number | null;
+    request_hash?: string | null;
+    operations_hash?: string | null;
     validation_status?: string | null;
     structured_manifest_hash?: string | null;
     release_lock_status?: string | null;
@@ -3979,6 +3983,10 @@ export default function Dashboard() {
                 validation {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.validation_status ?? "n/a"}
               </span>
               <span>
+                Plan hash {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.operations_hash?.slice(0, 10) ?? "n/a"} /
+                request {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.request_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Plan dataset {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.dataset_id ?? "n/a"} /
                 lock {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.release_lock_status ?? "n/a"}
               </span>
@@ -4232,6 +4240,10 @@ export default function Dashboard() {
               <span>
                 Dataset {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.dataset_id ?? "n/a"} / manifest{" "}
                 {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.structured_manifest_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Ops hash {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.operations_hash?.slice(0, 10) ?? "n/a"} / request{" "}
+                {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.request_hash?.slice(0, 10) ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="RAG evaluation archive summary">

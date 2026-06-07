@@ -404,6 +404,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "semantic_warning_count": data_refresh_plan_archive["semantic_warning_count"],
                 "semantic_fail_count": data_refresh_plan_archive["semantic_fail_count"],
                 "latest_operation_count": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("operation_count"),
+                "latest_request_hash": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("request_hash"),
+                "latest_operations_hash": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("operations_hash"),
                 "latest_validation_status": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("validation_status"),
                 "latest_dataset_id": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("dataset_id"),
                 **_archive_freshness_details(data_refresh_plan_archive),

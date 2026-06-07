@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from datetime import datetime, timezone
+from hashlib import sha256
 from io import BytesIO, StringIO
 from typing import Any
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
@@ -44,11 +45,15 @@ def build_data_refresh_plan_bundle(request_payload: dict[str, Any]) -> bytes:
     manifest = structured_manifest()
     status = structured_status()
     release_lock = verify_data_release_lock()
+    request_json = _json(normalized)
+    operations_csv = _operations_csv(plan.get("operations") or [])
     metadata = {
         "bundle_schema": "agentic-rag-data-refresh-plan-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "dataset_id": normalized["dataset_id"],
         "operation_count": len(plan.get("operations") or []),
+        "request_hash": _hash_text(request_json),
+        "operations_hash": _hash_text(operations_csv),
         "validation_status": validation.get("status"),
         "structured_manifest_hash": manifest.get("manifest_hash"),
         "release_lock_status": release_lock.get("status"),
@@ -58,10 +63,10 @@ def build_data_refresh_plan_bundle(request_payload: dict[str, Any]) -> bytes:
     with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
         bundle = ManifestedZip(archive, "data_refresh_plan_bundle", metadata)
         bundle.writestr("bundle_manifest.json", _json(metadata))
-        bundle.writestr("request.json", _json(normalized))
+        bundle.writestr("request.json", request_json)
         bundle.writestr("refresh_plan.json", _json(plan))
         bundle.writestr("validation.json", _json(validation))
-        bundle.writestr("operations.csv", _operations_csv(plan.get("operations") or []))
+        bundle.writestr("operations.csv", operations_csv)
         bundle.writestr("data_catalog.json", _json(data_catalog()))
         bundle.writestr("structured_status.json", _json(status))
         bundle.writestr("structured_manifest.json", _json(manifest))
@@ -83,6 +88,8 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
     semantic_checks: dict[str, str] = {}
     payloads: dict[str, dict[str, Any]] = {}
     operations_rows: list[dict[str, str]] = []
+    request_text = ""
+    operations_text = ""
 
     if base.get("artifact_type") != "data_refresh_plan_bundle":
         semantic_errors.append("Artifact manifest artifact_type must be data_refresh_plan_bundle.")
@@ -100,7 +107,8 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
             else:
                 semantic_checks["required_files"] = "pass"
                 payloads = {name: _read_json(archive, name) for name in REQUIRED_DATA_REFRESH_PLAN_FILES if name.endswith(".json")}
-                operations_rows = _read_operations_csv(archive)
+                request_text = archive.read("request.json").decode("utf-8")
+                operations_rows, operations_text = _read_operations_csv(archive)
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         semantic_errors.append(f"Invalid data refresh plan bundle: {exc}")
 
@@ -162,6 +170,22 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
         operation_count,
         "operations.csv row count does not match refresh_plan.json.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "request_hash",
+        bundle_manifest.get("request_hash"),
+        _hash_text(request_text),
+        "bundle_manifest.json request_hash does not match request.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "operations_hash",
+        bundle_manifest.get("operations_hash"),
+        _hash_text(operations_text),
+        "bundle_manifest.json operations_hash does not match operations.csv.",
+    )
 
     manifest_hashes = {
         str(value)
@@ -221,6 +245,8 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
         "semantic_warnings": semantic_warnings,
         "semantic_checks": semantic_checks,
         "operation_count": operation_count,
+        "request_hash": bundle_manifest.get("request_hash"),
+        "operations_hash": bundle_manifest.get("operations_hash"),
         "validation_status": validation.get("status"),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
         "release_lock_status": release_lock.get("status"),
@@ -266,9 +292,13 @@ def _operations_csv(operations: list[dict[str, Any]]) -> str:
     return output.getvalue()
 
 
-def _read_operations_csv(archive: ZipFile) -> list[dict[str, str]]:
+def _read_operations_csv(archive: ZipFile) -> tuple[list[dict[str, str]], str]:
     text = archive.read("operations.csv").decode("utf-8")
-    return list(csv.DictReader(StringIO(text)))
+    return list(csv.DictReader(StringIO(text))), text
+
+
+def _hash_text(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()
 
 
 def _expect_equal(

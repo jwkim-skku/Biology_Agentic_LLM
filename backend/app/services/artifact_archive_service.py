@@ -379,7 +379,15 @@ def data_refresh_plan_archive_summary(limit: int = 20, *, verify_files: bool = T
         artifact_type="data_refresh_plan_bundle",
         metadata_key="data_refresh_plan_semantic_verification",
         label="data refresh plan bundle",
-        extra_fields=("operation_count", "validation_status", "structured_manifest_hash", "release_lock_status", "dataset_id"),
+        extra_fields=(
+            "operation_count",
+            "request_hash",
+            "operations_hash",
+            "validation_status",
+            "structured_manifest_hash",
+            "release_lock_status",
+            "dataset_id",
+        ),
     )
 
 
@@ -473,6 +481,8 @@ def _data_refresh_plan_semantic_metadata(verification: dict[str, Any]) -> dict[s
         "status": verification.get("status"),
         "semantic_status": verification.get("semantic_status"),
         "operation_count": verification.get("operation_count"),
+        "request_hash": verification.get("request_hash"),
+        "operations_hash": verification.get("operations_hash"),
         "validation_status": verification.get("validation_status"),
         "structured_manifest_hash": verification.get("structured_manifest_hash"),
         "release_lock_status": verification.get("release_lock_status"),
