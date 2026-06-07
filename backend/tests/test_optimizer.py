@@ -425,6 +425,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert len(audit["evidence"]["optimizer_diagnostics"]["benchmark"]["results_hash"]) == 64
     assert verification["status"] in {"pass", "warning"}
     assert verification["semantic_checks"]["deployment_readiness_evidence"] == "pass"
+    assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
+    assert verification["semantic_checks"]["promotion_summary_recomputed"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_hash"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_steps"] == "pass"
@@ -487,6 +489,37 @@ def test_production_audit_bundle_rejects_tampered_action_detail_hash() -> None:
     verification = verify_production_audit_bundle(buffer.getvalue())
     assert verification["semantic_checks"]["required_action_detail_hashes"] == "fail"
     assert "detail_hash" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_tampered_promotion_summary() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    promotion = json.loads(source.read("evidence/promotion_summary.json").decode("utf-8"))
+
+    promotion["production_ready"] = True
+    promotion["required_actions"] = []
+    audit["promotion_summary"] = promotion
+    audit["evidence"]["promotion_summary"] = promotion
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/promotion_summary.json":
+                tampered.writestr(item, json.dumps(promotion, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
+    assert verification["semantic_checks"]["promotion_summary_recomputed"] == "fail"
+    assert "promotion_summary" in " ".join(verification["errors"])
 
 
 def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:

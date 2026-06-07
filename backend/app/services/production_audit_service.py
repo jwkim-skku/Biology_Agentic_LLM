@@ -421,6 +421,21 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             _record_semantic_check(
                 semantic_checks,
                 errors,
+                "promotion_summary_evidence",
+                audit.get("promotion_summary") == (evidence.get("promotion_summary") or {}),
+                "production_audit.json promotion_summary does not match embedded promotion_summary evidence.",
+            )
+            recomputed_promotion = _promotion_summary_from_audit(audit)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "promotion_summary_recomputed",
+                audit.get("promotion_summary") == recomputed_promotion,
+                "production_audit.json promotion_summary does not match recomputed promotion evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
                 "workflow_trace_archive_evidence",
                 workflow_trace_archive == (evidence.get("workflow_trace_archive_semantics") or {}),
                 "evidence/workflow_trace_archive_semantics.json does not match production_audit.json evidence.",
@@ -776,6 +791,25 @@ def _required_action_detail_hash_mismatches(deployment_readiness: dict[str, Any]
         if action.get("detail_hash") != expected_hash:
             mismatches.append(gate_name)
     return mismatches
+
+
+def _promotion_summary_from_audit(audit: dict[str, Any]) -> dict[str, Any]:
+    evidence = audit.get("evidence") or {}
+    runtime = audit.get("runtime") or {}
+    security = evidence.get("security") or {}
+    return _promotion_summary(
+        summary=audit.get("summary") or {},
+        readiness=evidence.get("deployment_readiness") or {},
+        structured_quality=evidence.get("structured_quality") or {},
+        data_release_bundle=evidence.get("data_release_bundle") or {},
+        rag_embedding=evidence.get("rag_embedding") or {},
+        optimizer=evidence.get("optimizer_diagnostics") or {},
+        folding=evidence.get("rna_folding") or {},
+        storage=evidence.get("storage") or {},
+        security=security,
+        signing=runtime.get("signing") or security.get("signing") or {},
+        object_store=evidence.get("artifact_object_store") or {},
+    )
 
 
 def _summary(checks: list[dict[str, Any]]) -> dict[str, Any]:
