@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -118,7 +119,9 @@ def main() -> int:
 
     summary = summarize(checks)
     report = {
+        "audit_schema": "agentic-rag-cli-production-audit-v1",
         "generated_at": started.isoformat(),
+        "purpose": "deployment promotion evidence for the Agentic RAG codon optimization platform",
         "duration_seconds": round(time.perf_counter() - STARTED_MONOTONIC, 3),
         "mode": {
             "env": "template" if args.template else "strict",
@@ -132,6 +135,7 @@ def main() -> int:
         "summary": summary,
         "checks": checks,
     }
+    report["audit_hash"] = audit_hash(report)
 
     if args.no_write:
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -467,6 +471,12 @@ def compact_text(text: str, limit: int = 2000) -> str:
     return stripped[:limit] + "...<truncated>"
 
 
+def audit_hash(report: dict[str, Any]) -> str:
+    unsigned = {key: value for key, value in report.items() if key != "audit_hash"}
+    canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return sha256(canonical).hexdigest()
+
+
 def summarize(checks: list[dict[str, Any]]) -> dict[str, Any]:
     failures = [check["name"] for check in checks if check.get("status") == "fail"]
     warnings = [check["name"] for check in checks if check.get("warnings") or check.get("status") == "warning"]
@@ -483,7 +493,10 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines = [
         "# Production Audit Report",
         "",
+        f"- Audit schema: `{report.get('audit_schema', 'n/a')}`",
+        f"- Audit hash: `{report.get('audit_hash', 'n/a')}`",
         f"- Generated at: `{report['generated_at']}`",
+        f"- Purpose: `{report.get('purpose', 'n/a')}`",
         f"- Status: `{summary['status']}`",
         f"- Checks: `{summary['checks']}`",
         f"- Failures: `{len(summary['failures'])}`",
@@ -503,6 +516,24 @@ def render_markdown(report: dict[str, Any]) -> str:
                 failures=escape_cell("; ".join(check.get("failures", [])) or "-"),
                 warnings=escape_cell("; ".join(check.get("warnings", [])) or "-"),
             )
+        )
+    preflight = next((check for check in report["checks"] if check.get("name") == "preflight_evidence"), None)
+    if preflight:
+        details = preflight.get("details") if isinstance(preflight.get("details"), dict) else {}
+        lines.extend(
+            [
+                "",
+                "## Preflight Evidence",
+                "",
+                f"- Status: `{preflight.get('status', 'n/a')}`",
+                f"- Evidence path: `{details.get('path', preflight.get('path', 'n/a'))}`",
+                f"- Generated at: `{details.get('generated_at', 'n/a')}`",
+                f"- Age hours: `{details.get('age_hours', 'n/a')}`",
+                f"- Required checks: `{len(details.get('required_checks') or [])}`",
+                f"- Missing required checks: `{len(details.get('missing_required_checks') or [])}`",
+                f"- Failed checks: `{len(details.get('failed') or [])}`",
+                f"- Skipped checks: `{len(details.get('skipped') or [])}`",
+            ]
         )
     lines.extend(["", "## Operator Notes", ""])
     if summary["failures"]:
