@@ -280,6 +280,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "semantic_checks": semantic_checks,
         "benchmark_status": benchmark.get("status"),
         "diagnostics_status": diagnostics.get("status"),
+        "stress_status": stress.get("status"),
         "case_count": case_count,
         "cases_hash": next(iter(case_hashes), None),
         "results_hash": next(iter(result_hashes), None),

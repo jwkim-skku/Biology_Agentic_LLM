@@ -543,6 +543,19 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest RAG vector index archive is missing retrieval_model")
         if checked_count and not latest.get("structured_manifest_hash"):
             failures.append("latest RAG vector index archive is missing structured_manifest_hash")
+    if name == "optimizer_benchmark_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and latest.get("benchmark_status") not in {"pass", "warning"}:
+            failures.append("latest optimizer benchmark archive is missing pass/warning benchmark_status")
+        if checked_count and latest.get("diagnostics_status") not in {"pass", "warning"}:
+            failures.append("latest optimizer benchmark archive is missing pass/warning diagnostics_status")
+        if checked_count and latest.get("stress_status") not in {"pass", "warning"}:
+            failures.append("latest optimizer benchmark archive is missing pass/warning stress_status")
+        if checked_count and int(latest.get("case_count") or 0) < 1:
+            failures.append("latest optimizer benchmark archive is missing case_count")
+        if checked_count and not latest.get("cases_hash"):
+            failures.append("latest optimizer benchmark archive is missing cases_hash")
     return failures
 
 

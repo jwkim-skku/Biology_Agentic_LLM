@@ -39,6 +39,7 @@ from app.services.artifact_archive_service import (
     data_refresh_plan_archive_summary,
     data_release_archive_summary,
     list_archived_artifacts,
+    optimizer_benchmark_archive_summary,
     plan_artifact_retention,
     qc_bundle_archive_semantic_summary,
     rag_vector_index_archive_summary,
@@ -407,6 +408,9 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     vector_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_vector_index_archive_semantics")
     assert vector_archive_gate["details"]["status"] in {"pass", "warning"}
     assert vector_archive_gate["details"]["latest_chunk_count"] is None or vector_archive_gate["details"]["latest_chunk_count"] >= 1
+    optimizer_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark_archive_semantics")
+    assert optimizer_archive_gate["details"]["status"] in {"pass", "warning"}
+    assert optimizer_archive_gate["details"]["latest_stress_status"] in {None, "pass", "warning"}
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
@@ -704,6 +708,32 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "embedding_model" in " ".join(vector_index_failures)
     assert "retrieval_model" in " ".join(vector_index_failures)
     assert "structured_manifest_hash" in " ".join(vector_index_failures)
+    assert module.api_failures(
+        "optimizer_benchmark_archive_semantics",
+        {
+            "data": {
+                "status": "pass",
+                "checked_count": 1,
+                "latest_artifacts": [
+                    {
+                        "benchmark_status": "pass",
+                        "diagnostics_status": "pass",
+                        "stress_status": "warning",
+                        "case_count": 3,
+                        "cases_hash": valid_hash,
+                    }
+                ],
+            }
+        },
+    ) == []
+    optimizer_archive_failures = module.api_failures(
+        "optimizer_benchmark_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"benchmark_status": "pass"}]}},
+    )
+    assert "diagnostics_status" in " ".join(optimizer_archive_failures)
+    assert "stress_status" in " ".join(optimizer_archive_failures)
+    assert "case_count" in " ".join(optimizer_archive_failures)
+    assert "cases_hash" in " ".join(optimizer_archive_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
@@ -1000,20 +1030,42 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["optimizer_seed_strategy"] == "pass"
     assert verification["semantic_checks"]["results_hash"] == "pass"
     assert verification["semantic_checks"]["case_metric_columns"] == "pass"
+    assert verification["semantic_checks"]["stress_schema"] == "pass"
+    assert verification["stress_status"] in {"pass", "warning"}
     assert len(verification["results_hash"]) == 64
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "search_strategy.json" in names
+        assert "stress_gate.json" in names
         search_strategy = json.loads(archive.read("search_strategy.json"))
+        stress = json.loads(archive.read("stress_gate.json"))
         manifest = json.loads(archive.read("bundle_manifest.json"))
         benchmark = json.loads(archive.read("benchmark.json"))
         case_metrics = archive.read("case_metrics.csv").decode("utf-8")
         assert search_strategy["strategy_schema"] == "agentic-rag-optimizer-search-strategy-v1"
         assert search_strategy["algorithm"] == manifest["optimizer_algorithm"]
         assert search_strategy["seed_strategy"] == manifest["optimizer_seed_strategy"]
+        assert stress["status"] == manifest["stress_status"] == verification["stress_status"]
         assert benchmark["results_hash"] == manifest["results_hash"] == verification["results_hash"]
         assert "recommendation_max_regret" in case_metrics
         assert "recommendation_tradeoff_count" in case_metrics
+    archived = archive_artifact_bundle(
+        bundle,
+        action="unit_test_optimizer_benchmark_bundle",
+        resource_type="optimizer_benchmark",
+        resource_id=str(verification.get("cases_hash") or "optimizer_benchmark"),
+        filename="unit_test_optimizer_benchmark_bundle.zip",
+        metadata={"verification_status": verification["status"]},
+    )
+    semantic = archived["metadata"]["optimizer_benchmark_semantic_verification"]
+    assert semantic["stress_status"] == verification["stress_status"]
+    summary = optimizer_benchmark_archive_summary(limit=5, verify_files=False)
+    assert any(
+        item["artifact_id"] == archived["artifact_id"]
+        and item["stress_status"] == verification["stress_status"]
+        and item["case_count"] == verification["case_count"]
+        for item in summary["latest_artifacts"]
+    )
 
 
 def test_repair_removes_synonymous_forbidden_motif() -> None:

@@ -1102,6 +1102,10 @@ type AuditBundleArchiveSemanticSummary = {
     artifact_id: string;
     semantic_status?: string;
     query_fingerprint?: string | null;
+    benchmark_status?: string | null;
+    diagnostics_status?: string | null;
+    stress_status?: string | null;
+    case_count?: number | null;
     cases_hash?: string | null;
     structured_manifest_hash?: string | null;
   }>;
@@ -4233,6 +4237,10 @@ export default function Dashboard() {
               </span>
               <span>
                 Latest cases {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.cases_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Stress {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.stress_status ?? "n/a"} / cases{" "}
+                {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.case_count ?? "n/a"}
               </span>
             </div>
             <div className="data-actions retention-actions">
