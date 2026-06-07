@@ -92,6 +92,9 @@ def _selected_case_metrics(metrics: dict[str, Any]) -> dict[str, Any]:
         "recommendation_best_metric_count",
         "recommendation_tradeoff_count",
         "recommendation_max_regret",
+        "pareto_quality_hash",
+        "recommended_on_pareto_front",
+        "feasible_pareto_front_count",
         "approx_hypervolume_2d",
         "runtime_ms",
     ]

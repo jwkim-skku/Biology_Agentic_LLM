@@ -125,6 +125,14 @@ type CandidateDiagnostics = {
     size: number;
     candidate_ids: string[];
   };
+  pareto_quality?: {
+    quality_schema?: string;
+    quality_hash?: string;
+    front_size?: number;
+    feasible_front_count?: number;
+    recommended_on_front?: boolean;
+    approx_hypervolume_2d?: number;
+  };
   diversity?: {
     unique_cds_count: number;
     mean_pairwise_codon_distance: number;
@@ -143,6 +151,7 @@ type RecommendationAudit = {
   hard_constraint_status: string;
   is_feasible: boolean;
   pareto_front_member: boolean;
+  pareto_quality_hash?: string | null;
   best_metric_count: number;
   tradeoff_count: number;
   max_regret: number;
@@ -4807,6 +4816,14 @@ function QcReportPanel({ report }: { report: QcReport }) {
         <div>
           <span>Pareto front</span>
           <strong>{diagnostics?.pareto_front?.size ?? "n/a"}</strong>
+        </div>
+        <div>
+          <span>Pareto HV</span>
+          <strong>{formatMetric(diagnostics?.pareto_quality?.approx_hypervolume_2d, 3)}</strong>
+        </div>
+        <div>
+          <span>Pareto hash</span>
+          <strong>{diagnostics?.pareto_quality?.quality_hash?.slice(0, 10) ?? "n/a"}</strong>
         </div>
         <div>
           <span>Data quality</span>

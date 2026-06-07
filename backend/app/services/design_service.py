@@ -208,6 +208,7 @@ def _candidate_diagnostics(candidates: list[dict], recommended: dict | None, sco
         "secondary_structure_proxy_score",
         "low_complexity_penalty",
     ]
+    pareto_quality = _pareto_quality(candidates, pareto_ids, recommended)
     diagnostics = {
         "candidate_count": len(candidates),
         "feasible_count": len(feasible),
@@ -229,6 +230,7 @@ def _candidate_diagnostics(candidates: list[dict], recommended: dict | None, sco
             "size": len(pareto_ids),
             "candidate_ids": pareto_ids,
         },
+        "pareto_quality": pareto_quality,
         "diversity": _candidate_diversity(candidates),
         "score_ranges": {metric: _score_range(candidates, metric) for metric in score_metrics},
         "best_by_metric": {
@@ -375,6 +377,7 @@ def _recommendation_audit(candidates: list[dict], recommended: dict | None, diag
         "recommended_sequence_policy_findings": recommended_sequence_policy.get("finding_count"),
         "sequence_policy_audit_hash": sequence_policy.get("audit_hash"),
         "pareto_front_member": (recommended or {}).get("candidate_id") in set((diagnostics.get("pareto_front") or {}).get("candidate_ids") or []),
+        "pareto_quality_hash": (diagnostics.get("pareto_quality") or {}).get("quality_hash"),
         "best_metric_count": sum(1 for item in tradeoffs if item["is_metric_best"]),
         "tradeoff_count": len(nonzero_regrets),
         "max_regret": round(max((item["regret"] for item in tradeoffs), default=0.0), 6),
@@ -454,6 +457,34 @@ def _pareto_front_candidate_ids(candidates: list[dict]) -> list[str]:
     return [candidate_id for candidate_id in front if candidate_id]
 
 
+def _pareto_quality(candidates: list[dict], pareto_ids: list[str], recommended: dict | None) -> dict:
+    pareto_set = set(pareto_ids)
+    front = [candidate for candidate in candidates if candidate.get("candidate_id") in pareto_set]
+    recommended_id = (recommended or {}).get("candidate_id")
+    payload = {
+        "quality_schema": "agentic-rag-pareto-quality-v1",
+        "candidate_count": len(candidates),
+        "front_size": len(front),
+        "front_fraction": round(len(front) / max(len(candidates), 1), 6),
+        "feasible_front_count": sum(1 for candidate in front if _is_feasible_candidate(candidate)),
+        "recommended_candidate_id": recommended_id,
+        "recommended_on_front": bool(recommended_id and recommended_id in pareto_set),
+        "approx_hypervolume_2d": _approx_hypervolume(candidates),
+        "front_score_ranges": {
+            metric: _score_range(front, metric)
+            for metric in [
+                "composite_quality",
+                "cai",
+                "tissue_codon_adaptation",
+                "sequence_policy_violation_score",
+                "secondary_structure_proxy_score",
+                "low_complexity_penalty",
+            ]
+        },
+    }
+    return {**payload, "quality_hash": _hash_payload(payload)}
+
+
 def _diagnostic_objectives(candidate: dict) -> tuple[float, ...]:
     scores = candidate.get("scores") or {}
     return (
@@ -504,6 +535,27 @@ def _codon_distance(left: str, right: str) -> float:
     mismatches = sum(1 for idx in range(comparable) if left_codons[idx] != right_codons[idx])
     length_penalty = abs(len(left_codons) - len(right_codons))
     return (mismatches + length_penalty) / max(len(left_codons), len(right_codons), 1)
+
+
+def _approx_hypervolume(candidates: list[dict]) -> float:
+    points = sorted(
+        {
+            (
+                max(0.0, min(1.0, float((candidate.get("scores") or {}).get("composite_quality") or 0.0))),
+                max(0.0, min(1.0, 1.0 - float((candidate.get("scores") or {}).get("sequence_policy_violation_score") or 0.0))),
+            )
+            for candidate in candidates
+        },
+        reverse=True,
+    )
+    hypervolume = 0.0
+    best_y = 0.0
+    for x, y in points:
+        if y <= best_y:
+            continue
+        hypervolume += x * (y - best_y)
+        best_y = y
+    return round(hypervolume, 6)
 
 
 def _apply_target_priors(config: OptimizationConfig, target: dict) -> tuple[OptimizationConfig, str]:

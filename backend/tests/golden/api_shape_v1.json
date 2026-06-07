@@ -78,6 +78,49 @@
         ],
         "size": "int"
       },
+      "pareto_quality": {
+        "approx_hypervolume_2d": "float",
+        "candidate_count": "int",
+        "feasible_front_count": "int",
+        "front_fraction": "float",
+        "front_score_ranges": {
+          "cai": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "composite_quality": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "low_complexity_penalty": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "secondary_structure_proxy_score": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "sequence_policy_violation_score": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "tissue_codon_adaptation": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          }
+        },
+        "front_size": "int",
+        "quality_hash": "str",
+        "quality_schema": "str",
+        "recommended_candidate_id": "str",
+        "recommended_on_front": "bool"
+      },
       "recommendation_audit": {
         "audit_schema": "str",
         "best_metric_count": "int",
@@ -85,6 +128,7 @@
         "is_feasible": "bool",
         "max_regret": "float",
         "pareto_front_member": "bool",
+        "pareto_quality_hash": "str",
         "primary_tradeoff": {
           "best_candidate_id": "str",
           "best_value": "float",
@@ -422,6 +466,49 @@
           ],
           "size": "int"
         },
+        "pareto_quality": {
+          "approx_hypervolume_2d": "float",
+          "candidate_count": "int",
+          "feasible_front_count": "int",
+          "front_fraction": "float",
+          "front_score_ranges": {
+            "cai": {
+              "max": "float",
+              "min": "float",
+              "spread": "float"
+            },
+            "composite_quality": {
+              "max": "float",
+              "min": "float",
+              "spread": "float"
+            },
+            "low_complexity_penalty": {
+              "max": "float",
+              "min": "float",
+              "spread": "float"
+            },
+            "secondary_structure_proxy_score": {
+              "max": "float",
+              "min": "float",
+              "spread": "float"
+            },
+            "sequence_policy_violation_score": {
+              "max": "float",
+              "min": "float",
+              "spread": "float"
+            },
+            "tissue_codon_adaptation": {
+              "max": "float",
+              "min": "float",
+              "spread": "float"
+            }
+          },
+          "front_size": "int",
+          "quality_hash": "str",
+          "quality_schema": "str",
+          "recommended_candidate_id": "str",
+          "recommended_on_front": "bool"
+        },
         "recommendation_audit": {
           "audit_schema": "str",
           "best_metric_count": "int",
@@ -429,6 +516,7 @@
           "is_feasible": "bool",
           "max_regret": "float",
           "pareto_front_member": "bool",
+          "pareto_quality_hash": "str",
           "primary_tradeoff": {
             "best_candidate_id": "str",
             "best_value": "float",
@@ -823,6 +911,7 @@
         "is_feasible": "bool",
         "max_regret": "float",
         "pareto_front_member": "bool",
+        "pareto_quality_hash": "str",
         "primary_tradeoff": {
           "best_candidate_id": "str",
           "best_value": "float",
@@ -1117,6 +1206,7 @@
       "is_feasible": "bool",
       "max_regret": "float",
       "pareto_front_member": "bool",
+      "pareto_quality_hash": "str",
       "primary_tradeoff": {
         "best_candidate_id": "str",
         "best_value": "float",
@@ -1390,6 +1480,49 @@
         ],
         "size": "int"
       },
+      "pareto_quality": {
+        "approx_hypervolume_2d": "float",
+        "candidate_count": "int",
+        "feasible_front_count": "int",
+        "front_fraction": "float",
+        "front_score_ranges": {
+          "cai": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "composite_quality": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "low_complexity_penalty": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "secondary_structure_proxy_score": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "sequence_policy_violation_score": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          },
+          "tissue_codon_adaptation": {
+            "max": "float",
+            "min": "float",
+            "spread": "float"
+          }
+        },
+        "front_size": "int",
+        "quality_hash": "str",
+        "quality_schema": "str",
+        "recommended_candidate_id": "str",
+        "recommended_on_front": "bool"
+      },
       "recommendation_audit": {
         "audit_schema": "str",
         "best_metric_count": "int",
@@ -1397,6 +1530,7 @@
         "is_feasible": "bool",
         "max_regret": "float",
         "pareto_front_member": "bool",
+        "pareto_quality_hash": "str",
         "primary_tradeoff": {
           "best_candidate_id": "str",
           "best_value": "float",
@@ -1791,6 +1925,7 @@
       "is_feasible": "bool",
       "max_regret": "float",
       "pareto_front_member": "bool",
+      "pareto_quality_hash": "str",
       "primary_tradeoff": {
         "best_candidate_id": "str",
         "best_value": "float",

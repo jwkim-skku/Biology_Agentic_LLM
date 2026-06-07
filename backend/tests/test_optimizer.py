@@ -748,6 +748,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "optimizer_seed_strategy": "pass",
                     "candidate_diagnostics": "pass",
                     "recommendation_audit": "pass",
+                    "pareto_quality_schema": "pass",
+                    "pareto_quality_hash": "pass",
                     "case_metric_columns": "pass",
                     "results_hash": "pass",
                     "benchmark_hash": "pass",
@@ -846,6 +848,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "optimizer_seed_strategy" in " ".join(optimizer_failures)
     assert "candidate_diagnostics" in " ".join(optimizer_failures)
     assert "recommendation_audit" in " ".join(optimizer_failures)
+    assert "pareto_quality_schema" in " ".join(optimizer_failures)
+    assert "pareto_quality_hash" in " ".join(optimizer_failures)
     qc_failures = module.api_failures(
         "qc_report_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"request_payload": "pass"}}},
@@ -1342,6 +1346,8 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["diagnostics_hash"] == "pass"
     assert verification["semantic_checks"]["case_metrics_hash"] == "pass"
     assert verification["semantic_checks"]["candidate_diagnostics_hash"] == "pass"
+    assert verification["semantic_checks"]["pareto_quality_schema"] == "pass"
+    assert verification["semantic_checks"]["pareto_quality_hash"] == "pass"
     assert verification["semantic_checks"]["case_metric_columns"] == "pass"
     assert verification["semantic_checks"]["stress_schema"] == "pass"
     assert verification["stress_status"] in {"pass", "warning"}
@@ -1358,6 +1364,7 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         stress = json.loads(archive.read("stress_gate.json"))
         manifest = json.loads(archive.read("bundle_manifest.json"))
         benchmark = json.loads(archive.read("benchmark.json"))
+        candidate_diagnostics = json.loads(archive.read("candidate_diagnostics.json"))
         case_metrics = archive.read("case_metrics.csv").decode("utf-8")
         assert search_strategy["strategy_schema"] == "agentic-rag-optimizer-search-strategy-v1"
         assert search_strategy["algorithm"] == manifest["optimizer_algorithm"]
@@ -1368,8 +1375,13 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert manifest["diagnostics_hash"] == verification["diagnostics_hash"]
         assert manifest["case_metrics_hash"] == verification["case_metrics_hash"]
         assert manifest["candidate_diagnostics_hash"] == verification["candidate_diagnostics_hash"]
+        first_case = candidate_diagnostics["cases"][0]
+        assert first_case["pareto_quality"]["quality_schema"] == "agentic-rag-pareto-quality-v1"
+        assert first_case["recommendation_audit"]["pareto_quality_hash"] == first_case["pareto_quality"]["quality_hash"]
         assert "recommendation_max_regret" in case_metrics
         assert "recommendation_tradeoff_count" in case_metrics
+        assert "pareto_quality_hash" in case_metrics
+        assert "recommended_on_pareto_front" in case_metrics
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_optimizer_benchmark_bundle",
@@ -1415,6 +1427,9 @@ def test_design_service_returns_report_shape() -> None:
     assert design["candidate_diagnostics"]["candidate_count"] == len(design["candidates"])
     assert "constraint_risk_summary" in design["candidate_diagnostics"]
     assert design["candidate_diagnostics"]["pareto_front"]["size"] >= 1
+    assert design["candidate_diagnostics"]["pareto_quality"]["quality_schema"] == "agentic-rag-pareto-quality-v1"
+    assert len(design["candidate_diagnostics"]["pareto_quality"]["quality_hash"]) == 64
+    assert design["candidate_diagnostics"]["recommendation_audit"]["pareto_quality_hash"] == design["candidate_diagnostics"]["pareto_quality"]["quality_hash"]
     assert "mean_pairwise_codon_distance" in design["candidate_diagnostics"]["diversity"]
     sequence_policy = design["candidate_diagnostics"]["sequence_policy_audit"]
     assert sequence_policy["audit_schema"] == "agentic-rag-candidate-sequence-policy-audit-v1"

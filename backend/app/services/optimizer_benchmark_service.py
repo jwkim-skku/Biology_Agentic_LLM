@@ -75,6 +75,7 @@ def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float) -> dict
     diagnostics = design.get("candidate_diagnostics") or {}
     recommendation_audit = design.get("recommendation_audit") or diagnostics.get("recommendation_audit") or {}
     diversity = diagnostics.get("diversity") or {}
+    pareto_quality = diagnostics.get("pareto_quality") or {}
     native_protein = translate(native_cds)
     protein_preservation_failures = sum(1 for candidate in candidates if candidate.get("protein") != native_protein)
     violation_count = sum(1 for candidate in candidates if _constraint_violations(candidate.get("scores") or {}) > 0)
@@ -110,7 +111,10 @@ def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float) -> dict
         "recommendation_best_metric_count": int(recommendation_audit.get("best_metric_count") or 0),
         "recommendation_tradeoff_count": int(recommendation_audit.get("tradeoff_count") or 0),
         "recommendation_max_regret": _float(recommendation_audit.get("max_regret")),
-        "approx_hypervolume_2d": _approx_hypervolume(candidates),
+        "pareto_quality_hash": pareto_quality.get("quality_hash"),
+        "recommended_on_pareto_front": 1.0 if pareto_quality.get("recommended_on_front") else 0.0,
+        "feasible_pareto_front_count": int(pareto_quality.get("feasible_front_count") or 0),
+        "approx_hypervolume_2d": _float(pareto_quality.get("approx_hypervolume_2d")) or _approx_hypervolume(candidates),
     }
 
 
@@ -166,6 +170,8 @@ def _macro_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
             "recommended_low_complexity_penalty",
             "recommended_hairpin_proxy_score",
             "approx_hypervolume_2d",
+            "recommended_on_pareto_front",
+            "feasible_pareto_front_count",
             "recommendation_max_regret",
             "runtime_ms",
         ]

@@ -272,6 +272,20 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["recommendation_audit"] = "fail"
     else:
         semantic_checks["recommendation_audit"] = "pass"
+    if any((case.get("pareto_quality") or {}).get("quality_schema") != "agentic-rag-pareto-quality-v1" for case in diag_cases):
+        semantic_errors.append("candidate_diagnostics.json is missing Pareto quality metadata.")
+        semantic_checks["pareto_quality_schema"] = "fail"
+    else:
+        semantic_checks["pareto_quality_schema"] = "pass"
+    if any(
+        (case.get("recommendation_audit") or {}).get("pareto_quality_hash")
+        != (case.get("pareto_quality") or {}).get("quality_hash")
+        for case in diag_cases
+    ):
+        semantic_errors.append("candidate_diagnostics.json Pareto quality hashes do not match recommendation audits.")
+        semantic_checks["pareto_quality_hash"] = "fail"
+    else:
+        semantic_checks["pareto_quality_hash"] = "pass"
 
     if any(row.get("status") not in {"pass", "warning", "fail"} for row in metric_rows):
         semantic_errors.append("case_metrics.csv contains invalid case status values.")
@@ -291,6 +305,9 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "recommendation_best_metric_count",
         "recommendation_tradeoff_count",
         "recommendation_max_regret",
+        "pareto_quality_hash",
+        "recommended_on_pareto_front",
+        "feasible_pareto_front_count",
         "recommended_secondary_structure_proxy",
         "recommended_mfe_proxy_delta_g",
         "approx_hypervolume_2d",
@@ -360,6 +377,9 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
         "recommendation_best_metric_count",
         "recommendation_tradeoff_count",
         "recommendation_max_regret",
+        "pareto_quality_hash",
+        "recommended_on_pareto_front",
+        "feasible_pareto_front_count",
         "approx_hypervolume_2d",
         "runtime_ms",
         "recommended_candidate_id",
@@ -386,6 +406,9 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
                 "recommendation_best_metric_count": metrics.get("recommendation_best_metric_count"),
                 "recommendation_tradeoff_count": metrics.get("recommendation_tradeoff_count"),
                 "recommendation_max_regret": metrics.get("recommendation_max_regret"),
+                "pareto_quality_hash": metrics.get("pareto_quality_hash"),
+                "recommended_on_pareto_front": metrics.get("recommended_on_pareto_front"),
+                "feasible_pareto_front_count": metrics.get("feasible_pareto_front_count"),
                 "approx_hypervolume_2d": metrics.get("approx_hypervolume_2d"),
                 "runtime_ms": metrics.get("runtime_ms"),
                 "recommended_candidate_id": result.get("recommended_candidate_id"),
@@ -409,6 +432,7 @@ def _candidate_diagnostics(results: list[dict[str, Any]]) -> dict[str, Any]:
                 "candidate_count": diagnostics.get("candidate_count"),
                 "feasible_count": diagnostics.get("feasible_count"),
                 "pareto_front": diagnostics.get("pareto_front"),
+                "pareto_quality": diagnostics.get("pareto_quality"),
                 "diversity": diagnostics.get("diversity"),
                 "constraint_risk_summary": diagnostics.get("constraint_risk_summary"),
                 "best_by_metric": diagnostics.get("best_by_metric"),

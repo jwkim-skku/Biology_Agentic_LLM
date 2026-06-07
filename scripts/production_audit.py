@@ -513,6 +513,8 @@ def api_failures(name: str, details: Any) -> list[str]:
             "optimizer_seed_strategy",
             "candidate_diagnostics",
             "recommendation_audit",
+            "pareto_quality_schema",
+            "pareto_quality_hash",
             "case_metric_columns",
             "benchmark_hash",
             "diagnostics_hash",
