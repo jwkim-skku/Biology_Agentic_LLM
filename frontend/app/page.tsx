@@ -1209,6 +1209,7 @@ type OptimizerBenchmarkStatus = {
   warning_count?: number;
   fail_count: number;
   cases_hash?: string;
+  results_hash?: string;
   macro: {
     candidate_count: number;
     unique_cds_count: number;
@@ -1258,6 +1259,8 @@ type OptimizerDiagnosticsStatus = {
     status: string;
     case_count: number;
     fail_count: number;
+    cases_hash?: string;
+    results_hash?: string;
     macro: OptimizerBenchmarkStatus["macro"];
     weak_cases: Array<{ case_id: string; status: string; message: string }>;
   };
@@ -1439,6 +1442,7 @@ type OptimizerBenchmarkBundleVerification = {
   status: string;
   semantic_status: string;
   cases_hash?: string;
+  results_hash?: string;
   case_count?: number;
   structured_manifest_hash?: string;
   semantic_checks?: Record<string, string>;
@@ -3256,7 +3260,8 @@ export default function Dashboard() {
                 <div className="data-quality" aria-label="Optimizer benchmark bundle verification">
                   <span>Bundle {optimizerBundleVerification?.semantic_status ?? "n/a"}</span>
                   <span>Cases {optimizerBundleVerification?.case_count ?? optimizerBenchmark?.case_count ?? "n/a"}</span>
-                  <span>Hash {optimizerBundleVerification?.cases_hash?.slice(0, 10) ?? optimizerBenchmark?.cases_hash?.slice(0, 10) ?? "n/a"}</span>
+                  <span>Case hash {optimizerBundleVerification?.cases_hash?.slice(0, 10) ?? optimizerBenchmark?.cases_hash?.slice(0, 10) ?? "n/a"}</span>
+                  <span>Result hash {optimizerBundleVerification?.results_hash?.slice(0, 10) ?? optimizerBenchmark?.results_hash?.slice(0, 10) ?? "n/a"}</span>
                   <span>Strategy {optimizerBundleVerification?.semantic_checks?.search_strategy_schema ?? "n/a"}</span>
                   <span>{optimizerBundleVerification?.warnings?.[0] ?? optimizerBundleVerification?.errors?.[0] ?? "Benchmark bundle not verified"}</span>
                 </div>

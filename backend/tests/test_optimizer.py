@@ -63,6 +63,7 @@ from app.services.metrics_service import metrics_prometheus, metrics_snapshot, r
 from app.services.optimizer_benchmark_bundle_service import build_optimizer_benchmark_bundle, verify_optimizer_benchmark_bundle
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark, optimizer_benchmark_cases
 from app.services.optimizer_diagnostics_service import optimizer_diagnostics
+from app.services.deployment_readiness_service import deployment_readiness
 from app.services.production_audit_service import (
     build_production_audit,
     build_production_audit_bundle,
@@ -351,6 +352,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "structured_import_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "structured_import_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
+    optimizer_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "optimizer_benchmark")
+    assert len(optimizer_gate["details"]["results_hash"]) == 64
+    assert len(audit["evidence"]["optimizer_diagnostics"]["benchmark"]["results_hash"]) == 64
     assert verification["status"] in {"pass", "warning"}
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
@@ -362,6 +366,14 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "## Timing" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
+
+
+def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    readiness = deployment_readiness(openapi)
+    optimizer_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark")
+    assert len(optimizer_gate["details"]["cases_hash"]) == 64
+    assert len(optimizer_gate["details"]["results_hash"]) == 64
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:

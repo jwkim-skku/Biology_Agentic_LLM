@@ -187,6 +187,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
             details={
                 "status": optimizer["status"],
                 "case_count": optimizer["case_count"],
+                "cases_hash": optimizer.get("cases_hash"),
+                "results_hash": optimizer.get("results_hash"),
                 "macro": optimizer.get("macro", {}),
             },
             fail_message="Optimizer benchmark failed.",

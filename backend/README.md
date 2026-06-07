@@ -92,7 +92,7 @@ Invoke-RestMethod `
 - `GET /api/v1/optimizer/benchmark`: run fixed optimizer benchmark cases for quality, constraints, diversity, and reproducibility.
 - `GET /api/v1/optimizer/benchmark/export.zip`: export a manifested optimizer benchmark bundle with benchmark metrics, stable result hashes, recommendation trade-off/regret columns, diagnostics, stress gate, case catalog, candidate diagnostics, config snapshots, and structured manifest.
 - `GET /api/v1/optimizer/benchmark/export/verify`: rebuild and semantically verify the optimizer benchmark bundle.
-- `GET /api/v1/optimizer/diagnostics`: inspect optimizer objectives, benchmark macro quality bands, weak cases, and tuning recommendations.
+- `GET /api/v1/optimizer/diagnostics`: inspect optimizer objectives, benchmark case/result hashes, macro quality bands, weak cases, and tuning recommendations.
 - `GET /api/v1/optimizer/stress`: inspect optimizer stress gates for AAV budget, motif/polyA/restriction/splice policy, structure proxy, low complexity, rare-codon clusters, diversity, and recommendation regret.
 - `GET /api/v1/optimizer/rna-folding/status`: inspect the configured RNA folding backend. Local development defaults to deterministic proxy evidence; production should set `RNA_FOLDING_BACKEND=rnafold` with ViennaRNA `RNAfold` available.
 - `POST /api/v1/optimizer/rna-folding/evaluate`: evaluate one CDS window through the active RNA folding adapter, returning RNAfold MFE/structure when configured and deterministic proxy evidence otherwise.

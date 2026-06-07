@@ -62,6 +62,7 @@ def optimizer_diagnostics() -> dict[str, Any]:
             "warning_count": benchmark.get("warning_count"),
             "fail_count": benchmark.get("fail_count"),
             "cases_hash": benchmark.get("cases_hash"),
+            "results_hash": benchmark.get("results_hash"),
             "macro": benchmark.get("macro"),
             "weak_cases": weak_cases,
         },
