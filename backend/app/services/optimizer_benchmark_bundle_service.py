@@ -46,6 +46,7 @@ def build_optimizer_benchmark_bundle() -> bytes:
         "benchmark_status": benchmark.get("status"),
         "case_count": benchmark.get("case_count"),
         "cases_hash": benchmark.get("cases_hash"),
+        "results_hash": benchmark.get("results_hash"),
         "diagnostics_status": diagnostics.get("status"),
         "stress_status": stress.get("status"),
         "rna_folding_status": folding.get("status"),
@@ -148,6 +149,13 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_checks["cases_hash"] = "pass"
 
+    result_hashes = {str(value) for value in [manifest.get("results_hash"), metadata.get("results_hash"), benchmark.get("results_hash")] if value}
+    if len(result_hashes) != 1:
+        semantic_errors.append("Optimizer benchmark result hashes are missing or disagree.")
+        semantic_checks["results_hash"] = "fail"
+    else:
+        semantic_checks["results_hash"] = "pass"
+
     if diagnostics.get("diagnostics_schema") != "agentic-rag-optimizer-diagnostics-v1":
         semantic_errors.append("diagnostics.json diagnostics_schema is invalid.")
         semantic_checks["diagnostics_schema"] = "fail"
@@ -221,6 +229,28 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_warnings.append("Optimizer benchmark bundle contains no case metric rows.")
         semantic_checks["case_metric_status"] = "warning"
 
+    required_metric_columns = {
+        "case_id",
+        "status",
+        "candidate_count",
+        "unique_cds_count",
+        "recommended_composite_delta",
+        "recommendation_best_metric_count",
+        "recommendation_tradeoff_count",
+        "recommendation_max_regret",
+        "recommended_secondary_structure_proxy",
+        "recommended_mfe_proxy_delta_g",
+        "approx_hypervolume_2d",
+        "recommended_candidate_id",
+    }
+    metric_columns = set(metric_rows[0].keys()) if metric_rows else set()
+    missing_metric_columns = sorted(required_metric_columns - metric_columns)
+    if missing_metric_columns:
+        semantic_errors.append(f"case_metrics.csv is missing required columns: {', '.join(missing_metric_columns)}.")
+        semantic_checks["case_metric_columns"] = "fail"
+    elif metric_rows:
+        semantic_checks["case_metric_columns"] = "pass"
+
     manifest_hashes = {str(value) for value in [manifest.get("structured_manifest_hash"), metadata.get("structured_manifest_hash"), structured.get("manifest_hash")] if value}
     if len(manifest_hashes) > 1:
         semantic_errors.append("Structured manifest hashes disagree across optimizer benchmark bundle files.")
@@ -252,6 +282,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "diagnostics_status": diagnostics.get("status"),
         "case_count": case_count,
         "cases_hash": next(iter(case_hashes), None),
+        "results_hash": next(iter(result_hashes), None),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }
 
@@ -268,6 +299,9 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
         "recommended_secondary_structure_proxy",
         "recommended_mfe_proxy_delta_g",
         "recommended_policy_violation_delta",
+        "recommendation_best_metric_count",
+        "recommendation_tradeoff_count",
+        "recommendation_max_regret",
         "approx_hypervolume_2d",
         "runtime_ms",
         "recommended_candidate_id",
@@ -291,6 +325,9 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
                 "recommended_secondary_structure_proxy": metrics.get("recommended_secondary_structure_proxy"),
                 "recommended_mfe_proxy_delta_g": metrics.get("recommended_mfe_proxy_delta_g"),
                 "recommended_policy_violation_delta": metrics.get("recommended_policy_violation_delta"),
+                "recommendation_best_metric_count": metrics.get("recommendation_best_metric_count"),
+                "recommendation_tradeoff_count": metrics.get("recommendation_tradeoff_count"),
+                "recommendation_max_regret": metrics.get("recommendation_max_regret"),
                 "approx_hypervolume_2d": metrics.get("approx_hypervolume_2d"),
                 "runtime_ms": metrics.get("runtime_ms"),
                 "recommended_candidate_id": result.get("recommended_candidate_id"),

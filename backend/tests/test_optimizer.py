@@ -674,6 +674,7 @@ def test_optimizer_benchmark_suite_tracks_quality_and_constraints() -> None:
     assert cases["case_count"] >= 3
     assert result["status"] in {"pass", "warning"}
     assert result["fail_count"] == 0
+    assert len(result["results_hash"]) == 64
     assert result["macro"]["candidate_count"] >= 3
     assert result["macro"]["unique_cds_count"] >= 2
     assert result["macro"]["approx_hypervolume_2d"] > 0
@@ -702,14 +703,22 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["search_strategy_schema"] == "pass"
     assert verification["semantic_checks"]["optimizer_algorithm"] == "pass"
     assert verification["semantic_checks"]["optimizer_seed_strategy"] == "pass"
+    assert verification["semantic_checks"]["results_hash"] == "pass"
+    assert verification["semantic_checks"]["case_metric_columns"] == "pass"
+    assert len(verification["results_hash"]) == 64
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "search_strategy.json" in names
         search_strategy = json.loads(archive.read("search_strategy.json"))
         manifest = json.loads(archive.read("bundle_manifest.json"))
+        benchmark = json.loads(archive.read("benchmark.json"))
+        case_metrics = archive.read("case_metrics.csv").decode("utf-8")
         assert search_strategy["strategy_schema"] == "agentic-rag-optimizer-search-strategy-v1"
         assert search_strategy["algorithm"] == manifest["optimizer_algorithm"]
         assert search_strategy["seed_strategy"] == manifest["optimizer_seed_strategy"]
+        assert benchmark["results_hash"] == manifest["results_hash"] == verification["results_hash"]
+        assert "recommendation_max_regret" in case_metrics
+        assert "recommendation_tradeoff_count" in case_metrics
 
 
 def test_repair_removes_synonymous_forbidden_motif() -> None:

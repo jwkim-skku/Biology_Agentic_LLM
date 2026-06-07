@@ -90,7 +90,7 @@ Invoke-RestMethod `
 - `GET /api/v1/metrics`: inspect request, store, RAG, and structured-data metrics as JSON.
 - `GET /api/v1/metrics/prometheus`: expose lightweight Prometheus-style counters and gauges.
 - `GET /api/v1/optimizer/benchmark`: run fixed optimizer benchmark cases for quality, constraints, diversity, and reproducibility.
-- `GET /api/v1/optimizer/benchmark/export.zip`: export a manifested optimizer benchmark bundle with benchmark metrics, diagnostics, stress gate, case catalog, candidate diagnostics, config snapshots, and structured manifest.
+- `GET /api/v1/optimizer/benchmark/export.zip`: export a manifested optimizer benchmark bundle with benchmark metrics, stable result hashes, recommendation trade-off/regret columns, diagnostics, stress gate, case catalog, candidate diagnostics, config snapshots, and structured manifest.
 - `GET /api/v1/optimizer/benchmark/export/verify`: rebuild and semantically verify the optimizer benchmark bundle.
 - `GET /api/v1/optimizer/diagnostics`: inspect optimizer objectives, benchmark macro quality bands, weak cases, and tuning recommendations.
 - `GET /api/v1/optimizer/stress`: inspect optimizer stress gates for AAV budget, motif/polyA/restriction/splice policy, structure proxy, low complexity, rare-codon clusters, diversity, and recommendation regret.

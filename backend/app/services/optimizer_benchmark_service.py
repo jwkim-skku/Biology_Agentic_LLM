@@ -39,6 +39,7 @@ def evaluate_optimizer_benchmark() -> dict[str, Any]:
         "warning_count": len(warnings),
         "fail_count": len(failed),
         "cases_hash": _hash_payload(cases),
+        "results_hash": _hash_payload(_semantic_results(results)),
         "macro": _macro_metrics(results),
         "results": results,
     }
@@ -277,3 +278,23 @@ def _float(value: Any) -> float:
 
 def _hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _semantic_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    stable_results: list[dict[str, Any]] = []
+    for result in results:
+        metrics = dict(result.get("metrics") or {})
+        metrics.pop("runtime_ms", None)
+        stable_results.append(
+            {
+                "case_id": result.get("case_id"),
+                "status": result.get("status"),
+                "errors": result.get("errors") or [],
+                "warnings": result.get("warnings") or [],
+                "thresholds": result.get("thresholds") or {},
+                "metrics": metrics,
+                "recommended_candidate_id": result.get("recommended_candidate_id"),
+                "candidate_diagnostics": result.get("candidate_diagnostics") or {},
+            }
+        )
+    return stable_results
