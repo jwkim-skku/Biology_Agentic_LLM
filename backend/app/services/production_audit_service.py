@@ -418,6 +418,15 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 summary == _summary(audit.get("checks") or []),
                 "production_audit.json summary does not match recomputed check summary.",
             )
+            check_detail_mismatches = _check_detail_hash_mismatches(audit.get("checks") or [], evidence)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "check_detail_hashes",
+                not check_detail_mismatches,
+                "production audit check detail_hash values do not match embedded evidence: "
+                + ", ".join(check_detail_mismatches[:8]),
+            )
             _record_semantic_check(
                 semantic_checks,
                 errors,
@@ -797,6 +806,28 @@ def _required_action_detail_hash_mismatches(deployment_readiness: dict[str, Any]
         expected_hash = _hash_payload(gate.get("details") or {})
         if action.get("detail_hash") != expected_hash:
             mismatches.append(gate_name)
+    return mismatches
+
+
+def _check_detail_hash_mismatches(checks: list[dict[str, Any]], evidence: dict[str, Any]) -> list[str]:
+    evidence_key_by_check = {
+        "external_source_coverage": "external_sources",
+        "rag_embedding_backend": "rag_embedding",
+        "rna_folding_backend": "rna_folding",
+        "governance_attestation": "governance_attestation_verification",
+    }
+    mismatches: list[str] = []
+    for check in checks:
+        if not isinstance(check, dict):
+            mismatches.append("<malformed>")
+            continue
+        check_name = str(check.get("name") or "")
+        evidence_key = evidence_key_by_check.get(check_name, check_name)
+        if evidence_key not in evidence:
+            mismatches.append(check_name or "<missing-name>")
+            continue
+        if check.get("detail_hash") != _hash_payload(evidence[evidence_key]):
+            mismatches.append(check_name)
     return mismatches
 
 
