@@ -38,6 +38,19 @@ jobs:
           export ARTIFACT_SIGNING_KEY_ID=ci-hmac-key
           export SMOKE_REQUIRE_SIGNING=1
           python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          python - <<'PY'
+          import time
+          import urllib.request
+
+          for _ in range(60):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health/ready", timeout=2) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(1)
+          raise SystemExit("backend did not become ready for signed smoke")
+          PY
           python scripts/smoke_test.py
 
   frontend:
