@@ -1,0 +1,48 @@
+services:
+  backend:
+    environment:
+      STORAGE_BACKEND: postgres
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required for production compose}
+      RAG_VECTOR_BACKEND: ${RAG_VECTOR_BACKEND:-pgvector}
+      RAG_PGVECTOR_TABLE: ${RAG_PGVECTOR_TABLE:-rag_chunks}
+      QDRANT_URL: ${QDRANT_URL:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-agentic_rag_chunks}
+      RAG_EMBEDDING_BACKEND: ${RAG_EMBEDDING_BACKEND:-sentence_transformers}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-pritamdeka/S-BioBert-snli-multinli-stsb}
+      RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-768}
+      RNA_FOLDING_BACKEND: ${RNA_FOLDING_BACKEND:-rnafold}
+      RNAFOLD_EXECUTABLE: ${RNAFOLD_EXECUTABLE:-RNAfold}
+      RNAFOLD_TIMEOUT_SECONDS: ${RNAFOLD_TIMEOUT_SECONDS:-10}
+      RNAFOLD_WINDOW_NT: ${RNAFOLD_WINDOW_NT:-180}
+      API_KEYS: ${API_KEYS:?API_KEYS is required for production compose}
+      API_KEY_ROLES: ${API_KEY_ROLES:?API_KEY_ROLES is required for production compose}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+      ARTIFACT_SIGNING_KEY: ${ARTIFACT_SIGNING_KEY:?ARTIFACT_SIGNING_KEY is required for production compose}
+      ARTIFACT_SIGNING_KEY_ID: ${ARTIFACT_SIGNING_KEY_ID:-prod-hmac-sha256-v1}
+      ARTIFACT_RETENTION_DAYS: ${ARTIFACT_RETENTION_DAYS:-365}
+      ARTIFACT_RETENTION_KEEP_MIN: ${ARTIFACT_RETENTION_KEEP_MIN:-1000}
+      ARTIFACT_OBJECT_STORE_ENABLED: ${ARTIFACT_OBJECT_STORE_ENABLED:-true}
+      ARTIFACT_OBJECT_STORE_ENDPOINT: ${ARTIFACT_OBJECT_STORE_ENDPOINT:?ARTIFACT_OBJECT_STORE_ENDPOINT is required for production compose}
+      ARTIFACT_OBJECT_STORE_BUCKET: ${ARTIFACT_OBJECT_STORE_BUCKET:?ARTIFACT_OBJECT_STORE_BUCKET is required for production compose}
+      ARTIFACT_OBJECT_STORE_PREFIX: ${ARTIFACT_OBJECT_STORE_PREFIX:-agentic-rag/artifacts}
+      ARTIFACT_OBJECT_STORE_REGION: ${ARTIFACT_OBJECT_STORE_REGION:-us-east-1}
+      ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID: ${ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID:?ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID is required for production compose}
+      ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY: ${ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY:?ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY is required for production compose}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required for production compose}
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required for production compose}
+      NEXT_PUBLIC_API_KEY: ${NEXT_PUBLIC_API_KEY:-}
+
+  postgres:
+    profiles: []
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required for production compose}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required for production compose}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required for production compose}

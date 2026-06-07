@@ -1,0 +1,99 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      PYTHONUNBUFFERED: "1"
+      APP_DATA_DIR: /app/app/data
+      RAG_DATA_DIR: /app/app/data
+      CORS_ORIGINS: http://127.0.0.1:3000,http://localhost:3000,http://127.0.0.1:3001,http://localhost:3001
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-sqlite}
+      DATABASE_URL: ${DATABASE_URL:-}
+      RAG_VECTOR_BACKEND: ${RAG_VECTOR_BACKEND:-local_json}
+      RAG_PGVECTOR_TABLE: ${RAG_PGVECTOR_TABLE:-rag_chunks}
+      QDRANT_URL: ${QDRANT_URL:-}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-agentic_rag_chunks}
+      RAG_EMBEDDING_BACKEND: ${RAG_EMBEDDING_BACKEND:-hash_bow}
+      RAG_EMBEDDING_MODEL: ${RAG_EMBEDDING_MODEL:-hash-bow-v1}
+      RAG_EMBEDDING_DIMENSIONS: ${RAG_EMBEDDING_DIMENSIONS:-128}
+      RNA_FOLDING_BACKEND: ${RNA_FOLDING_BACKEND:-deterministic_proxy}
+      RNAFOLD_EXECUTABLE: ${RNAFOLD_EXECUTABLE:-RNAfold}
+      RNAFOLD_TIMEOUT_SECONDS: ${RNAFOLD_TIMEOUT_SECONDS:-10}
+      RNAFOLD_WINDOW_NT: ${RNAFOLD_WINDOW_NT:-180}
+      API_KEYS: ${API_KEYS:-}
+      API_KEY_ROLES: ${API_KEY_ROLES:-}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-120}
+      ARTIFACT_SIGNING_KEY: ${ARTIFACT_SIGNING_KEY:-}
+      ARTIFACT_SIGNING_KEY_ID: ${ARTIFACT_SIGNING_KEY_ID:-local-hmac-sha256}
+      ARTIFACT_ED25519_PRIVATE_KEY: ${ARTIFACT_ED25519_PRIVATE_KEY:-}
+      ARTIFACT_ED25519_PUBLIC_KEY: ${ARTIFACT_ED25519_PUBLIC_KEY:-}
+      ARTIFACT_ED25519_KEY_ID: ${ARTIFACT_ED25519_KEY_ID:-local-ed25519}
+      ARTIFACT_RETENTION_DAYS: ${ARTIFACT_RETENTION_DAYS:-0}
+      ARTIFACT_RETENTION_KEEP_MIN: ${ARTIFACT_RETENTION_KEEP_MIN:-100}
+      ARTIFACT_OBJECT_STORE_ENABLED: ${ARTIFACT_OBJECT_STORE_ENABLED:-false}
+      ARTIFACT_OBJECT_STORE_ENDPOINT: ${ARTIFACT_OBJECT_STORE_ENDPOINT:-}
+      ARTIFACT_OBJECT_STORE_BUCKET: ${ARTIFACT_OBJECT_STORE_BUCKET:-}
+      ARTIFACT_OBJECT_STORE_PREFIX: ${ARTIFACT_OBJECT_STORE_PREFIX:-agentic-rag/artifacts}
+      ARTIFACT_OBJECT_STORE_REGION: ${ARTIFACT_OBJECT_STORE_REGION:-us-east-1}
+      ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID: ${ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID:-}
+      ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY: ${ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY:-}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend/app/data:/app/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/ready', timeout=3).read()"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:8000/api/v1}
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:8000/api/v1}
+      NEXT_PUBLIC_API_KEY: ${NEXT_PUBLIC_API_KEY:-}
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["postgres"]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-agentic_rag}
+      POSTGRES_USER: ${POSTGRES_USER:-agentic_rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentic_rag_dev_password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.6
+    profiles: ["qdrant"]
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 3 bash -c '</dev/tcp/127.0.0.1/6333'"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+  qdrant-data:

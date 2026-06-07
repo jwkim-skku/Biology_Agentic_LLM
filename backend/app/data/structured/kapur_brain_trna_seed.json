@@ -1,0 +1,61 @@
+[
+  {
+    "id": "kapur_brain_dopaminergic_seed",
+    "dataset": "Kapur brain tRNA",
+    "release": "literature_seed",
+    "species": [
+      "mouse",
+      "human_transfer"
+    ],
+    "brain_region": "substantia nigra",
+    "cell_type": "dopaminergic neuron",
+    "coverage_level": "cell_type_trna_prior",
+    "confidence": "low",
+    "summary": "Conservative placeholder tRNA/codon availability prior for dopaminergic-neuron design. Replace with release-pinned Kapur et al. matrix before quantitative use.",
+    "codon_availability_weights": {
+      "GCC": 1.05,
+      "GAC": 1.03,
+      "GAG": 1.03,
+      "ATC": 1.02,
+      "TTC": 1.02,
+      "CTG": 1.02,
+      "CGA": 0.94,
+      "CGG": 0.95,
+      "TCG": 0.94,
+      "ACG": 0.95
+    },
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11065635/",
+    "source_payload_sha256": "bc15646108b6b66c461761f2c51048844b1b7afbd885ac08de41c8e26b2b810b",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_kapur_brain_trna_seed_bc15646108b6b66c.json",
+    "source_request_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11065635/"
+  },
+  {
+    "id": "kapur_brain_msn_seed",
+    "dataset": "Kapur brain tRNA",
+    "release": "literature_seed",
+    "species": [
+      "mouse",
+      "human_transfer"
+    ],
+    "brain_region": "striatum",
+    "cell_type": "medium spiny neuron",
+    "coverage_level": "cell_type_trna_prior",
+    "confidence": "low",
+    "summary": "Conservative placeholder tRNA/codon availability prior for medium-spiny-neuron design. Use as a design-support prior only.",
+    "codon_availability_weights": {
+      "GCC": 1.04,
+      "GGC": 1.03,
+      "GAG": 1.03,
+      "CTG": 1.02,
+      "ATC": 1.02,
+      "CGT": 0.96,
+      "CGA": 0.95,
+      "TCG": 0.94,
+      "ACG": 0.95
+    },
+    "source_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11065635/",
+    "source_payload_sha256": "bc15646108b6b66c461761f2c51048844b1b7afbd885ac08de41c8e26b2b810b",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_kapur_brain_trna_seed_bc15646108b6b66c.json",
+    "source_request_url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11065635/"
+  }
+]

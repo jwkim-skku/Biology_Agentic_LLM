@@ -1,0 +1,498 @@
+from __future__ import annotations
+
+import json
+from copy import deepcopy
+from time import perf_counter
+from datetime import datetime, timezone
+from hashlib import sha256
+from io import BytesIO
+from threading import Lock
+from typing import Any
+from zipfile import ZIP_DEFLATED, ZipFile
+
+from app.config import get_settings
+from app.services.agent_memory_service import agent_memory_summary
+from app.services.artifact_archive_service import (
+    archive_summary,
+    optimizer_benchmark_archive_summary,
+    qc_bundle_archive_semantic_summary,
+    rag_evaluation_archive_summary,
+    rag_regression_archive_summary,
+    structured_import_archive_summary,
+    verify_artifact_ledger,
+)
+from app.services.artifact_object_store_service import artifact_object_store_status
+from app.services.audit_log_service import audit_summary
+from app.services.data_provenance_service import data_provenance_audit
+from app.services.deployment_readiness_service import deployment_readiness
+from app.services.export_manifest_service import ManifestedZip, verify_artifact_bundle
+from app.services.external_data_service import external_source_status
+from app.services.governance_service import build_governance_attestation_bundle, verify_governance_attestation_bundle
+from app.services.optimizer_diagnostics_service import optimizer_diagnostics
+from app.services.rag_diagnostics_service import rag_diagnostics
+from app.services.rag_embedding_service import rag_embedding_status
+from app.services.rna_folding_service import rna_folding_status
+from app.services.signature_service import signatures_for_hash, signing_status, verify_payload_signatures
+from app.services.storage_service import storage_status
+from app.services.structured_quality_service import structured_quality_gate
+from app.services.workflow_trace_bundle_service import workflow_runtime_status
+
+
+PRODUCTION_AUDIT_CACHE_TTL_SECONDS = 300
+_AUDIT_CACHE_LOCK = Lock()
+_AUDIT_BUILD_LOCK = Lock()
+_AUDIT_CACHE: dict[str, Any] | None = None
+
+
+def build_production_audit(openapi_spec: dict[str, Any] | None = None, *, refresh: bool = False) -> dict[str, Any]:
+    cache_key = _cache_key(openapi_spec or {})
+    if not refresh:
+        cached = _cached_audit(cache_key)
+        if cached is not None:
+            return cached
+    with _AUDIT_BUILD_LOCK:
+        if not refresh:
+            cached = _cached_audit(cache_key)
+            if cached is not None:
+                return cached
+        audit = _build_production_audit_uncached(openapi_spec or {}, cache_key=cache_key)
+        _store_cached_audit(cache_key, audit)
+        return deepcopy(audit)
+
+
+def production_audit_cache_status() -> dict[str, Any]:
+    with _AUDIT_CACHE_LOCK:
+        if not _AUDIT_CACHE:
+            return {
+                "cache_schema": "agentic-rag-production-audit-cache-v1",
+                "status": "empty",
+                "ttl_seconds": PRODUCTION_AUDIT_CACHE_TTL_SECONDS,
+            }
+        age_seconds = round(perf_counter() - float(_AUDIT_CACHE["stored_monotonic"]), 3)
+        audit = _AUDIT_CACHE["audit"]
+        return {
+            "cache_schema": "agentic-rag-production-audit-cache-v1",
+            "status": "hit" if age_seconds <= PRODUCTION_AUDIT_CACHE_TTL_SECONDS else "expired",
+            "ttl_seconds": PRODUCTION_AUDIT_CACHE_TTL_SECONDS,
+            "age_seconds": age_seconds,
+            "audit_hash": audit.get("audit_hash"),
+            "generated_at": audit.get("generated_at"),
+            "summary_status": (audit.get("summary") or {}).get("status"),
+        }
+
+
+def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key: str) -> dict[str, Any]:
+    settings = get_settings()
+    timings: dict[str, Any] = {"items": []}
+    start = perf_counter()
+    readiness = _timed("deployment_readiness", timings, lambda: deployment_readiness(openapi_spec))
+    storage = _timed("storage", timings, storage_status)
+    provenance = _timed("data_provenance", timings, data_provenance_audit)
+    structured_quality = _timed("structured_quality", timings, structured_quality_gate)
+    rag = _timed("rag_diagnostics", timings, rag_diagnostics)
+    embedding = _timed("rag_embedding", timings, rag_embedding_status)
+    optimizer = _timed("optimizer_diagnostics", timings, optimizer_diagnostics)
+    folding = _timed("rna_folding", timings, rna_folding_status)
+    workflow_runtime = _timed("workflow_runtime", timings, workflow_runtime_status)
+    memory = _timed("agent_memory", timings, agent_memory_summary)
+    governance = _timed(
+        "governance_attestation",
+        timings,
+        lambda: verify_governance_attestation_bundle(build_governance_attestation_bundle(openapi_spec or {})),
+    )
+    ledger = _timed("artifact_ledger", timings, verify_artifact_ledger)
+    archive = _timed("artifact_archive", timings, archive_summary)
+    object_store = _timed("artifact_object_store", timings, artifact_object_store_status)
+    qc_archive = _timed("qc_bundle_archive_semantics", timings, lambda: qc_bundle_archive_semantic_summary(limit=3, verify_files=False))
+    import_archive = _timed(
+        "structured_import_archive_semantics",
+        timings,
+        lambda: structured_import_archive_summary(limit=3, verify_files=False),
+    )
+    rag_archive = _timed("rag_evaluation_archive_semantics", timings, lambda: rag_evaluation_archive_summary(limit=3, verify_files=False))
+    rag_regression_archive = _timed(
+        "rag_regression_archive_semantics",
+        timings,
+        lambda: rag_regression_archive_summary(limit=3, verify_files=False),
+    )
+    optimizer_archive = _timed(
+        "optimizer_benchmark_archive_semantics",
+        timings,
+        lambda: optimizer_benchmark_archive_summary(limit=3, verify_files=False),
+    )
+    security = _timed("security", timings, _security_summary)
+    external_sources = _timed("external_sources", timings, external_source_status)
+    audit_log = _timed("audit_log", timings, audit_summary)
+    timings["total_seconds"] = round(perf_counter() - start, 3)
+    timings["slowest"] = sorted(timings["items"], key=lambda item: item["duration_seconds"], reverse=True)[:5]
+
+    checks = [
+        _check("deployment_readiness", readiness.get("deployment_ready") is True, readiness.get("production_ready") is True, readiness),
+        _check(
+            "security",
+            security["rate_limit_per_minute"] >= 0,
+            bool(security["auth_enabled"] and security["rbac_enabled"] and security["rate_limit_per_minute"] > 0),
+            security,
+        ),
+        _check("storage", storage.get("status") in {"pass", "warning", "ready"}, storage.get("active_runtime_adapter") == "postgres", storage),
+        _check("data_provenance", provenance.get("status") in {"pass", "warning"}, provenance.get("status") == "pass", provenance),
+        _check(
+            "structured_quality",
+            structured_quality.get("status") in {"pass", "warning"},
+            structured_quality.get("status") == "pass",
+            structured_quality,
+        ),
+        _check("external_source_coverage", _external_coverage_ok(external_sources), True, external_sources),
+        _check("rag_diagnostics", rag.get("status") in {"pass", "warning"}, rag.get("status") == "pass", rag),
+        _check("rag_embedding_backend", embedding.get("status") in {"pass", "warning"}, embedding.get("production_ready") is True, embedding),
+        _check("optimizer_diagnostics", optimizer.get("status") in {"pass", "warning"}, optimizer.get("status") == "pass", optimizer),
+        _check("rna_folding_backend", folding.get("status") in {"ready", "proxy", "fallback"}, folding.get("production_ready") is True, folding),
+        _check("workflow_runtime", workflow_runtime.get("status") == "pass", workflow_runtime.get("status") == "pass", workflow_runtime),
+        _check("agent_memory", memory.get("status") in {"pass", "warning"}, memory.get("memory_count", 0) > 0, memory),
+        _check("governance_attestation", governance.get("status") in {"pass", "warning"}, governance.get("status") == "pass", governance),
+        _check("artifact_ledger", ledger.get("status") in {"pass", "warning"}, ledger.get("status") == "pass", ledger),
+        _check("artifact_archive", archive.get("total_artifacts", 0) >= 0, ledger.get("status") == "pass", archive),
+        _check(
+            "artifact_object_store",
+            object_store.get("status") in {"disabled", "ready"},
+            object_store.get("status") == "ready",
+            object_store,
+        ),
+        _check("qc_bundle_archive_semantics", qc_archive.get("status") in {"pass", "warning"}, qc_archive.get("status") == "pass", qc_archive),
+        _check(
+            "structured_import_archive_semantics",
+            import_archive.get("status") in {"pass", "warning"},
+            import_archive.get("status") == "pass",
+            import_archive,
+        ),
+        _check(
+            "rag_evaluation_archive_semantics",
+            rag_archive.get("status") in {"pass", "warning"},
+            rag_archive.get("status") == "pass",
+            rag_archive,
+        ),
+        _check(
+            "rag_regression_archive_semantics",
+            rag_regression_archive.get("status") in {"pass", "warning"},
+            rag_regression_archive.get("status") == "pass",
+            rag_regression_archive,
+        ),
+        _check(
+            "optimizer_benchmark_archive_semantics",
+            optimizer_archive.get("status") in {"pass", "warning"},
+            optimizer_archive.get("status") == "pass",
+            optimizer_archive,
+        ),
+    ]
+    summary = _summary(checks)
+    payload = {
+        "audit_schema": "agentic-rag-production-audit-v1",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "purpose": "production promotion evidence for the Agentic RAG codon optimization platform",
+        "cache_policy": {
+            "cache_schema": "agentic-rag-production-audit-cache-v1",
+            "cache_key": cache_key,
+            "ttl_seconds": PRODUCTION_AUDIT_CACHE_TTL_SECONDS,
+            "force_refresh_query": "refresh=true",
+        },
+        "runtime": {
+            "data_dir": str(settings.data_dir),
+            "storage_backend": settings.storage_backend,
+            "database_url_configured": bool(settings.database_url),
+            "auth_enabled": settings.auth_enabled,
+            "rbac_enabled": bool(settings.api_key_roles),
+            "rate_limit_per_minute": settings.rate_limit_per_minute,
+            "signing": signing_status(),
+        },
+        "summary": summary,
+        "checks": checks,
+        "evidence": {
+            "deployment_readiness": readiness,
+            "security": security,
+            "storage": storage,
+            "data_provenance": provenance,
+            "structured_quality": structured_quality,
+            "external_sources": external_sources,
+            "rag_diagnostics": rag,
+            "rag_embedding": embedding,
+            "optimizer_diagnostics": optimizer,
+            "rna_folding": folding,
+            "workflow_runtime": workflow_runtime,
+            "agent_memory": memory,
+            "governance_attestation_verification": governance,
+            "artifact_ledger": ledger,
+            "artifact_archive": archive,
+            "artifact_object_store": object_store,
+            "qc_bundle_archive_semantics": qc_archive,
+            "structured_import_archive_semantics": import_archive,
+            "rag_evaluation_archive_semantics": rag_archive,
+            "rag_regression_archive_semantics": rag_regression_archive,
+            "optimizer_benchmark_archive_semantics": optimizer_archive,
+            "audit_log": audit_log,
+            "timings": timings,
+        },
+        "operator_notes": _operator_notes(summary),
+    }
+    payload["audit_hash"] = _hash_without_signatures(payload)
+    signatures = signatures_for_hash(payload["audit_hash"], signed_field="audit_hash")
+    if signatures:
+        payload["audit_signatures"] = signatures
+        hmac_signature = next((item for item in signatures if item.get("algorithm") == "HMAC-SHA256"), None)
+        if hmac_signature:
+            payload["audit_signature"] = hmac_signature
+    return payload
+
+
+def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *, refresh: bool = False) -> bytes:
+    audit = build_production_audit(openapi_spec, refresh=refresh)
+    buffer = BytesIO()
+    metadata = {
+        "audit_hash": audit["audit_hash"],
+        "generated_at": audit["generated_at"],
+        "status": audit["summary"]["status"],
+    }
+    with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
+        bundle = ManifestedZip(archive, "production_audit_bundle", metadata)
+        bundle.writestr("production_audit.json", _json(audit))
+        bundle.writestr("production_audit.md", render_production_audit_markdown(audit))
+        bundle.writestr("evidence/deployment_readiness.json", _json(audit["evidence"]["deployment_readiness"]))
+        bundle.writestr("evidence/security.json", _json(audit["evidence"]["security"]))
+        bundle.writestr("evidence/storage.json", _json(audit["evidence"]["storage"]))
+        bundle.writestr("evidence/data_provenance.json", _json(audit["evidence"]["data_provenance"]))
+        bundle.writestr("evidence/structured_quality.json", _json(audit["evidence"]["structured_quality"]))
+        bundle.writestr("evidence/external_sources.json", _json(audit["evidence"]["external_sources"]))
+        bundle.writestr("evidence/rag_diagnostics.json", _json(audit["evidence"]["rag_diagnostics"]))
+        bundle.writestr("evidence/rag_embedding.json", _json(audit["evidence"]["rag_embedding"]))
+        bundle.writestr("evidence/optimizer_diagnostics.json", _json(audit["evidence"]["optimizer_diagnostics"]))
+        bundle.writestr("evidence/rna_folding.json", _json(audit["evidence"]["rna_folding"]))
+        bundle.writestr("evidence/workflow_runtime.json", _json(audit["evidence"]["workflow_runtime"]))
+        bundle.writestr("evidence/agent_memory.json", _json(audit["evidence"]["agent_memory"]))
+        bundle.writestr("evidence/governance_attestation_verification.json", _json(audit["evidence"]["governance_attestation_verification"]))
+        bundle.writestr("evidence/artifact_ledger.json", _json(audit["evidence"]["artifact_ledger"]))
+        bundle.writestr("evidence/artifact_archive.json", _json(audit["evidence"]["artifact_archive"]))
+        bundle.writestr("evidence/artifact_object_store.json", _json(audit["evidence"]["artifact_object_store"]))
+        bundle.writestr("evidence/qc_bundle_archive_semantics.json", _json(audit["evidence"]["qc_bundle_archive_semantics"]))
+        bundle.writestr(
+            "evidence/structured_import_archive_semantics.json",
+            _json(audit["evidence"]["structured_import_archive_semantics"]),
+        )
+        bundle.writestr("evidence/rag_evaluation_archive_semantics.json", _json(audit["evidence"]["rag_evaluation_archive_semantics"]))
+        bundle.writestr("evidence/rag_regression_archive_semantics.json", _json(audit["evidence"]["rag_regression_archive_semantics"]))
+        bundle.writestr(
+            "evidence/optimizer_benchmark_archive_semantics.json",
+            _json(audit["evidence"]["optimizer_benchmark_archive_semantics"]),
+        )
+        bundle.writestr("evidence/audit_log.json", _json(audit["evidence"]["audit_log"]))
+        bundle.writestr("evidence/timings.json", _json(audit["evidence"]["timings"]))
+        bundle.write_artifact_manifest()
+    return buffer.getvalue()
+
+
+def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
+    verification = verify_artifact_bundle(bundle)
+    errors = list(verification.get("errors") or [])
+    warnings = list(verification.get("warnings") or [])
+    audit_hash = None
+    summary: dict[str, Any] = {}
+    try:
+        with ZipFile(BytesIO(bundle), "r") as archive:
+            audit = json.loads(archive.read("production_audit.json").decode("utf-8"))
+            audit_hash = audit.get("audit_hash")
+            summary = audit.get("summary") or {}
+            actual_hash = _hash_without_signatures(audit)
+            if audit_hash != actual_hash:
+                errors.append("production_audit.json audit_hash does not match contents.")
+            signature_result = _verify_audit_signature(audit)
+            if signature_result["status"] == "fail":
+                errors.extend(signature_result["messages"])
+            elif signature_result["status"] == "warning":
+                warnings.extend(signature_result["messages"])
+    except (KeyError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        errors.append(f"Invalid production audit payload: {exc}")
+        signature_result = {"status": "not_checked", "messages": []}
+    return {
+        "status": "fail" if errors else "warning" if warnings else verification.get("status", "pass"),
+        "errors": errors,
+        "warnings": warnings,
+        "audit_hash": audit_hash,
+        "summary": summary,
+        "artifact_verification": verification,
+        "signature": signature_result,
+    }
+
+
+def render_production_audit_markdown(audit: dict[str, Any]) -> str:
+    lines = [
+        "# Production Audit Report",
+        "",
+        f"- Generated at: `{audit['generated_at']}`",
+        f"- Audit hash: `{audit['audit_hash']}`",
+        f"- Status: `{audit['summary']['status']}`",
+        f"- Deployment ready: `{audit['summary']['deployment_ready']}`",
+        f"- Production ready: `{audit['summary']['production_ready']}`",
+        "",
+        "## Checks",
+        "",
+        "| Check | Status | Blocking | Message |",
+        "| --- | --- | --- | --- |",
+    ]
+    for check in audit["checks"]:
+        lines.append(
+            "| {name} | {status} | {blocking} | {message} |".format(
+                name=check["name"],
+                status=check["status"],
+                blocking=str(check["blocking"]).lower(),
+                message=_escape_cell(check["message"]),
+            )
+        )
+    timings = (audit.get("evidence") or {}).get("timings") or {}
+    lines.extend(
+        [
+            "",
+            "## Timing",
+            "",
+            f"- Total seconds: `{timings.get('total_seconds', 'n/a')}`",
+            "",
+            "| Evidence | Seconds |",
+            "| --- | --- |",
+        ]
+    )
+    for item in timings.get("slowest") or []:
+        lines.append(
+            "| {name} | {seconds} |".format(
+                name=_escape_cell(str(item.get("name") or "unknown")),
+                seconds=item.get("duration_seconds", "n/a"),
+            )
+        )
+    lines.extend(["", "## Operator Notes", ""])
+    for note in audit["operator_notes"]:
+        lines.append(f"- {note}")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _security_summary() -> dict[str, Any]:
+    settings = get_settings()
+    return {
+        "auth_enabled": settings.auth_enabled,
+        "rbac_enabled": bool(settings.api_key_roles),
+        "configured_keys": len(settings.api_keys),
+        "configured_role_bindings": len(settings.api_key_roles),
+        "rate_limit_per_minute": settings.rate_limit_per_minute,
+        "artifact_signing_enabled": settings.artifact_signing_enabled,
+        "artifact_asymmetric_signing_enabled": settings.artifact_asymmetric_signing_enabled,
+        "artifact_asymmetric_verification_enabled": settings.artifact_asymmetric_verification_enabled,
+        "signing": signing_status(),
+    }
+
+
+def _timed(name: str, timings: dict[str, Any], factory: Any) -> Any:
+    start = perf_counter()
+    result = factory()
+    timings["items"].append({"name": name, "duration_seconds": round(perf_counter() - start, 3)})
+    return result
+
+
+def _cached_audit(cache_key: str) -> dict[str, Any] | None:
+    with _AUDIT_CACHE_LOCK:
+        if not _AUDIT_CACHE:
+            return None
+        if _AUDIT_CACHE.get("cache_key") != cache_key:
+            return None
+        age_seconds = perf_counter() - float(_AUDIT_CACHE["stored_monotonic"])
+        if age_seconds > PRODUCTION_AUDIT_CACHE_TTL_SECONDS:
+            return None
+        return deepcopy(_AUDIT_CACHE["audit"])
+
+
+def _store_cached_audit(cache_key: str, audit: dict[str, Any]) -> None:
+    with _AUDIT_CACHE_LOCK:
+        global _AUDIT_CACHE
+        _AUDIT_CACHE = {
+            "cache_key": cache_key,
+            "stored_monotonic": perf_counter(),
+            "audit": deepcopy(audit),
+        }
+
+
+def _cache_key(openapi_spec: dict[str, Any]) -> str:
+    settings = get_settings()
+    return _hash_payload(
+        {
+            "openapi_hash": _hash_payload(openapi_spec),
+            "data_dir": str(settings.data_dir),
+            "storage_backend": settings.storage_backend,
+            "database_url_configured": bool(settings.database_url),
+            "auth_enabled": settings.auth_enabled,
+            "rbac_enabled": bool(settings.api_key_roles),
+            "rate_limit_per_minute": settings.rate_limit_per_minute,
+            "signing": signing_status(),
+        }
+    )
+
+
+def _check(name: str, pass_condition: bool, production_condition: bool, details: dict[str, Any]) -> dict[str, Any]:
+    blocking = not pass_condition
+    status = "fail" if blocking else "pass" if production_condition else "warning"
+    message = "Gate passed." if status == "pass" else "Blocking production audit failure." if status == "fail" else "Usable, but not fully production configured."
+    return {
+        "name": name,
+        "status": status,
+        "blocking": blocking,
+        "message": message,
+        "detail_hash": _hash_payload(details),
+    }
+
+
+def _summary(checks: list[dict[str, Any]]) -> dict[str, Any]:
+    counts = {"pass": 0, "warning": 0, "fail": 0}
+    for check in checks:
+        counts[str(check["status"])] += 1
+    return {
+        "status": "fail" if counts["fail"] else "warning" if counts["warning"] else "pass",
+        "deployment_ready": counts["fail"] == 0,
+        "production_ready": counts["fail"] == 0 and counts["warning"] == 0,
+        "counts": counts,
+        "blocking_checks": [check["name"] for check in checks if check["status"] == "fail"],
+        "warning_checks": [check["name"] for check in checks if check["status"] == "warning"],
+    }
+
+
+def _external_coverage_ok(status: dict[str, Any]) -> bool:
+    coverage = status.get("coverage") or {}
+    return (
+        float(coverage.get("source_snapshot_path_fraction") or 0) >= 1.0
+        and float(coverage.get("source_payload_hash_fraction") or 0) >= 1.0
+    )
+
+
+def _operator_notes(summary: dict[str, Any]) -> list[str]:
+    if summary["blocking_checks"]:
+        return ["Resolve all blocking checks before deployment promotion."]
+    if summary["warning_checks"]:
+        return ["No blocking failures were detected. Review warnings before production promotion."]
+    return ["No blocking failures or warnings were detected by this audit profile."]
+
+
+def _hash_without_signatures(payload: dict[str, Any]) -> str:
+    return _hash_payload({key: value for key, value in payload.items() if key not in {"audit_hash", "audit_signature", "audit_signatures"}})
+
+
+def _verify_audit_signature(audit: dict[str, Any]) -> dict[str, Any]:
+    signatures = list(audit.get("audit_signatures") or [])
+    legacy_signature = audit.get("audit_signature")
+    if legacy_signature and legacy_signature not in signatures:
+        signatures.append(legacy_signature)
+    return verify_payload_signatures(str(audit.get("audit_hash") or ""), signatures, signed_field="audit_hash")
+
+
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _json(payload: Any) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _escape_cell(value: str) -> str:
+    return value.replace("|", "\\|").replace("\n", " ")

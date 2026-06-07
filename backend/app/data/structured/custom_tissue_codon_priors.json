@@ -1,0 +1,49 @@
+[
+  {
+    "id": "custom_brain_translation_prior",
+    "dataset": "CUSTOM",
+    "release": "seed",
+    "species": "human",
+    "brain_region": "brain",
+    "cell_type": null,
+    "confidence": "medium",
+    "summary": "Tissue-aware codon optimization should balance codon usage with translational-efficiency proxies rather than maximize CAI alone.",
+    "codon_weight_multipliers": {
+      "GCC": 1.02,
+      "GAG": 1.02,
+      "CTG": 1.01,
+      "ATC": 1.01,
+      "CGG": 0.97,
+      "CGC": 0.98,
+      "TCG": 0.96,
+      "ACG": 0.96
+    },
+    "source_url": "https://link.springer.com/article/10.1186/s13059-023-02868-2",
+    "source_payload_sha256": "f5e98a1a634ac3fffd7ae5f593db988f0f818f3fced8633ed08401c62b9ea8af",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_custom_tissue_codon_priors_f5e98a1a634ac3ff.json",
+    "source_request_url": "https://link.springer.com/article/10.1186/s13059-023-02868-2"
+  },
+  {
+    "id": "custom_midbrain_conservative_prior",
+    "dataset": "CUSTOM",
+    "release": "seed",
+    "species": "human",
+    "brain_region": "substantia nigra",
+    "cell_type": "dopaminergic neuron",
+    "confidence": "low",
+    "summary": "Seed prior for midbrain/dopaminergic designs until release-pinned tissue or cell-type translational data are loaded.",
+    "codon_weight_multipliers": {
+      "GCC": 1.02,
+      "GAC": 1.01,
+      "TTC": 1.01,
+      "CTG": 1.01,
+      "CGG": 0.96,
+      "CGA": 0.95,
+      "TCG": 0.95
+    },
+    "source_url": "https://link.springer.com/article/10.1186/s13059-023-02868-2",
+    "source_payload_sha256": "f5e98a1a634ac3fffd7ae5f593db988f0f818f3fced8633ed08401c62b9ea8af",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_custom_tissue_codon_priors_f5e98a1a634ac3ff.json",
+    "source_request_url": "https://link.springer.com/article/10.1186/s13059-023-02868-2"
+  }
+]

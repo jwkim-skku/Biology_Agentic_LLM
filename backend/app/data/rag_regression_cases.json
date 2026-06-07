@@ -1,0 +1,119 @@
+[
+  {
+    "case_id": "canonical_transcript_mane",
+    "query": "MANE Select RefSeq Ensembl canonical CDS",
+    "filters": {
+      "species": "human",
+      "transcript_selection": "mane_select"
+    },
+    "limit": 8,
+    "required_document_ids": [
+      "mane_select_reference",
+      "ensembl_cds_sequence_api"
+    ],
+    "required_collections": [
+      "canonical_transcript"
+    ],
+    "required_sources": [
+      "NCBI RefSeq MANE",
+      "Ensembl REST"
+    ],
+    "required_terms": [
+      "MANE",
+      "CDS"
+    ]
+  },
+  {
+    "case_id": "allen_dopaminergic_substantia_nigra",
+    "query": "dopaminergic neuron substantia nigra cell taxonomy",
+    "filters": {
+      "species": "human",
+      "brain_region": "substantia nigra",
+      "cell_type": "dopaminergic neuron"
+    },
+    "limit": 8,
+    "required_document_ids": [
+      "allen_dopaminergic_neuron_midbrain"
+    ],
+    "required_collections": [
+      "brain_cell_atlas"
+    ],
+    "required_sources": [
+      "Allen Brain Cell Atlas"
+    ],
+    "required_terms": [
+      "dopaminergic",
+      "substantia nigra"
+    ]
+  },
+  {
+    "case_id": "gtex_snca_substantia_nigra_expression",
+    "query": "SNCA expression substantia nigra GTEx",
+    "filters": {
+      "species": "human",
+      "brain_region": "substantia nigra"
+    },
+    "limit": 8,
+    "required_document_ids": [
+      "gtex_snca_brain_substantia_nigra"
+    ],
+    "required_collections": [
+      "tissue_evidence"
+    ],
+    "required_sources": [
+      "GTEx"
+    ],
+    "required_terms": [
+      "SNCA",
+      "median expression"
+    ]
+  },
+  {
+    "case_id": "custom_translation_prior",
+    "query": "CUSTOM tissue aware codon optimization translation efficiency",
+    "filters": {
+      "species": "human",
+      "brain_region": "substantia nigra",
+      "cell_type": "dopaminergic neuron"
+    },
+    "limit": 8,
+    "required_document_ids": [
+      "custom_midbrain_conservative_prior",
+      "custom_tissue_aware_codon"
+    ],
+    "required_collections": [
+      "structured_translation_prior"
+    ],
+    "required_sources": [
+      "CUSTOM"
+    ],
+    "required_terms": [
+      "codon",
+      "translation"
+    ]
+  },
+  {
+    "case_id": "aav_design_constraints",
+    "query": "AAV payload CpG motif restriction polyA design constraints",
+    "filters": {
+      "species": "human",
+      "modality": "AAV"
+    },
+    "limit": 8,
+    "required_document_ids": [
+      "aav_payload_constraint",
+      "cpg_innate_sensing"
+    ],
+    "required_collections": [
+      "design_rules"
+    ],
+    "required_sources": [
+      "AAV design constraint",
+      "TLR9 CpG DNA recognition background"
+    ],
+    "required_terms": [
+      "AAV",
+      "CpG"
+    ]
+  }
+]

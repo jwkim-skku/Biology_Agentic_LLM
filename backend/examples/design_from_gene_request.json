@@ -1,0 +1,18 @@
+{
+  "gene": "SNCA",
+  "species": "human",
+  "target": {
+    "disease_context": "Parkinson disease demo",
+    "brain_region": "substantia nigra",
+    "cell_type": "dopaminergic neuron",
+    "modality": "AAV"
+  },
+  "optimization_settings": {
+    "population_size": 32,
+    "generations": 10,
+    "mutation_rate": 0.06,
+    "crossover_rate": 0.8,
+    "seed": 42,
+    "max_candidates": 5
+  }
+}

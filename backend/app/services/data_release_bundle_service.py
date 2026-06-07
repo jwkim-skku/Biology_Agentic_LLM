@@ -1,0 +1,378 @@
+from __future__ import annotations
+
+import csv
+import json
+from datetime import datetime, timezone
+from io import BytesIO, StringIO
+from pathlib import Path
+from typing import Any
+from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
+
+from app.services.data_provenance_service import data_provenance_audit
+from app.services.data_refresh_service import data_catalog, refresh_log
+from app.services.data_release_lock_service import read_data_release_lock, verify_data_release_lock
+from app.services.external_data_service import external_source_status
+from app.services.export_manifest_service import ManifestedZip, verify_artifact_bundle
+from app.services.rag_service import rag_status
+from app.services.structured_data_service import (
+    STRUCTURED_DIR,
+    load_structured_records,
+    structured_coverage_matrix,
+    structured_manifest,
+    structured_status,
+    validate_structured_records,
+)
+from app.services.structured_quality_service import structured_quality_gate
+
+
+RELEASE_BUNDLE_SCHEMA = "agentic-rag-data-release-bundle-v1"
+REQUIRED_DATA_RELEASE_FILES = {
+    "release_manifest.json",
+    "structured_status.json",
+    "structured_manifest.json",
+    "structured_validation.json",
+    "structured_quality.json",
+    "structured_coverage.json",
+    "data_provenance.json",
+    "data_catalog.json",
+    "external_sources.json",
+    "data_release_lock.json",
+    "data_release_lock_persisted.json",
+    "rag_status.json",
+    "refresh_log.json",
+    "records.jsonl",
+    "records.csv",
+}
+
+
+def build_data_release_bundle() -> bytes:
+    records = load_structured_records()
+    manifest = structured_manifest()
+    quality = structured_quality_gate()
+    provenance = data_provenance_audit()
+    release_lock = verify_data_release_lock()
+    metadata = {
+        "bundle_schema": RELEASE_BUNDLE_SCHEMA,
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "structured_manifest_hash": manifest.get("manifest_hash"),
+        "record_count": len(records),
+        "structured_file_count": len(manifest.get("files") or []),
+        "quality_status": quality.get("status"),
+        "provenance_status": provenance.get("status"),
+        "release_lock_status": release_lock.get("status"),
+        "promotion_status": _promotion_status(quality, provenance, release_lock),
+        "contains_source_bytes": True,
+    }
+    buffer = BytesIO()
+    with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
+        bundle = ManifestedZip(archive, "data_release_bundle", metadata)
+        bundle.writestr("release_manifest.json", _json(metadata))
+        bundle.writestr("structured_status.json", _json(structured_status()))
+        bundle.writestr("structured_manifest.json", _json(manifest))
+        bundle.writestr("structured_validation.json", _json(validate_structured_records()))
+        bundle.writestr("structured_quality.json", _json(quality))
+        bundle.writestr("structured_coverage.json", _json(structured_coverage_matrix()))
+        bundle.writestr("data_provenance.json", _json(provenance))
+        bundle.writestr("data_catalog.json", _json(data_catalog()))
+        bundle.writestr("external_sources.json", _json(external_source_status()))
+        bundle.writestr("data_release_lock.json", _json(release_lock))
+        bundle.writestr("data_release_lock_persisted.json", _json(read_data_release_lock() or {}))
+        bundle.writestr("rag_status.json", _json(rag_status()))
+        bundle.writestr("refresh_log.json", _json(refresh_log(limit=500)))
+        bundle.writestr("records.jsonl", _records_jsonl(records))
+        bundle.writestr("records.csv", _records_csv(records))
+        for source_path in _structured_source_files():
+            bundle.write_file(source_path, f"structured_sources/{source_path.name}")
+        bundle.write_artifact_manifest()
+    return buffer.getvalue()
+
+
+def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
+    base = verify_artifact_bundle(bundle)
+    semantic_errors: list[str] = []
+    semantic_warnings: list[str] = []
+    semantic_checks: dict[str, str] = {}
+    payloads: dict[str, dict[str, Any]] = {}
+    zip_names: set[str] = set()
+
+    if base.get("artifact_type") != "data_release_bundle":
+        semantic_errors.append("Artifact manifest artifact_type must be data_release_bundle.")
+        semantic_checks["artifact_type"] = "fail"
+    else:
+        semantic_checks["artifact_type"] = "pass"
+
+    try:
+        with ZipFile(BytesIO(bundle), "r") as archive:
+            zip_names = set(archive.namelist())
+            missing = sorted(REQUIRED_DATA_RELEASE_FILES - zip_names)
+            if missing:
+                semantic_errors.append(f"Required data release bundle files are missing: {', '.join(missing)}.")
+                semantic_checks["required_files"] = "fail"
+            else:
+                semantic_checks["required_files"] = "pass"
+                payloads = {name: _read_json(archive, name) for name in REQUIRED_DATA_RELEASE_FILES if name.endswith(".json")}
+                _verify_record_rows(archive, semantic_checks, semantic_errors)
+    except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
+        semantic_errors.append(f"Invalid data release bundle: {exc}")
+
+    release_manifest = payloads.get("release_manifest.json") or {}
+    structured_status = payloads.get("structured_status.json") or {}
+    structured_manifest_payload = payloads.get("structured_manifest.json") or {}
+    validation = payloads.get("structured_validation.json") or {}
+    quality = payloads.get("structured_quality.json") or {}
+    coverage = payloads.get("structured_coverage.json") or {}
+    provenance = payloads.get("data_provenance.json") or {}
+    release_lock = payloads.get("data_release_lock.json") or {}
+
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "bundle_schema",
+        release_manifest.get("bundle_schema"),
+        RELEASE_BUNDLE_SCHEMA,
+        "release_manifest.json bundle_schema is not recognized.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "quality_schema",
+        quality.get("quality_schema"),
+        "agentic-rag-structured-quality-gate-v1",
+        "structured_quality.json quality_schema is not recognized.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "coverage_schema",
+        coverage.get("coverage_schema"),
+        "agentic-rag-structured-coverage-v1",
+        "structured_coverage.json coverage_schema is not recognized.",
+    )
+
+    manifest_hashes = {
+        str(value)
+        for value in [
+            release_manifest.get("structured_manifest_hash"),
+            structured_status.get("manifest_hash"),
+            structured_manifest_payload.get("manifest_hash"),
+            quality.get("manifest_hash"),
+            coverage.get("manifest_hash"),
+            provenance.get("manifest_hash"),
+        ]
+        if value
+    }
+    if len(manifest_hashes) > 1:
+        semantic_errors.append("Structured manifest hashes disagree across data release bundle files.")
+        semantic_checks["structured_manifest_hash"] = "fail"
+    elif manifest_hashes:
+        semantic_checks["structured_manifest_hash"] = "pass"
+    else:
+        semantic_warnings.append("Structured manifest hash is not recorded in the data release bundle.")
+        semantic_checks["structured_manifest_hash"] = "warning"
+
+    record_counts = {
+        value
+        for value in [
+            _int_or_none(release_manifest.get("record_count")),
+            _int_or_none(structured_status.get("records")),
+            _int_or_none(validation.get("records")),
+            _int_or_none(quality.get("record_count")),
+            _int_or_none(coverage.get("record_count")),
+        ]
+        if value is not None
+    }
+    if len(record_counts) > 1:
+        semantic_errors.append("Record counts disagree across data release bundle files.")
+        semantic_checks["record_count"] = "fail"
+    elif record_counts and next(iter(record_counts)) > 0:
+        semantic_checks["record_count"] = "pass"
+    else:
+        semantic_errors.append("Data release bundle must contain at least one structured record.")
+        semantic_checks["record_count"] = "fail"
+
+    validation_errors = _int_or_none(validation.get("error_count"))
+    if validation_errors and validation_errors > 0:
+        semantic_errors.append("Data release bundle records structured validation errors.")
+        semantic_checks["structured_validation"] = "fail"
+    elif validation_errors == 0:
+        semantic_checks["structured_validation"] = "pass"
+    else:
+        semantic_warnings.append("Structured validation error count is missing.")
+        semantic_checks["structured_validation"] = "warning"
+
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "quality_status",
+        release_manifest.get("quality_status"),
+        quality.get("status"),
+        "release_manifest.json quality_status does not match structured_quality.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "provenance_status",
+        release_manifest.get("provenance_status"),
+        provenance.get("status"),
+        "release_manifest.json provenance_status does not match data_provenance.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "release_lock_status",
+        release_manifest.get("release_lock_status"),
+        release_lock.get("status"),
+        "release_manifest.json release_lock_status does not match data_release_lock.json.",
+    )
+
+    source_files = [name for name in zip_names if name.startswith("structured_sources/") and not name.endswith("/")]
+    expected_source_files = _int_or_none(release_manifest.get("structured_file_count"))
+    if expected_source_files is not None and len(source_files) >= expected_source_files:
+        semantic_checks["structured_source_bytes"] = "pass"
+    else:
+        semantic_errors.append("Data release bundle does not include all structured source bytes.")
+        semantic_checks["structured_source_bytes"] = "fail"
+
+    promotion_status = str(release_manifest.get("promotion_status") or "unknown")
+    if promotion_status == "fail":
+        semantic_errors.append("Data release promotion status is fail.")
+        semantic_checks["promotion_status"] = "fail"
+    elif promotion_status == "warning":
+        semantic_warnings.append("Data release promotion status is warning; see structured quality/provenance caveats.")
+        semantic_checks["promotion_status"] = "warning"
+    elif promotion_status == "pass":
+        semantic_checks["promotion_status"] = "pass"
+    else:
+        semantic_errors.append("Data release promotion status is missing or invalid.")
+        semantic_checks["promotion_status"] = "fail"
+
+    errors = list(base.get("errors") or []) + semantic_errors
+    warnings = list(base.get("warnings") or []) + semantic_warnings
+    semantic_status = "fail" if semantic_errors else "warning" if semantic_warnings else "pass"
+    return {
+        **base,
+        "status": "fail" if errors else "warning" if warnings else "pass",
+        "errors": errors,
+        "warnings": warnings,
+        "semantic_status": semantic_status,
+        "semantic_errors": semantic_errors,
+        "semantic_warnings": semantic_warnings,
+        "semantic_checks": semantic_checks,
+        "structured_manifest_hash": next(iter(manifest_hashes), None),
+        "record_count": next(iter(record_counts), None),
+        "quality_status": quality.get("status"),
+        "provenance_status": provenance.get("status"),
+        "release_lock_status": release_lock.get("status"),
+        "promotion_status": promotion_status,
+        "structured_source_file_count": len(source_files),
+    }
+
+
+def _promotion_status(quality: dict[str, Any], provenance: dict[str, Any], release_lock: dict[str, Any]) -> str:
+    statuses = [quality.get("status"), provenance.get("status")]
+    if release_lock.get("status") not in {"current"}:
+        statuses.append("warning")
+    if any(status == "fail" for status in statuses):
+        return "fail"
+    if any(status == "warning" for status in statuses):
+        return "warning"
+    return "pass"
+
+
+def _structured_source_files() -> list[Path]:
+    if not STRUCTURED_DIR.exists():
+        return []
+    return sorted(path for path in STRUCTURED_DIR.glob("*") if path.is_file() and path.suffix.lower() in {".json", ".csv"})
+
+
+def _records_jsonl(records: list[dict[str, Any]]) -> str:
+    return "\n".join(json.dumps(_export_record(record), ensure_ascii=False, sort_keys=True) for record in records) + ("\n" if records else "")
+
+
+def _records_csv(records: list[dict[str, Any]]) -> str:
+    output = StringIO()
+    fieldnames = [
+        "id",
+        "dataset",
+        "release",
+        "gene",
+        "brain_region",
+        "cell_type",
+        "confidence",
+        "source_file",
+        "source_sha256",
+        "source_payload_sha256",
+        "source_snapshot_path",
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for record in records:
+        writer.writerow(
+            {
+                "id": record.get("id"),
+                "dataset": record.get("dataset"),
+                "release": record.get("release"),
+                "gene": record.get("gene"),
+                "brain_region": record.get("brain_region"),
+                "cell_type": record.get("cell_type"),
+                "confidence": record.get("confidence"),
+                "source_file": record.get("_source_file"),
+                "source_sha256": record.get("_source_sha256"),
+                "source_payload_sha256": record.get("source_payload_sha256"),
+                "source_snapshot_path": record.get("source_snapshot_path"),
+            }
+        )
+    return output.getvalue()
+
+
+def _export_record(record: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in record.items() if not key.startswith("__")}
+
+
+def _verify_record_rows(archive: ZipFile, checks: dict[str, str], errors: list[str]) -> None:
+    jsonl_rows = [line for line in archive.read("records.jsonl").decode("utf-8").splitlines() if line.strip()]
+    csv_rows = list(csv.DictReader(StringIO(archive.read("records.csv").decode("utf-8"))))
+    if len(jsonl_rows) != len(csv_rows):
+        errors.append("records.jsonl and records.csv row counts differ.")
+        checks["record_rows"] = "fail"
+        return
+    for line in jsonl_rows:
+        payload = json.loads(line)
+        if not isinstance(payload, dict) or not payload.get("id") or not payload.get("dataset"):
+            errors.append("records.jsonl contains a row without id or dataset.")
+            checks["record_rows"] = "fail"
+            return
+    checks["record_rows"] = "pass"
+
+
+def _expect_equal(
+    checks: dict[str, str],
+    errors: list[str],
+    name: str,
+    actual: Any,
+    expected: Any,
+    message: str,
+) -> None:
+    if actual == expected and actual is not None:
+        checks[name] = "pass"
+    else:
+        checks[name] = "fail"
+        errors.append(message)
+
+
+def _read_json(archive: ZipFile, name: str) -> dict[str, Any]:
+    payload = json.loads(archive.read(name).decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{name} must contain a JSON object.")
+    return payload
+
+
+def _int_or_none(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _json(payload: Any) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "allen_dopaminergic_neuron_midbrain",
+    "dataset": "Allen Brain Cell Atlas",
+    "release": "seed",
+    "species": [
+      "human",
+      "mouse"
+    ],
+    "brain_region": "substantia nigra",
+    "cell_type": "dopaminergic neuron",
+    "coverage_level": "cell_type",
+    "confidence": "medium",
+    "summary": "Cell-type prior for midbrain dopaminergic neuron context. Human coverage varies by atlas and assay.",
+    "source_url": "https://portal.brain-map.org/atlases-and-data/bkp/abc-atlas",
+    "source_payload_sha256": "80a509696b39fdeba8a27d72d45adbbf54ec5ca9ed0fce35e65332cbd1cab816",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_allen_cell_priors_7311f13750decc73.json",
+    "source_request_url": "https://portal.brain-map.org/atlases-and-data/bkp/abc-atlas"
+  },
+  {
+    "id": "allen_medium_spiny_neuron_striatum",
+    "dataset": "Allen Brain Cell Atlas",
+    "release": "seed",
+    "species": [
+      "human",
+      "mouse"
+    ],
+    "brain_region": "striatum",
+    "cell_type": "medium spiny neuron",
+    "coverage_level": "cell_type",
+    "confidence": "medium",
+    "summary": "Cell-type prior for striatal medium spiny neuron contexts, with species and region transfer caveats.",
+    "source_url": "https://portal.brain-map.org/atlases-and-data/bkp/abc-atlas",
+    "source_payload_sha256": "80a509696b39fdeba8a27d72d45adbbf54ec5ca9ed0fce35e65332cbd1cab816",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_allen_cell_priors_7311f13750decc73.json",
+    "source_request_url": "https://portal.brain-map.org/atlases-and-data/bkp/abc-atlas"
+  },
+  {
+    "id": "allen_microglia_brain",
+    "dataset": "Allen Brain Cell Atlas",
+    "release": "seed",
+    "species": [
+      "human",
+      "mouse"
+    ],
+    "brain_region": "brain",
+    "cell_type": "microglia",
+    "coverage_level": "cell_type",
+    "confidence": "medium",
+    "summary": "Broad brain immune-cell prior useful when user requests microglial targeting.",
+    "source_url": "https://portal.brain-map.org/atlases-and-data/bkp/abc-atlas",
+    "source_payload_sha256": "80a509696b39fdeba8a27d72d45adbbf54ec5ca9ed0fce35e65332cbd1cab816",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_allen_cell_priors_7311f13750decc73.json",
+    "source_request_url": "https://portal.brain-map.org/atlases-and-data/bkp/abc-atlas"
+  }
+]

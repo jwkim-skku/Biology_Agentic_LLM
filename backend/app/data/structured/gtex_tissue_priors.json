@@ -1,0 +1,47 @@
+[
+  {
+    "id": "gtex_brain_substantia_nigra",
+    "dataset": "GTEx",
+    "release": "V8 seed",
+    "species": "human",
+    "tissue": "Brain - Substantia nigra",
+    "brain_region": "substantia nigra",
+    "coverage_level": "tissue",
+    "confidence": "medium",
+    "summary": "Human tissue-level prior for substantia nigra. Use as expression context, not direct cell-type evidence.",
+    "source_url": "https://gtexportal.org/home/",
+    "source_payload_sha256": "179a2d9df036d044a6f8022f957003d64fe1a6529ab2b7578b1cbbf309ddcfd3",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_gtex_tissue_priors_8a9b5c17959c3ae2.json",
+    "source_request_url": "https://gtexportal.org/home/"
+  },
+  {
+    "id": "gtex_brain_caudate",
+    "dataset": "GTEx",
+    "release": "V8 seed",
+    "species": "human",
+    "tissue": "Brain - Caudate basal ganglia",
+    "brain_region": "striatum",
+    "coverage_level": "tissue",
+    "confidence": "medium",
+    "summary": "Human basal ganglia tissue-level prior for striatal design contexts. Cell-type resolution requires atlas evidence.",
+    "source_url": "https://gtexportal.org/home/",
+    "source_payload_sha256": "179a2d9df036d044a6f8022f957003d64fe1a6529ab2b7578b1cbbf309ddcfd3",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_gtex_tissue_priors_8a9b5c17959c3ae2.json",
+    "source_request_url": "https://gtexportal.org/home/"
+  },
+  {
+    "id": "gtex_brain_cortex",
+    "dataset": "GTEx",
+    "release": "V8 seed",
+    "species": "human",
+    "tissue": "Brain - Cortex",
+    "brain_region": "cortex",
+    "coverage_level": "tissue",
+    "confidence": "medium",
+    "summary": "Human cortex tissue-level prior for region-aware design contexts.",
+    "source_url": "https://gtexportal.org/home/",
+    "source_payload_sha256": "179a2d9df036d044a6f8022f957003d64fe1a6529ab2b7578b1cbbf309ddcfd3",
+    "source_snapshot_path": "C:\\Users\\test123\\Documents\\New project\\backend\\app\\data\\runtime\\external_sources\\backfill_gtex_tissue_priors_8a9b5c17959c3ae2.json",
+    "source_request_url": "https://gtexportal.org/home/"
+  }
+]

@@ -1,0 +1,71 @@
+# Production Roadmap
+
+Implemented:
+
+- Backend API pipeline
+- Gene symbol to Ensembl/MANE-aware CDS resolution
+- Local RAG document ingestion
+- Structured GTEx/Allen/CUSTOM seed data layer
+- Live GTEx median gene-expression import through GTEx Portal API v2
+- Live Allen WHB taxonomy import through public ABC Atlas S3 metadata
+- external source snapshot manifests for live GTEx/Allen imports
+- source-response snapshot backfill for bundled and manually imported structured records
+- data refresh plan audit bundles with validation, operation CSV, structured quality, provenance, release-lock, external-source, and RAG status evidence
+- Kapur-style tRNA/codon availability structured prior support
+- Structured source manifest with SHA-256 hashes and validation checks
+- Structured data promotion quality gate for live/seed fractions, release pinning, source snapshot/hash coverage, dataset caveats, and operator actions
+- Data release lockfile for structured dataset release/file-hash pinning
+- Hybrid hash embedding + BM25 retrieval with biomedical alias expansion, facet-aware reranking, and source-priority scoring
+- Configurable RAG embedding backend boundary with `hash_bow` default, optional local-files-only `sentence_transformers` model loading, diagnostics, vector-index ZIP evidence, readiness gates, and production audit evidence
+- fixed RAG retrieval regression suite with required evidence coverage, Recall@k, and nDCG@k
+- RAG diagnostics for corpus/source distribution, token and embedding health, regression macro metrics, weak cases, and operational recommendations
+- RAG vector-store readiness diagnostics for pgvector/Qdrant migration payload contracts and backend recommendations
+- RAG vector-store runtime adapter boundary with local JSON default, pgvector candidate query path, Qdrant candidate query path, backend status endpoint, and fallback diagnostics
+- RAG vector-store dry-run import planning, pgvector/Qdrant bulk upsert hooks, and row-hash parity reports for cutover verification
+- RAG evaluation audit bundles with retrieval trace, score CSV, retrieved chunks JSONL, structured manifest, artifact verification, archive storage, and semantic cross-checks
+- RAG regression audit bundles with case metrics CSV, weak-case evidence, ranking policy, diagnostics, archive storage, and semantic cross-checks
+- RAG vector-index migration bundles with full chunk JSONL, payload schema, pgvector DDL, Qdrant collection config, archive storage, and semantic cross-checks
+- NSGA-II optimizer with constraint repair
+- CUSTOM-style tissue-aware codon multipliers
+- tRNA availability score and rare-codon-cluster objective
+- codon-pair, 5-prime GC, hairpin-proxy, deterministic secondary-structure/MFE-proxy, and low-complexity optimizer objectives
+- candidate diagnostics for feasible-set counts, Pareto-front representatives, score ranges, and codon-level diversity
+- fixed optimizer benchmark suite for constraint violation rate, codon diversity, protein preservation, composite-quality delta, and approximate hypervolume
+- optimizer stress gates for AAV budget, sequence-policy motifs, secondary-structure proxy, low complexity, rare-codon clusters, diversity, and recommendation regret
+- optimizer diagnostics for objective inventory, benchmark quality bands, weak cases, runtime, and tuning recommendations
+- optimizer benchmark audit bundles with case metrics CSV, candidate diagnostics, config snapshots, structured manifest, archive storage, and semantic cross-checks
+- configurable RNA folding backend boundary with ViennaRNA RNAfold status/evaluation endpoints, optimizer diagnostics evidence, benchmark ZIP evidence, and deployment audit gates
+- detailed sequence-policy audit for polyA signal, restriction-site, and splice donor/acceptor proxy findings
+- file-level SHA-256 artifact manifests for run, job, and data snapshot exports
+- SQLite operational audit log for report/export/verify/job/data-refresh actions
+- immutable local archive for exported run/job/data snapshot bundles with archive re-verification
+- append-only artifact archive ledger with hash-chain verification
+- optional S3-compatible object-store mirror planning/apply workflow for immutable archive bundles
+- governance attestation export for OpenAPI, data, RAG, storage, and artifact-ledger state
+- optional HMAC and Ed25519 signatures for artifact manifests and governance attestation payloads
+- API-key role-based access control for viewer/operator/admin deployment profiles
+- optional Postgres runtime adapter for run/job/audit stores with storage readiness endpoints
+- SQLite-to-Postgres migration bundle export, dry-run import planning, and row-level source/target parity hashing
+- deployment readiness gate covering data, provenance, structured quality, RAG, optimizer, QC export, storage, security, signing, governance, and artifact archive integrity
+- JSON, Markdown, HTML, and PDF QC reports
+- manifested QC report ZIP bundles with multiformat reports, candidate ranking CSV, data-quality evidence, optimizer-stress evidence, provenance, artifact verification, and semantic cross-checks
+- SQLite run persistence and agent/tool trace storage
+- Persistent agent memory index for session, semantic-rule, and artifact summaries derived from saved design runs
+- Local workflow orchestration for planner, transcript resolver, retriever, optimizer, and QC writer roles
+- Workflow trace audit bundles with task, plan, trace, role contract, provenance, archive storage, and semantic verification
+- Next.js dashboard
+- Docker Compose scaffolding plus production override for Postgres/auth/signing/retention deployment profiles
+- Docker Compose deployment-shape preflight for local and CI verification
+- API contract checks, golden response-shape snapshots, value-level golden fixtures, extended smoke tests, browser UI smoke tests, manual regression tests, frontend production build, and GitHub Actions CI
+
+Remaining production work:
+
+- Replace seed structured data with larger release-pinned GTEx/Allen/CUSTOM/Kapur data files.
+- Add external timestamping and lifecycle-policy validation for regulated object-store deployments.
+- Pin and validate the production biomedical embedding model artifact, then calibrate RAG regression thresholds against that model before retrieval promotion.
+- Validate pgvector/Qdrant cutover against live managed services in a Docker-enabled or cloud environment; current import/parity endpoints provide the application-side cutover workflow.
+- Validate a LangGraph or managed workflow runtime against the current task/plan/trace/artifact contract only when persistence, retry, and human-in-the-loop requirements exceed this local orchestrator.
+- Wire validated RNAfold thermodynamic results directly into optimizer objective scoring once the production environment has a pinned ViennaRNA release and calibration thresholds.
+- Add longer MANE-derived biological optimizer benchmarks once larger release-pinned transcript datasets are loaded.
+- Replace motif proxy policies with dedicated splice/polyA/restriction classifiers when validated production models are selected.
+- Add immutable managed object storage before multi-user deployment.

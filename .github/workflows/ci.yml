@@ -1,0 +1,146 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m compileall app scripts
+      - run: python scripts/api_contract_test.py
+      - run: python scripts/golden_response_test.py
+      - run: python scripts/golden_value_test.py
+      - run: python -c "from tests import test_optimizer as t; [getattr(t, name)() for name in dir(t) if name.startswith('test_')]; print('manual tests passed')"
+      - run: python ../scripts/preflight.py --skip-frontend --skip-smoke --skip-signing-smoke --skip-ui-smoke --output-json backend/app/data/runtime/preflight_ci.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-preflight-evidence
+          path: backend/app/data/runtime/preflight_ci.json
+      - run: |
+          export ARTIFACT_SIGNING_KEY=ci-artifact-signing-secret
+          export ARTIFACT_SIGNING_KEY_ID=ci-hmac-key
+          export SMOKE_REQUIRE_SIGNING=1
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
+          python scripts/smoke_test.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  ui-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: pip install -r requirements.txt
+        working-directory: backend
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Start backend
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > ../backend.log 2>&1 &
+          python - <<'PY'
+          import time
+          import urllib.request
+
+          for _ in range(60):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:8000/api/v1/health/ready", timeout=2) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(1)
+          raise SystemExit("backend did not become ready")
+          PY
+        working-directory: backend
+      - name: Start frontend
+        run: |
+          NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1 npm run dev -- --hostname 127.0.0.1 --port 3000 > ../frontend.log 2>&1 &
+          python - <<'PY'
+          import time
+          import urllib.request
+
+          for _ in range(90):
+              try:
+                  with urllib.request.urlopen("http://127.0.0.1:3000", timeout=2) as response:
+                      if response.status == 200:
+                          raise SystemExit(0)
+              except Exception:
+                  time.sleep(1)
+          raise SystemExit("frontend did not become ready")
+          PY
+        working-directory: frontend
+      - run: npm run smoke:ui
+        working-directory: frontend
+        env:
+          FRONTEND_URL: http://127.0.0.1:3000
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000/api/v1
+      - name: Dump service logs on failure
+        if: failure()
+        run: |
+          echo "=== backend.log ==="
+          cat backend.log || true
+          echo "=== frontend.log ==="
+          cat frontend.log || true
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/compose_preflight.py --require-docker
+      - run: docker compose config
+      - run: |
+          cat > .env.compose-ci <<'EOF'
+          NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000/api/v1
+          NEXT_PUBLIC_API_KEY=viewer-key-for-compose-ci-000000000001
+          BACKEND_PORT=18000
+          FRONTEND_PORT=13000
+          APP_DATA_DIR=/app/app/data
+          RAG_DATA_DIR=/app/app/data
+          CORS_ORIGINS=http://127.0.0.1:13000
+          STORAGE_BACKEND=postgres
+          DATABASE_URL=postgresql://agentic_rag:compose-ci-postgres-password@postgres:5432/agentic_rag
+          POSTGRES_DB=agentic_rag
+          POSTGRES_USER=agentic_rag
+          POSTGRES_PASSWORD=compose-ci-postgres-password
+          API_KEYS=admin-compose-ci-key-0000000001,operator-compose-ci-key-00000001,viewer-compose-ci-key-0000000001
+          API_KEY_ROLES=admin-compose-ci-key-0000000001=admin;operator-compose-ci-key-00000001=operator;viewer-compose-ci-key-0000000001=viewer
+          RATE_LIMIT_PER_MINUTE=120
+          ARTIFACT_SIGNING_KEY=compose-ci-artifact-signing-key-with-32-bytes
+          ARTIFACT_SIGNING_KEY_ID=compose-ci-hmac-key
+          ARTIFACT_RETENTION_DAYS=365
+          ARTIFACT_RETENTION_KEEP_MIN=1000
+          EOF
+          docker compose --env-file .env.compose-ci -f docker-compose.yml -f docker-compose.production.yml config
+      - run: docker compose build

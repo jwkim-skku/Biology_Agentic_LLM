@@ -1,0 +1,9 @@
+backend/app/data/runtime/
+*.sqlite3
+*.db
+*.log
+__pycache__/
+*.pyc
+.pytest_cache/
+frontend/.next/
+frontend/node_modules/

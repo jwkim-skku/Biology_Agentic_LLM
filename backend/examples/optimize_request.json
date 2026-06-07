@@ -1,0 +1,19 @@
+{
+  "cds": "ATGGCTGCTGCTGCTGCTGCTTAA",
+  "target": {
+    "gene": "DEMO",
+    "disease_context": "demo disease",
+    "species": "human",
+    "brain_region": "striatum",
+    "cell_type": "medium spiny neuron",
+    "modality": "AAV"
+  },
+  "optimization_settings": {
+    "population_size": 32,
+    "generations": 12,
+    "mutation_rate": 0.08,
+    "crossover_rate": 0.8,
+    "seed": 42,
+    "max_candidates": 5
+  }
+}

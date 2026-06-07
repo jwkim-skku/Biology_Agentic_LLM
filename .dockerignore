@@ -1,0 +1,14 @@
+.git
+.next
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.venv
+node_modules
+npm-debug.log
+Dockerfile
+docker-compose.override.yml
+ppt_render
+*.pptx
+*.jpg

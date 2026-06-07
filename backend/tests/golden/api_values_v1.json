@@ -1,0 +1,162 @@
+{
+  "design_seeded": {
+    "candidate_count": 2,
+    "native_scores": {
+      "aav_budget_pass": true,
+      "cai": 0.8828,
+      "codon_pair_risk": 2,
+      "composite_quality": 0.0129,
+      "cpg_density_per_100nt": 6.6667,
+      "five_prime_gc_deviation": 0.05,
+      "gc_fraction": 0.5,
+      "gc_window_max_deviation": 0.05,
+      "hairpin_proxy_score": 0.0513,
+      "length_nt": 30,
+      "low_complexity_penalty": 0.0,
+      "mfe_proxy_delta_g": -13.5,
+      "motif_violations": 0,
+      "polyadenylation_signal_count": 0,
+      "restriction_site_count": 0,
+      "secondary_structure_proxy_score": 0.75,
+      "sequence_complexity": 1.0,
+      "sequence_policy_violation_score": 0.0,
+      "splice_acceptor_motif_count": 0,
+      "splice_donor_motif_count": 0,
+      "tissue_codon_adaptation": 0.0
+    },
+    "pipeline_version": "0.1.0-mvp",
+    "qc_gate": {
+      "errors": 0,
+      "failed_checks": [
+        "evidence_attached"
+      ],
+      "status": "warning",
+      "warnings": 1
+    },
+    "qc_report": {
+      "open_questions": 4,
+      "supported_rules": 0,
+      "uncertain_rules": 1,
+      "warnings": 2
+    },
+    "recommended_candidate_id": "cand_001",
+    "recommended_cds_sha256": "bdd76b8b49f30f715a55d878dd0604fe56a070e561714a118145b4f6369ba97c",
+    "recommended_scores": {
+      "aav_budget_pass": true,
+      "cai": 0.8828,
+      "codon_pair_risk": 2,
+      "composite_quality": 0.0129,
+      "cpg_density_per_100nt": 6.6667,
+      "five_prime_gc_deviation": 0.05,
+      "gc_fraction": 0.5,
+      "gc_window_max_deviation": 0.05,
+      "hairpin_proxy_score": 0.0513,
+      "length_nt": 30,
+      "low_complexity_penalty": 0.0,
+      "mfe_proxy_delta_g": -13.5,
+      "motif_violations": 0,
+      "polyadenylation_signal_count": 0,
+      "restriction_site_count": 0,
+      "secondary_structure_proxy_score": 0.75,
+      "sequence_complexity": 1.0,
+      "sequence_policy_violation_score": 0.0,
+      "splice_acceptor_motif_count": 0,
+      "splice_donor_motif_count": 0,
+      "tissue_codon_adaptation": 0.0
+    },
+    "run_id": "run_0dad13b4e163",
+    "trace_steps": [
+      "planner_completed",
+      "synonymous_optimizer",
+      "qc_writer_completed"
+    ]
+  },
+  "score_clean": {
+    "protein": "MADEFAKGY",
+    "scores": {
+      "aav_budget_pass": true,
+      "cai": 0.8828,
+      "codon_pair_risk": 2,
+      "composite_quality": 0.0129,
+      "cpg_density_per_100nt": 6.6667,
+      "five_prime_gc_deviation": 0.05,
+      "gc_fraction": 0.5,
+      "gc_window_max_deviation": 0.05,
+      "hairpin_proxy_score": 0.0513,
+      "length_nt": 30,
+      "low_complexity_penalty": 0.0,
+      "mfe_proxy_delta_g": -13.5,
+      "motif_violations": 0,
+      "polyadenylation_signal_count": 0,
+      "restriction_site_count": 0,
+      "secondary_structure_proxy_score": 0.75,
+      "sequence_complexity": 1.0,
+      "sequence_policy_violation_score": 0.0,
+      "splice_acceptor_motif_count": 0,
+      "splice_donor_motif_count": 0,
+      "tissue_codon_adaptation": 0.0
+    }
+  },
+  "score_policy_risk": {
+    "protein": "MNKEFVS",
+    "scores": {
+      "aav_budget_pass": true,
+      "cai": 0.6936,
+      "codon_pair_risk": 1,
+      "composite_quality": -0.7901,
+      "cpg_density_per_100nt": 4.1667,
+      "five_prime_gc_deviation": 0.3417,
+      "gc_fraction": 0.2083,
+      "gc_window_max_deviation": 0.3417,
+      "hairpin_proxy_score": 0.0667,
+      "length_nt": 24,
+      "low_complexity_penalty": 0.0476,
+      "mfe_proxy_delta_g": -12.0,
+      "motif_violations": 1,
+      "polyadenylation_signal_count": 1,
+      "restriction_site_count": 1,
+      "secondary_structure_proxy_score": 0.6875,
+      "sequence_complexity": 0.9524,
+      "sequence_policy_violation_score": 2.55,
+      "splice_acceptor_motif_count": 0,
+      "splice_donor_motif_count": 1,
+      "tissue_codon_adaptation": 0.0
+    }
+  },
+  "validation_policy_risk": {
+    "errors": 2,
+    "failed_checks": [
+      "cryptic_splice_proxy",
+      "forbidden_motifs",
+      "global_gc_range",
+      "local_gc_window",
+      "polyadenylation_signal_proxy",
+      "restriction_sites",
+      "splice_donor_proxy"
+    ],
+    "sequence_policy": {
+      "finding_categories": [
+        "cryptic_splice_proxy",
+        "forbidden_motif",
+        "polyadenylation_signal",
+        "restriction_site",
+        "splice_donor_proxy"
+      ],
+      "status": "fail",
+      "summary": {
+        "cryptic_splice_proxy": 1,
+        "errors": 2,
+        "forbidden_motif": 1,
+        "policy_violation_score": 2.55,
+        "polyadenylation_signal": 1,
+        "restriction_site": 1,
+        "splice_acceptor_proxy": 0,
+        "splice_donor_proxy": 1,
+        "warnings": 3
+      }
+    },
+    "status": "fail",
+    "terminal_stop": "TAA",
+    "warnings": 5
+  }
+}

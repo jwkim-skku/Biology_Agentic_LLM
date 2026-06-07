@@ -1,0 +1,86 @@
+[
+  {
+    "case_id": "balanced_short_cds",
+    "description": "Small protein-preserving CDS benchmark with balanced GC and no intentional motif stress.",
+    "cds": "ATGGCTGACGAGTTCGCCAAGGGTTACTAA",
+    "target": {
+      "gene": "DEMO",
+      "species": "human",
+      "brain_region": "cortex",
+      "cell_type": "neuron",
+      "modality": "AAV"
+    },
+    "optimization_settings": {
+      "population_size": 24,
+      "generations": 4,
+      "max_candidates": 4,
+      "seed": 101,
+      "mutation_rate": 0.05,
+      "crossover_rate": 0.8,
+      "enable_repair": true,
+      "repair_passes": 3
+    },
+    "thresholds": {
+      "min_candidates": 3,
+      "min_unique_cds": 3,
+      "max_constraint_violation_rate": 0.35,
+      "min_recommended_composite_delta": -0.05
+    }
+  },
+  {
+    "case_id": "motif_repair_stress",
+    "description": "Synonymous repair stress case with an internal homopolymer/forbidden motif proxy.",
+    "cds": "ATGAAAAAAGCTGCTTAA",
+    "target": {
+      "gene": "DEMO",
+      "species": "human",
+      "brain_region": "substantia nigra",
+      "cell_type": "dopaminergic neuron",
+      "modality": "AAV"
+    },
+    "optimization_settings": {
+      "population_size": 28,
+      "generations": 5,
+      "max_candidates": 5,
+      "seed": 202,
+      "mutation_rate": 0.08,
+      "crossover_rate": 0.8,
+      "enable_repair": true,
+      "repair_passes": 4
+    },
+    "thresholds": {
+      "min_candidates": 3,
+      "min_unique_cds": 2,
+      "max_constraint_violation_rate": 0.50,
+      "min_recommended_composite_delta": -0.10
+    }
+  },
+  {
+    "case_id": "structured_prior_context",
+    "description": "Structured CUSTOM/tRNA prior context should still preserve protein sequence and candidate diversity.",
+    "cds": "ATGGCTGCTGCTGCTTAA",
+    "target": {
+      "gene": "DEMO",
+      "species": "human",
+      "brain_region": "substantia nigra",
+      "cell_type": "dopaminergic neuron",
+      "modality": "AAV"
+    },
+    "optimization_settings": {
+      "population_size": 24,
+      "generations": 4,
+      "max_candidates": 4,
+      "seed": 303,
+      "mutation_rate": 0.06,
+      "crossover_rate": 0.8,
+      "enable_repair": true,
+      "repair_passes": 3
+    },
+    "thresholds": {
+      "min_candidates": 3,
+      "min_unique_cds": 2,
+      "max_constraint_violation_rate": 0.35,
+      "min_recommended_composite_delta": -0.05
+    }
+  }
+]
