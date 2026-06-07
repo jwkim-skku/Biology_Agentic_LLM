@@ -857,6 +857,9 @@ type ProductionAuditStatus = {
         operations_hash?: string | null;
         data_catalog_hash?: string | null;
         external_sources_hash?: string | null;
+        structured_quality_hash?: string | null;
+        data_provenance_hash?: string | null;
+        rag_status_hash?: string | null;
         validation_status?: string | null;
         structured_manifest_hash?: string | null;
         release_lock_status?: string | null;
@@ -1162,6 +1165,9 @@ type DataRefreshPlanArchiveSemanticSummary = ArchiveSemanticFreshness & {
     operations_hash?: string | null;
     data_catalog_hash?: string | null;
     external_sources_hash?: string | null;
+    structured_quality_hash?: string | null;
+    data_provenance_hash?: string | null;
+    rag_status_hash?: string | null;
     validation_status?: string | null;
     structured_manifest_hash?: string | null;
     release_lock_status?: string | null;
@@ -4119,6 +4125,10 @@ export default function Dashboard() {
                 sources {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.external_sources_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                Plan quality {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.structured_quality_hash?.slice(0, 10) ?? "n/a"} /
+                RAG {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.rag_status_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Plan dataset {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.dataset_id ?? "n/a"} /
                 lock {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.release_lock_status ?? "n/a"}
               </span>
@@ -4396,6 +4406,11 @@ export default function Dashboard() {
                 Catalog {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.data_catalog_hash?.slice(0, 10) ?? "n/a"} / sources{" "}
                 {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.external_sources_hash?.slice(0, 10) ?? "n/a"}
               </span>
+              <span>
+                Quality {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.structured_quality_hash?.slice(0, 10) ?? "n/a"} / provenance{" "}
+                {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.data_provenance_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>RAG status {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.rag_status_hash?.slice(0, 10) ?? "n/a"}</span>
             </div>
             <div className="data-quality" aria-label="RAG evaluation archive summary">
               <span>
