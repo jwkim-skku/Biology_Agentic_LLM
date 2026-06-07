@@ -18,7 +18,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - Data lockfile support for pinning and drift-checking a reproducible data/RAG/document state.
 - Data release lockfile support for pinning structured dataset releases, file hashes, and release drift independently from runtime refresh state.
 - Data release bundle verification in deployment readiness and production audit evidence, including required file, row-count, source-byte, and promotion-status checks.
-- Data snapshot ZIP export for structured data, document extracts, RAG index, refresh log, manifests, and artifact-level SHA-256 audit manifests.
+- Data snapshot ZIP export and archived semantic verification for structured data, document extracts, RAG index, refresh log, manifests, external source snapshots, and artifact-level SHA-256 audit manifests.
 - External source snapshot coverage and backfill controls for reproducible bundled/manual structured records.
 - Seeded NSGA-II synonymous optimizer with repair and manufacturing-policy scoring for GC/CpG/motif/polyA/splice/restriction-site/codon-pair/5-prime-GC/hairpin/secondary-structure-proxy/complexity constraints.
 - Optimizer diagnostics for objective inventory, benchmark quality bands, weak-case surfacing, and tuning recommendations.
@@ -36,7 +36,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - ZIP audit bundle export for persisted runs and background jobs, including file-level SHA-256 artifact manifests.
 - Artifact verification endpoints for run, job, and data snapshot export bundles.
 - Governance attestation export for OpenAPI, data, RAG, storage, and artifact-ledger state with hash verification.
-- Production audit export for deployment readiness, security, storage, data provenance, RAG/optimizer diagnostics, governance verification, and artifact-ledger state.
+- Production audit export for deployment readiness, security, storage, data provenance, RAG/optimizer diagnostics, QC/data snapshot archive semantics, governance verification, artifact-ledger state, and hash-pinned required action evidence.
 - Optional Postgres runtime adapter for run/job/audit stores, with redacted `DATABASE_URL` status and migration DDL.
 - SQLite-to-Postgres migration bundle export, dry-run import planning, and row-level source/target parity hashing.
 - Immutable local artifact archive for exported run/job/data snapshot/QC report bundles with SHA-256 indexing, archive re-verification endpoints, and QC bundle semantic re-checks.

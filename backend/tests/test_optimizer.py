@@ -605,6 +605,23 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         evidence_path.unlink(missing_ok=True)
 
 
+def test_deployment_docs_describe_archive_evidence_contracts() -> None:
+    root = Path(__file__).resolve().parents[2]
+    deployment_doc = (root / "docs" / "DEPLOYMENT.md").read_text(encoding="utf-8")
+    readme = (root / "README.md").read_text(encoding="utf-8")
+
+    for token in [
+        "detail_hash",
+        "data-snapshots/semantic-summary",
+        "archived data snapshot semantic verification",
+        "retrieval-quality source count/status",
+        "optimizer objective count",
+    ]:
+        assert token in deployment_doc
+    assert "hash-pinned required action evidence" in readme
+    assert "archived semantic verification" in readme
+
+
 def _preflight_detail(name: str) -> dict[str, Any]:
     if name == "structured_import_cli_preview":
         return {
