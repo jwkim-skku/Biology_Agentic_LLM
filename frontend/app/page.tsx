@@ -1264,7 +1264,13 @@ type RagDiagnosticsStatus = {
       cache?: {
         cache_schema: string;
         path: string;
+        exists?: boolean;
+        file_sha256?: string | null;
         entries: number;
+        entry_keys_hash?: string | null;
+        models?: Record<string, number>;
+        dimensions?: Record<string, number>;
+        invalid_entries?: number;
         enabled: boolean;
       };
     };
@@ -3597,6 +3603,10 @@ export default function Dashboard() {
               <span>
                 OpenAI cache {ragDiagnostics?.embedding_backend?.openai?.cache?.entries ?? "n/a"} entries /{" "}
                 {ragDiagnostics?.embedding_backend?.openai?.cache?.enabled ? "on" : "off"}
+              </span>
+              <span>
+                Cache hash {ragDiagnostics?.embedding_backend?.openai?.cache?.file_sha256?.slice(0, 10) ?? "n/a"} / keys{" "}
+                {ragDiagnostics?.embedding_backend?.openai?.cache?.entry_keys_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Vector {ragDiagnostics?.vector_store_readiness?.target_backend ?? ragDiagnostics?.vector_store_readiness?.runtime?.target_backend ?? "n/a"} /{" "}

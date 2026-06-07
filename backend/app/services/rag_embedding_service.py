@@ -207,16 +207,44 @@ def _openai_cache_status(settings: Any | None = None) -> dict[str, Any]:
     settings = settings or get_settings()
     path = _openai_cache_path(settings)
     entries = 0
+    invalid_entries = 0
+    models: dict[str, int] = {}
+    dimensions: dict[str, int] = {}
+    entry_keys_hash: str | None = None
+    file_sha256: str | None = None
     if path.exists():
         try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-            entries = len(payload.get("entries") or {}) if isinstance(payload, dict) else 0
+            raw = path.read_bytes()
+            file_sha256 = hashlib.sha256(raw).hexdigest()
+            payload = json.loads(raw.decode("utf-8"))
+            cache_entries = payload.get("entries") if isinstance(payload, dict) else {}
+            if isinstance(cache_entries, dict):
+                entries = len(cache_entries)
+                entry_keys_hash = _hash_json(sorted(str(key) for key in cache_entries))
+                for entry in cache_entries.values():
+                    if not isinstance(entry, dict):
+                        invalid_entries += 1
+                        continue
+                    model = str(entry.get("model") or "unknown")
+                    models[model] = models.get(model, 0) + 1
+                    dimension = entry.get("dimensions")
+                    dimension_key = str(dimension if dimension is not None else "unknown")
+                    dimensions[dimension_key] = dimensions.get(dimension_key, 0) + 1
+                    if not isinstance(entry.get("embedding"), list):
+                        invalid_entries += 1
         except json.JSONDecodeError:
             entries = 0
+            invalid_entries = 1
     return {
         "cache_schema": OPENAI_CACHE_SCHEMA,
         "path": str(path),
+        "exists": path.exists(),
+        "file_sha256": file_sha256,
         "entries": entries,
+        "entry_keys_hash": entry_keys_hash,
+        "models": models,
+        "dimensions": dimensions,
+        "invalid_entries": invalid_entries,
         "enabled": True,
     }
 
@@ -261,6 +289,11 @@ def _write_openai_cache_entry(cache_key: str, embedding: list[float], *, model: 
 
 def _openai_cache_key(text: str, *, model: str, dimensions: int) -> str:
     payload = {"model": model, "dimensions": dimensions, "text": text}
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _hash_json(payload: Any) -> str:
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 

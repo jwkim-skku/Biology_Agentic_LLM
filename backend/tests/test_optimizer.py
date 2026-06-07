@@ -233,7 +233,15 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         assert cached["cache_status"] == "hit"
         assert embedded["embedding_model"] == "text-embedding-3-small"
         assert len(embedded["embedding"]) == 16
-        assert configured["openai"]["cache"]["cache_schema"] == "agentic-rag-openai-embedding-cache-v1"
+        cache_status = embeddings.rag_embedding_status()["openai"]["cache"]
+        assert cache_status["cache_schema"] == "agentic-rag-openai-embedding-cache-v1"
+        assert cache_status["exists"] is True
+        assert cache_status["entries"] == 1
+        assert len(cache_status["file_sha256"]) == 64
+        assert len(cache_status["entry_keys_hash"]) == 64
+        assert cache_status["models"] == {"text-embedding-3-small": 1}
+        assert cache_status["dimensions"] == {"16": 1}
+        assert cache_status["invalid_entries"] == 0
     finally:
         if cache_path is not None:
             cache_path.unlink(missing_ok=True)
