@@ -526,7 +526,12 @@ def api_failures(name: str, details: Any) -> list[str]:
         required_qc_explainability = [
             "optimizer_hash_report",
             "candidate_csv_explainability_columns",
+            "candidate_ranking_report_count",
+            "candidate_ranking_report_ids",
+            "candidate_ranking_report_scores",
+            "candidate_diagnostics_candidate_count",
             "recommended_constraint_risk_csv",
+            "recommended_candidate_score_csv",
             "objective_inventory",
             "evidence_retrieval_quality_schema",
             "evidence_retrieval_quality_sources",

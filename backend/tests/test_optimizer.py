@@ -737,7 +737,12 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "recommendation_audit_hash": "pass",
                     "optimizer_hash_report": "pass",
                     "candidate_csv_explainability_columns": "pass",
+                    "candidate_ranking_report_count": "pass",
+                    "candidate_ranking_report_ids": "pass",
+                    "candidate_ranking_report_scores": "pass",
+                    "candidate_diagnostics_candidate_count": "pass",
                     "recommended_constraint_risk_csv": "pass",
+                    "recommended_candidate_score_csv": "pass",
                     "objective_inventory": "pass",
                     "evidence_retrieval_quality_schema": "pass",
                     "evidence_retrieval_quality_sources": "pass",
@@ -2110,7 +2115,12 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["semantic_checks"]["request_target_modality"] == "pass"
     assert verification["semantic_checks"]["recommended_candidate_in_csv"] == "pass"
     assert verification["semantic_checks"]["candidate_csv_explainability_columns"] == "pass"
+    assert verification["semantic_checks"]["candidate_ranking_report_count"] == "pass"
+    assert verification["semantic_checks"]["candidate_ranking_report_ids"] == "pass"
+    assert verification["semantic_checks"]["candidate_ranking_report_scores"] == "pass"
+    assert verification["semantic_checks"]["candidate_diagnostics_candidate_count"] == "pass"
     assert verification["semantic_checks"]["recommended_constraint_risk_csv"] == "pass"
+    assert verification["semantic_checks"]["recommended_candidate_score_csv"] == "pass"
     assert verification["checked_files"] == verification["file_count"]
     archived = archive_artifact_bundle(
         bundle,

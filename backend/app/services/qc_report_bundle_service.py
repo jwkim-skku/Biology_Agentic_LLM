@@ -144,6 +144,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     target_definition = qc_report.get("target_definition") or {}
     evidence_summary = qc_report.get("evidence_summary") or {}
     retrieval_quality = evidence_summary.get("retrieval_quality") or {}
+    report_candidate_rows = qc_report.get("candidate_ranking") or []
     run_id = project_metadata.get("run_id")
     recommended_candidate_id = recommended.get("candidate_id")
     metadata.update(
@@ -393,6 +394,39 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
 
     recommended_rows = [row for row in candidate_rows if row.get("candidate_id") == recommended_candidate_id]
     recommended_row = recommended_rows[0] if recommended_rows else {}
+    report_rows_by_id = {str(row.get("candidate_id")): row for row in report_candidate_rows if isinstance(row, dict) and row.get("candidate_id")}
+    csv_rows_by_id = {str(row.get("candidate_id")): row for row in candidate_rows if row.get("candidate_id")}
+    _record_check(
+        semantic_checks,
+        "candidate_ranking_report_count",
+        bool(report_candidate_rows) and len(report_candidate_rows) == len(candidate_rows),
+    )
+    if not report_candidate_rows:
+        semantic_errors.append("qc_report.json candidate_ranking does not contain any rows.")
+    elif len(report_candidate_rows) != len(candidate_rows):
+        semantic_errors.append("qc_report.json candidate_ranking row count does not match candidate_ranking.csv.")
+    _record_check(
+        semantic_checks,
+        "candidate_ranking_report_ids",
+        bool(report_rows_by_id) and set(report_rows_by_id) == set(csv_rows_by_id),
+    )
+    if report_rows_by_id and set(report_rows_by_id) != set(csv_rows_by_id):
+        semantic_errors.append("qc_report.json candidate_ranking candidate IDs do not match candidate_ranking.csv.")
+    diagnostics_count = _int_or_none(candidate_diagnostics.get("candidate_count"))
+    _record_check(
+        semantic_checks,
+        "candidate_diagnostics_candidate_count",
+        diagnostics_count is not None and diagnostics_count == len(candidate_rows) == len(report_candidate_rows),
+    )
+    if diagnostics_count is None or diagnostics_count != len(candidate_rows) or diagnostics_count != len(report_candidate_rows):
+        semantic_errors.append("candidate_diagnostics candidate_count does not match exported candidate ranking rows.")
+    _record_check(
+        semantic_checks,
+        "candidate_ranking_report_scores",
+        _candidate_rankings_match(report_rows_by_id, csv_rows_by_id),
+    )
+    if report_rows_by_id and csv_rows_by_id and not _candidate_rankings_match(report_rows_by_id, csv_rows_by_id):
+        semantic_errors.append("qc_report.json candidate_ranking rank or key score values do not match candidate_ranking.csv.")
     has_explainability_columns = not missing_explainability_columns
     _record_check(
         semantic_checks,
@@ -417,6 +451,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             (recommended.get("constraint_risk") or {}).get("status"),
             "candidate_ranking.csv recommended constraint_risk_status does not match qc_report.json.",
         )
+        report_recommended = report_rows_by_id.get(str(recommended_candidate_id)) or {}
+        _record_check(
+            semantic_checks,
+            "recommended_candidate_score_csv",
+            _recommended_candidate_matches_csv(report_recommended, recommended_row),
+        )
+        if not _recommended_candidate_matches_csv(report_recommended, recommended_row):
+            semantic_errors.append("candidate_ranking.csv recommended candidate key scores do not match qc_report.json candidate_ranking.")
 
     if not optimizer_manifest.get("objective_inventory"):
         semantic_errors.append("optimizer_reproducibility.json objective_inventory is empty.")
@@ -565,6 +607,58 @@ def _read_candidate_csv(archive: ZipFile) -> tuple[list[dict[str, str]], list[st
 
 def _record_check(checks: dict[str, str], name: str, passed: bool) -> None:
     checks[name] = "pass" if passed else "fail"
+
+
+def _candidate_rankings_match(report_rows: dict[str, dict[str, Any]], csv_rows: dict[str, dict[str, str]]) -> bool:
+    if not report_rows or set(report_rows) != set(csv_rows):
+        return False
+    for candidate_id, report_row in report_rows.items():
+        csv_row = csv_rows[candidate_id]
+        scores = report_row.get("scores") or {}
+        if str(report_row.get("rank")) != str(csv_row.get("rank")):
+            return False
+        if not _float_equal(scores.get("composite_quality"), csv_row.get("composite_quality")):
+            return False
+        if not _bool_equal(scores.get("aav_budget_pass"), csv_row.get("aav_budget_pass")):
+            return False
+    return True
+
+
+def _recommended_candidate_matches_csv(report_row: dict[str, Any], csv_row: dict[str, str]) -> bool:
+    scores = report_row.get("scores") or {}
+    return (
+        bool(report_row)
+        and bool(csv_row)
+        and _float_equal(scores.get("composite_quality"), csv_row.get("composite_quality"))
+        and _float_equal(scores.get("sequence_policy_violation_score"), csv_row.get("sequence_policy_violation_score"))
+        and _bool_equal(scores.get("aav_budget_pass"), csv_row.get("aav_budget_pass"))
+    )
+
+
+def _float_equal(left: Any, right: Any, tolerance: float = 1e-9) -> bool:
+    try:
+        return abs(float(left) - float(right)) <= tolerance
+    except (TypeError, ValueError):
+        return False
+
+
+def _bool_equal(left: Any, right: Any) -> bool:
+    if isinstance(left, bool):
+        left_value = left
+    else:
+        left_value = str(left).strip().lower() in {"true", "1", "yes"}
+    if isinstance(right, bool):
+        right_value = right
+    else:
+        right_value = str(right).strip().lower() in {"true", "1", "yes"}
+    return left_value == right_value
+
+
+def _int_or_none(value: Any) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _normalized_request_value(value: Any) -> str:
