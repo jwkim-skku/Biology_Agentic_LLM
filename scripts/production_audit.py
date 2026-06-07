@@ -474,6 +474,9 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_check in ["records_hash", "records_csv_hash"]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"Data release bundle does not verify {hash_check}.")
+        for caveat_check in ["trna_caveat_count", "trna_blocking_production_use"]:
+            if checks.get(caveat_check) != "pass" or caveat_check not in payload:
+                failures.append(f"Data release bundle does not verify {caveat_check}.")
         if checks.get("external_snapshot_reference_coverage") != "pass":
             failures.append("Data release bundle does not verify external_snapshot_reference_coverage.")
     if name == "rag_regression_bundle_verify":
@@ -534,6 +537,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data release archive is missing records_hash")
         if checked_count and not latest.get("records_csv_hash"):
             failures.append("latest data release archive is missing records_csv_hash")
+        if checked_count and latest.get("trna_caveat_count") is None:
+            failures.append("latest data release archive is missing trna_caveat_count")
+        if checked_count and latest.get("trna_blocking_production_use") is None:
+            failures.append("latest data release archive is missing trna_blocking_production_use")
         if checked_count and latest.get("external_snapshot_missing_count") not in {0, None}:
             failures.append("latest data release archive has missing external source snapshots")
         if checked_count and int(latest.get("external_snapshot_referenced_count") or 0) < 1:

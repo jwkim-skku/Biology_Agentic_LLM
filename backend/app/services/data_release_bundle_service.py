@@ -52,6 +52,7 @@ def build_data_release_bundle() -> bytes:
     quality = structured_quality_gate()
     provenance = data_provenance_audit()
     release_lock = verify_data_release_lock()
+    trna_caveats = provenance.get("trna_prior_caveats") or {}
     records_jsonl = _records_jsonl(records)
     records_csv = _records_csv(records)
     metadata = {
@@ -65,6 +66,8 @@ def build_data_release_bundle() -> bytes:
         "external_snapshot_reference_count": len(_external_snapshot_paths(records)),
         "quality_status": quality.get("status"),
         "provenance_status": provenance.get("status"),
+        "trna_caveat_count": trna_caveats.get("caveat_count", 0),
+        "trna_blocking_production_use": bool(trna_caveats.get("blocking_production_use")),
         "release_lock_status": release_lock.get("status"),
         "promotion_status": _promotion_status(quality, provenance, release_lock),
         "contains_source_bytes": True,
@@ -132,6 +135,7 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     quality = payloads.get("structured_quality.json") or {}
     coverage = payloads.get("structured_coverage.json") or {}
     provenance = payloads.get("data_provenance.json") or {}
+    trna_caveats = provenance.get("trna_prior_caveats") or {}
     release_lock = payloads.get("data_release_lock.json") or {}
 
     _expect_equal(
@@ -246,6 +250,22 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     _expect_equal(
         semantic_checks,
         semantic_errors,
+        "trna_caveat_count",
+        _int_or_none(release_manifest.get("trna_caveat_count")),
+        _int_or_none(trna_caveats.get("caveat_count")),
+        "release_manifest.json trna_caveat_count does not match data_provenance.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "trna_blocking_production_use",
+        _bool_or_none(release_manifest.get("trna_blocking_production_use")),
+        _bool_or_none(trna_caveats.get("blocking_production_use")),
+        "release_manifest.json trna_blocking_production_use does not match data_provenance.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
         "release_lock_status",
         release_manifest.get("release_lock_status"),
         release_lock.get("status"),
@@ -317,6 +337,8 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "records_csv_hash": row_evidence.get("records_csv_hash"),
         "quality_status": quality.get("status"),
         "provenance_status": provenance.get("status"),
+        "trna_caveat_count": _int_or_none(trna_caveats.get("caveat_count")),
+        "trna_blocking_production_use": _bool_or_none(trna_caveats.get("blocking_production_use")),
         "release_lock_status": release_lock.get("status"),
         "promotion_status": promotion_status,
         "structured_source_file_count": len(source_files),
@@ -459,6 +481,12 @@ def _int_or_none(value: Any) -> int | None:
         return int(value)
     except (TypeError, ValueError):
         return None
+
+
+def _bool_or_none(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    return None
 
 
 def _json(payload: Any) -> str:

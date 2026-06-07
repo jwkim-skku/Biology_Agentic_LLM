@@ -810,6 +810,8 @@ type ProductionAuditStatus = {
         records_hash?: string | null;
         records_csv_hash?: string | null;
         structured_manifest_hash?: string | null;
+        trna_caveat_count?: number | null;
+        trna_blocking_production_use?: boolean | null;
         external_snapshot_referenced_count?: number | null;
         external_snapshot_contained_count?: number | null;
         external_snapshot_missing_count?: number | null;
@@ -1090,6 +1092,8 @@ type DataReleaseArchiveSemanticSummary = ArchiveSemanticFreshness & {
     records_hash?: string | null;
     records_csv_hash?: string | null;
     structured_manifest_hash?: string | null;
+    trna_caveat_count?: number | null;
+    trna_blocking_production_use?: boolean | null;
     external_snapshot_reference_count?: number | null;
     external_snapshot_referenced_count?: number | null;
     external_snapshot_contained_count?: number | null;
@@ -3987,6 +3991,10 @@ export default function Dashboard() {
                 CSV {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                tRNA caveats {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.trna_caveat_count ?? "n/a"} /
+                blocking {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.trna_blocking_production_use ? "yes" : "no"}
+              </span>
+              <span>
                 Release snapshots {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.external_snapshot_contained_count ?? "n/a"}/
                 {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.external_snapshot_referenced_count ?? "n/a"} / missing{" "}
                 {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.external_snapshot_missing_count ?? "n/a"}
@@ -4229,6 +4237,10 @@ export default function Dashboard() {
               <span>
                 Record hash {dataReleaseSemantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} / CSV{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                tRNA caveats {dataReleaseSemantics?.latest_artifacts?.[0]?.trna_caveat_count ?? "n/a"} / blocking{" "}
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.trna_blocking_production_use ? "yes" : "no"}
               </span>
               <span>
                 Snapshots {dataReleaseSemantics?.latest_artifacts?.[0]?.external_snapshot_contained_count ?? "n/a"}/

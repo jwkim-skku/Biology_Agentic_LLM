@@ -385,6 +385,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_record_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("record_count"),
                 "latest_records_hash": (data_release_archive.get("latest_artifacts") or [{}])[0].get("records_hash"),
                 "latest_records_csv_hash": (data_release_archive.get("latest_artifacts") or [{}])[0].get("records_csv_hash"),
+                "latest_trna_caveat_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("trna_caveat_count"),
+                "latest_trna_blocking_production_use": (data_release_archive.get("latest_artifacts") or [{}])[0].get("trna_blocking_production_use"),
                 "latest_external_snapshot_referenced_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("external_snapshot_referenced_count"),
                 "latest_external_snapshot_contained_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("external_snapshot_contained_count"),
                 "latest_external_snapshot_missing_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("external_snapshot_missing_count"),
