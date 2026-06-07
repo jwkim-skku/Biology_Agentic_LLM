@@ -648,6 +648,7 @@ def smoke_artifact_archive() -> bool:
     object_dry_run = post_json("/artifacts/object-store/mirror?dry_run=true&limit=5", {})["data"]
     qc_semantics = get_json("/artifacts/qc-bundles/semantic-summary?limit=5&verify_files=false")["data"]
     import_semantics = get_json("/artifacts/structured-imports/semantic-summary?limit=5&verify_files=false")["data"]
+    data_release_semantics = get_json("/artifacts/data-releases/semantic-summary?limit=5&verify_files=false")["data"]
     rag_semantics = get_json("/artifacts/rag-evaluations/semantic-summary?limit=5&verify_files=false")["data"]
     rag_regression_semantics = get_json("/artifacts/rag-regressions/semantic-summary?limit=5&verify_files=false")["data"]
     optimizer_semantics = get_json("/artifacts/optimizer-benchmarks/semantic-summary?limit=5&verify_files=false")["data"]
@@ -671,6 +672,9 @@ def smoke_artifact_archive() -> bool:
         and import_semantics["status"] in {"pass", "warning"}
         and import_semantics["verification_mode"] == "indexed"
         and isinstance(import_semantics["latest_artifacts"], list)
+        and data_release_semantics["status"] in {"pass", "warning"}
+        and data_release_semantics["verification_mode"] == "indexed"
+        and isinstance(data_release_semantics["latest_artifacts"], list)
         and rag_semantics["status"] in {"pass", "warning"}
         and rag_semantics["verification_mode"] == "indexed"
         and isinstance(rag_semantics["latest_artifacts"], list)
