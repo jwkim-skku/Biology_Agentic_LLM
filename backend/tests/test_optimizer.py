@@ -448,6 +448,8 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert data_release_gate["details"]["status"] in {"pass", "warning"}
     assert data_release_gate["details"]["latest_records_hash"] is None or len(data_release_gate["details"]["latest_records_hash"]) == 64
     assert data_release_gate["details"]["latest_records_csv_hash"] is None or len(data_release_gate["details"]["latest_records_csv_hash"]) == 64
+    assert data_release_gate["details"]["latest_rag_structured_manifest_hash"] is None or data_release_gate["details"]["latest_rag_structured_manifest_hash"]
+    assert data_release_gate["details"]["latest_rag_index_hash"] is None or len(data_release_gate["details"]["latest_rag_index_hash"]) == 64
     assert data_release_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
     assert data_release_gate["details"]["freshness_warning_hours"] > 0
     refresh_plan_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_refresh_plan_archive_semantics")

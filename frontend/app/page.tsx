@@ -834,6 +834,8 @@ type ProductionAuditStatus = {
         records_hash?: string | null;
         records_csv_hash?: string | null;
         structured_manifest_hash?: string | null;
+        rag_structured_manifest_hash?: string | null;
+        rag_index_hash?: string | null;
         trna_caveat_count?: number | null;
         trna_blocking_production_use?: boolean | null;
         external_snapshot_referenced_count?: number | null;
@@ -1135,6 +1137,8 @@ type DataReleaseArchiveSemanticSummary = ArchiveSemanticFreshness & {
     records_hash?: string | null;
     records_csv_hash?: string | null;
     structured_manifest_hash?: string | null;
+    rag_structured_manifest_hash?: string | null;
+    rag_index_hash?: string | null;
     trna_caveat_count?: number | null;
     trna_blocking_production_use?: boolean | null;
     external_snapshot_reference_count?: number | null;
@@ -4090,6 +4094,10 @@ export default function Dashboard() {
                 CSV {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                Release RAG {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.rag_index_hash?.slice(0, 10) ?? "n/a"} /
+                manifest {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.rag_structured_manifest_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 tRNA caveats {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.trna_caveat_count ?? "n/a"} /
                 blocking {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.trna_blocking_production_use ? "yes" : "no"}
               </span>
@@ -4347,6 +4355,10 @@ export default function Dashboard() {
               <span>
                 Record hash {dataReleaseSemantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} / CSV{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                RAG index {dataReleaseSemantics?.latest_artifacts?.[0]?.rag_index_hash?.slice(0, 10) ?? "n/a"} / manifest{" "}
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.rag_structured_manifest_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 tRNA caveats {dataReleaseSemantics?.latest_artifacts?.[0]?.trna_caveat_count ?? "n/a"} / blocking{" "}
