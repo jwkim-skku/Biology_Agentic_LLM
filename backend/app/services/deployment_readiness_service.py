@@ -677,6 +677,26 @@ def _gate_action(gate: dict[str, Any]) -> str:
         return "Configure HMAC or Ed25519 artifact signing before promotion."
     if name == "artifact_object_store":
         return str(details.get("recommendation") or "Configure managed object-store mirroring for immutable archive retention.")
+    if name == "qc_bundle_archive_semantics":
+        return "Export a fresh QC report bundle, verify retrieval/data/stress evidence, and archive it before promotion."
+    if name == "data_release_archive_semantics":
+        return "Export and archive a fresh data release bundle with record hashes, RAG index hash, tRNA caveats, and source snapshots."
+    if name == "data_snapshot_archive_semantics":
+        return "Export and archive a fresh data snapshot bundle with snapshot manifest, structured manifest, RAG index, and external snapshot bytes."
+    if name == "data_refresh_plan_archive_semantics":
+        return "Export and archive a fresh data refresh plan bundle with planned operations, catalog/source hashes, validation, and release-lock evidence."
+    if name == "structured_import_archive_semantics":
+        return "Archive a semantically verified structured import audit bundle for the latest source ingest."
+    if name == "rag_evaluation_archive_semantics":
+        return "Export and archive a RAG evaluation bundle with retrieval trace, evidence sufficiency, facet-gap, query-term, and source-hash evidence."
+    if name == "rag_regression_archive_semantics":
+        return "Export and archive a RAG regression bundle with case/result/quality-summary hashes and weak-case evidence."
+    if name == "rag_vector_index_archive_semantics":
+        return "Export and archive a RAG vector index bundle with chunk, embedding, migration, parity, and structured-manifest evidence."
+    if name == "workflow_trace_archive_semantics":
+        return "Export and archive workflow trace evidence with task plan, role contract, trace hash, and structured-manifest hash."
+    if name == "optimizer_benchmark_archive_semantics":
+        return "Export and archive an optimizer benchmark bundle with result, diagnostics, stress, case, Pareto, and candidate-diagnostics hashes."
     if name.endswith("_archive_semantics"):
         return "Export a fresh semantic artifact bundle and verify archive freshness before promotion."
     if name == "agent_memory":

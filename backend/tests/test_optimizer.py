@@ -74,6 +74,7 @@ from app.services.metrics_service import metrics_prometheus, metrics_snapshot, r
 from app.services.optimizer_benchmark_bundle_service import build_optimizer_benchmark_bundle, verify_optimizer_benchmark_bundle
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark, optimizer_benchmark_cases
 from app.services.optimizer_diagnostics_service import optimizer_diagnostics
+from app.services import deployment_readiness_service
 from app.services.deployment_readiness_service import deployment_readiness
 from app.services.production_audit_service import (
     build_production_audit,
@@ -528,6 +529,21 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     ]:
         assert optimizer_archive_gate["details"][field] is None or len(optimizer_archive_gate["details"][field]) == 64
     assert optimizer_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
+
+
+def test_deployment_readiness_archive_actions_are_specific() -> None:
+    gates = [
+        {"name": "qc_bundle_archive_semantics", "status": "warning", "message": "QC archive stale.", "details": {}},
+        {"name": "data_snapshot_archive_semantics", "status": "warning", "message": "Snapshot archive stale.", "details": {}},
+        {"name": "rag_vector_index_archive_semantics", "status": "warning", "message": "Vector archive stale.", "details": {}},
+        {"name": "optimizer_benchmark_archive_semantics", "status": "warning", "message": "Optimizer archive stale.", "details": {}},
+    ]
+    actions = {item["gate"]: item["action"] for item in deployment_readiness_service._required_actions(gates)}
+    assert "QC report bundle" in actions["qc_bundle_archive_semantics"]
+    assert "data snapshot bundle" in actions["data_snapshot_archive_semantics"]
+    assert "vector index bundle" in actions["rag_vector_index_archive_semantics"]
+    assert "optimizer benchmark bundle" in actions["optimizer_benchmark_archive_semantics"]
+    assert len(set(actions.values())) == len(actions)
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
