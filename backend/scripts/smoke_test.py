@@ -39,7 +39,7 @@ def main() -> int:
         "rag_status": get_json("/rag/status")["data"]["chunks"] > 0,
         "rag_diagnostics": smoke_rag_diagnostics(),
         "rag_regression": get_json("/rag/regression")["data"]["status"] in {"pass", "warning"},
-        "rag_embedding_backend": get_json("/rag/embedding/status")["data"]["active_backend"] in {"hash_bow", "sentence_transformers"},
+        "rag_embedding_backend": get_json("/rag/embedding/status")["data"]["active_backend"] in {"hash_bow", "sentence_transformers", "openai"},
         "structured_status": get_json("/structured/status")["data"]["records"] > 0,
         "structured_import_preview": smoke_structured_import_preview(),
         "data_catalog": smoke_data_catalog(),

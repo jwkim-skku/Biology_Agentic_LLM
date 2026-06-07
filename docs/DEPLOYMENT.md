@@ -50,6 +50,8 @@ Useful runtime variables:
 - `RAG_VECTOR_BACKEND`: `local_json`, `pgvector`, or `qdrant`. Production promotion expects `pgvector` or `qdrant`.
 - `RAG_PGVECTOR_TABLE`: pgvector table used when `RAG_VECTOR_BACKEND=pgvector`.
 - `QDRANT_URL` and `QDRANT_COLLECTION`: Qdrant endpoint and collection used when `RAG_VECTOR_BACKEND=qdrant`.
+- `RAG_EMBEDDING_BACKEND`: `hash_bow`, `sentence_transformers`, or `openai`. Production promotion expects `sentence_transformers` with a pinned local model or `openai` with an API key and regression evidence.
+- `OPENAI_API_KEY` and `OPENAI_EMBEDDING_BASE_URL`: optional managed embedding backend credentials used only when `RAG_EMBEDDING_BACKEND=openai`.
 - `API_KEYS`: comma-separated API keys. Empty means local-development mode.
 - `API_KEY_ROLES`: optional API key role mapping. Use `key=admin;other=viewer,operator` or JSON such as `{"key":["admin"]}`. Without this mapping, configured keys default to `admin`.
 - `NEXT_PUBLIC_API_KEY`: browser demo key when API auth is enabled. It must map to a configured `viewer` or `operator` role, never `admin`.
@@ -179,7 +181,7 @@ Deployment readiness:
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/deployment/readiness
 ```
 
-This returns pass/warning/fail gates for structured data, data provenance, structured promotion quality, data release bundle verification, RAG regression, RAG embedding backend, optimizer benchmark, RNA folding backend, workflow runtime, QC snapshot export, storage, security, artifact signing, governance attestation, artifact archive integrity, artifact object-store mirroring, archived QC bundle semantic verification, and archived structured import audit semantic verification. The `data_provenance`, `structured_quality`, `data_release_bundle`, `rag_embedding_backend`, and `rna_folding_backend` gates keep tRNA caveats, seed priors, live/source snapshot coverage, release pinning, release-bundle semantic checks, hash-BOW retrieval fallback, and deterministic structure-proxy fallback visible until replaced with release-pinned quantitative matrices, a pinned biomedical embedding model, and a validated folding executable. `deployment_ready=true` means no blocking failures were found; `production_ready=true` additionally requires zero warnings.
+This returns pass/warning/fail gates for structured data, data provenance, structured promotion quality, data release bundle verification, RAG regression, RAG embedding backend, optimizer benchmark, RNA folding backend, workflow runtime, QC snapshot export, storage, security, artifact signing, governance attestation, artifact archive integrity, artifact object-store mirroring, archived QC bundle semantic verification, and archived structured import audit semantic verification. The `data_provenance`, `structured_quality`, `data_release_bundle`, `rag_embedding_backend`, and `rna_folding_backend` gates keep tRNA caveats, seed priors, live/source snapshot coverage, release pinning, release-bundle semantic checks, hash-BOW retrieval fallback, and deterministic structure-proxy fallback visible until replaced with release-pinned quantitative matrices, a pinned biomedical embedding model or configured OpenAI embedding backend, and a validated folding executable. `deployment_ready=true` means no blocking failures were found; `production_ready=true` additionally requires zero warnings.
 
 The strict production gates expect:
 

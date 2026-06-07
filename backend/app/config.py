@@ -36,6 +36,8 @@ class AppSettings:
     rag_embedding_backend: str
     rag_embedding_model: str
     rag_embedding_dimensions: int
+    openai_api_key: str
+    openai_embedding_base_url: str
     rna_folding_backend: str
     rnafold_executable: str
     rnafold_timeout_seconds: int
@@ -93,10 +95,20 @@ def get_settings() -> AppSettings:
     qdrant_url = os.getenv("QDRANT_URL", "").strip().rstrip("/")
     qdrant_collection = os.getenv("QDRANT_COLLECTION", "agentic_rag_chunks").strip() or "agentic_rag_chunks"
     rag_embedding_backend = os.getenv("RAG_EMBEDDING_BACKEND", "hash_bow").strip().lower().replace("-", "_") or "hash_bow"
-    if rag_embedding_backend not in {"hash_bow", "sentence_transformers"}:
+    if rag_embedding_backend not in {"hash_bow", "sentence_transformers", "openai"}:
         rag_embedding_backend = "hash_bow"
-    rag_embedding_model = os.getenv("RAG_EMBEDDING_MODEL", "hash-bow-v1").strip() or "hash-bow-v1"
+    raw_embedding_model = os.getenv("RAG_EMBEDDING_MODEL", "").strip()
+    if raw_embedding_model:
+        rag_embedding_model = raw_embedding_model
+    elif rag_embedding_backend == "sentence_transformers":
+        rag_embedding_model = "pritamdeka/S-BioBert-snli-multinli-stsb"
+    elif rag_embedding_backend == "openai":
+        rag_embedding_model = "text-embedding-3-small"
+    else:
+        rag_embedding_model = "hash-bow-v1"
     rag_embedding_dimensions = _int_env("RAG_EMBEDDING_DIMENSIONS", 128)
+    openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    openai_embedding_base_url = os.getenv("OPENAI_EMBEDDING_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/") or "https://api.openai.com/v1"
     rna_folding_backend = os.getenv("RNA_FOLDING_BACKEND", "deterministic_proxy").strip().lower() or "deterministic_proxy"
     if rna_folding_backend not in {"deterministic_proxy", "rnafold"}:
         rna_folding_backend = "deterministic_proxy"
@@ -136,6 +148,8 @@ def get_settings() -> AppSettings:
         rag_embedding_backend=rag_embedding_backend,
         rag_embedding_model=rag_embedding_model,
         rag_embedding_dimensions=max(16, rag_embedding_dimensions),
+        openai_api_key=openai_api_key,
+        openai_embedding_base_url=openai_embedding_base_url,
         rna_folding_backend=rna_folding_backend,
         rnafold_executable=rnafold_executable,
         rnafold_timeout_seconds=max(1, rnafold_timeout_seconds),

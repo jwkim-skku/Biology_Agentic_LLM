@@ -120,7 +120,7 @@ def validate_template(values: dict[str, str], failures: list[str], warnings: lis
     _require(values.get("RAG_VECTOR_BACKEND") in {"pgvector", "qdrant"}, failures, "template RAG_VECTOR_BACKEND must show a production vector backend.")
     _require(bool(values.get("RAG_PGVECTOR_TABLE")), failures, "template RAG_PGVECTOR_TABLE must be set.")
     _require(bool(values.get("QDRANT_COLLECTION")), failures, "template QDRANT_COLLECTION must be set for qdrant cutover planning.")
-    _require(values.get("RAG_EMBEDDING_BACKEND") == "sentence_transformers", failures, "template RAG_EMBEDDING_BACKEND must show sentence_transformers.")
+    _require(values.get("RAG_EMBEDDING_BACKEND") in {"sentence_transformers", "openai"}, failures, "template RAG_EMBEDDING_BACKEND must show sentence_transformers or openai.")
     _require(bool(values.get("RAG_EMBEDDING_MODEL")), failures, "template RAG_EMBEDDING_MODEL must be set.")
     _require(int_or_none(values.get("RAG_EMBEDDING_DIMENSIONS")) and int(values["RAG_EMBEDDING_DIMENSIONS"]) >= 128, failures, "template RAG_EMBEDDING_DIMENSIONS must be at least 128.")
     _require(values.get("RNA_FOLDING_BACKEND") == "rnafold", failures, "template RNA_FOLDING_BACKEND must show rnafold.")
@@ -153,7 +153,7 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
 
     _require(values.get("STORAGE_BACKEND") == "postgres", failures, "STORAGE_BACKEND must be postgres for production.")
     _require(values.get("RAG_VECTOR_BACKEND") in {"pgvector", "qdrant"}, failures, "RAG_VECTOR_BACKEND must be pgvector or qdrant for production.")
-    _require(values.get("RAG_EMBEDDING_BACKEND") == "sentence_transformers", failures, "RAG_EMBEDDING_BACKEND must be sentence_transformers for production.")
+    _require(values.get("RAG_EMBEDDING_BACKEND") in {"sentence_transformers", "openai"}, failures, "RAG_EMBEDDING_BACKEND must be sentence_transformers or openai for production.")
     _require(bool(values.get("RAG_EMBEDDING_MODEL")), failures, "RAG_EMBEDDING_MODEL must be set.")
     embedding_dimensions = int_or_none(values.get("RAG_EMBEDDING_DIMENSIONS"))
     _require(
@@ -161,6 +161,13 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
         failures,
         "RAG_EMBEDDING_DIMENSIONS must be an integer >= 128.",
     )
+    if values.get("RAG_EMBEDDING_BACKEND") == "openai":
+        _require(bool(values.get("OPENAI_API_KEY")), failures, "OPENAI_API_KEY must be set when RAG_EMBEDDING_BACKEND=openai.")
+        _require(
+            values.get("OPENAI_EMBEDDING_BASE_URL", "").startswith("https://"),
+            failures,
+            "OPENAI_EMBEDDING_BASE_URL must be an https:// URL when RAG_EMBEDDING_BACKEND=openai.",
+        )
     _require(values.get("RNA_FOLDING_BACKEND") == "rnafold", failures, "RNA_FOLDING_BACKEND must be rnafold for production.")
     _require(bool(values.get("RNAFOLD_EXECUTABLE")), failures, "RNAFOLD_EXECUTABLE must be set.")
     timeout = int_or_none(values.get("RNAFOLD_TIMEOUT_SECONDS"))

@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
+from unittest.mock import patch
 from zipfile import ZipFile
 
 from pypdf import PdfReader
@@ -157,6 +158,8 @@ def test_settings_expose_data_dir() -> None:
     assert settings.artifact_asymmetric_signing_enabled is bool(settings.artifact_ed25519_private_key)
     assert settings.artifact_asymmetric_verification_enabled is bool(settings.artifact_ed25519_public_key or settings.artifact_ed25519_private_key)
     assert settings.artifact_ed25519_key_id
+    assert isinstance(settings.openai_api_key, str)
+    assert settings.openai_embedding_base_url.startswith("http")
     assert "ed25519" in signing_status()
 
 
@@ -172,6 +175,54 @@ def test_settings_parse_api_key_roles() -> None:
             os.environ.pop("API_KEY_ROLES", None)
         else:
             os.environ["API_KEY_ROLES"] = previous
+
+
+def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
+    import app.services.rag_embedding_service as embeddings
+
+    previous = {
+        key: os.environ.get(key)
+        for key in ["RAG_EMBEDDING_BACKEND", "RAG_EMBEDDING_MODEL", "RAG_EMBEDDING_DIMENSIONS", "OPENAI_API_KEY"]
+    }
+
+    class FakeResponse:
+        status = 200
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self) -> bytes:
+            return json.dumps({"data": [{"embedding": [0.1, 0.2, 0.3, 0.4]}]}).encode("utf-8")
+
+    try:
+        os.environ["RAG_EMBEDDING_BACKEND"] = "openai"
+        os.environ["RAG_EMBEDDING_MODEL"] = "text-embedding-3-small"
+        os.environ["RAG_EMBEDDING_DIMENSIONS"] = "16"
+        os.environ.pop("OPENAI_API_KEY", None)
+        missing_key = embeddings.rag_embedding_status()
+        assert missing_key["active_backend"] == "hash_bow"
+        assert missing_key["fallback_active"] is True
+        assert missing_key["production_ready"] is False
+
+        os.environ["OPENAI_API_KEY"] = "test-openai-key"
+        configured = embeddings.rag_embedding_status()
+        assert configured["active_backend"] == "openai"
+        assert configured["production_ready"] is True
+        with patch("urllib.request.urlopen", return_value=FakeResponse()) as mocked:
+            embedded = embeddings.embed_text("SNCA substantia nigra dopaminergic neuron")
+        assert mocked.called
+        assert embedded["active_backend"] == "openai"
+        assert embedded["embedding_model"] == "text-embedding-3-small"
+        assert len(embedded["embedding"]) == 16
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
 
 
 def test_security_helpers_cover_public_paths_and_rate_limits() -> None:
