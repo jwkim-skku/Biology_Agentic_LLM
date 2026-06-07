@@ -263,13 +263,12 @@ python scripts/preflight.py --output-json backend/app/data/runtime/preflight_lat
 
 This runs backend compile checks, production env template validation, Docker Compose deployment-shape checks, the static production audit profile, API contract checks, structured import CLI preview verification, GTEx/Allen data-refresh CLI plan verification, response/value golden tests, the manual backend regression suite, the frontend production build, the HTTP smoke test, a separate signed-artifact smoke profile with `ARTIFACT_SIGNING_KEY` enabled, and a browser UI smoke test that checks operational panels and metrics hydration. The API contract check pins every current FastAPI route and fails unexpected new `/api/v1` routes until they are added to `REQUIRED_PATHS`; it also requires JSON API operations to declare the shared `ApiResponse` envelope unless explicitly listed as raw export, download, text, or health responses. Use `--skip-frontend`, `--skip-smoke`, `--skip-signing-smoke`, or `--skip-ui-smoke` for narrower deployment diagnostics. `--output-json` writes a timestamped evidence payload with the command, working directory, duration, skipped checks, pass/fail result, compact stdout/stderr, and parsed JSON details for every check; CI uploads this file as the `backend-preflight-evidence` artifact, then validates it through `production_audit.py --preflight-evidence` and uploads the resulting `backend-production-audit` artifact. The production audit also checks that preflight structured-import and data-refresh details include source hashes, planned operations, dry-run status, validation schema, and normalized gene/region requests.
 
-API contract tests can also be run directly:
+API contract and golden tests can also be run directly from the repository root:
 
 ```powershell
-cd backend
 python scripts/api_contract_test.py
 python scripts/golden_response_test.py
 python scripts/golden_value_test.py
 ```
 
-Run these commands from the `backend/` directory, matching the preflight runner's working directory.
+These root wrappers delegate to the backend scripts, matching the same contracts enforced by preflight and CI.

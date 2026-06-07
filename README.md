@@ -144,13 +144,18 @@ python scripts/production_audit.py --path .env.production --require-api --prefli
 
 This writes JSON and Markdown reports under `backend/app/data/runtime/production_audits`, combining production env validation, Compose checks, optional preflight evidence validation, and live operational API status when the backend is reachable. When `--preflight-evidence` is provided, the audit requires a passing, recent preflight payload with the expected backend, contract, data-refresh, golden, and regression checks.
 
-Individual checks are still available when narrowing a failure:
+Individual contract and golden checks are also available from the repository root:
 
 ```powershell
-cd backend
 python scripts/api_contract_test.py
 python scripts/golden_response_test.py
 python scripts/golden_value_test.py
+```
+
+Backend smoke and manual regression checks can be run from `backend`:
+
+```powershell
+cd backend
 python -c "from tests import test_optimizer as t; [getattr(t, name)() for name in dir(t) if name.startswith('test_')]; print('manual tests passed')"
 python scripts/smoke_test.py
 cd ..\frontend

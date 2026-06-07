@@ -240,13 +240,19 @@ cd ..
 python scripts/preflight.py
 ```
 
-Backend-only checks can be run from `backend`:
+Contract and golden checks can be run from the repository root:
 
 ```powershell
-cd backend
+cd ..
 python scripts/api_contract_test.py
 python scripts/golden_response_test.py
 python scripts/golden_value_test.py
+```
+
+Backend-only smoke and manual regression checks can be run from `backend`:
+
+```powershell
+cd backend
 python -c "from tests import test_optimizer as t; [getattr(t, name)() for name in dir(t) if name.startswith('test_')]; print('manual tests passed')"
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 python scripts/smoke_test.py
