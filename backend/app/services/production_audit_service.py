@@ -384,8 +384,10 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
         with ZipFile(BytesIO(bundle), "r") as archive:
             audit = json.loads(archive.read("production_audit.json").decode("utf-8"))
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
+            workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
             audit_hash = audit.get("audit_hash")
             summary = audit.get("summary") or {}
+            evidence = audit.get("evidence") or {}
             actual_hash = _hash_without_signatures(audit)
             if audit_hash != actual_hash:
                 errors.append("production_audit.json audit_hash does not match contents.")
@@ -396,8 +398,31 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 semantic_checks,
                 errors,
                 "deployment_readiness_evidence",
-                deployment_readiness == ((audit.get("evidence") or {}).get("deployment_readiness") or {}),
+                deployment_readiness == (evidence.get("deployment_readiness") or {}),
                 "evidence/deployment_readiness.json does not match production_audit.json evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "workflow_trace_archive_evidence",
+                workflow_trace_archive == (evidence.get("workflow_trace_archive_semantics") or {}),
+                "evidence/workflow_trace_archive_semantics.json does not match production_audit.json evidence.",
+            )
+            latest_trace = (workflow_trace_archive.get("latest_artifacts") or [{}])[0]
+            checked_traces = int(workflow_trace_archive.get("checked_count") or 0)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "workflow_trace_archive_hash",
+                checked_traces == 0 or bool(latest_trace.get("trace_hash")),
+                "Latest workflow trace archive evidence is missing trace_hash.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "workflow_trace_archive_steps",
+                checked_traces == 0 or int(latest_trace.get("trace_step_count") or 0) > 0,
+                "Latest workflow trace archive evidence is missing trace_step_count.",
             )
             _record_semantic_check(
                 semantic_checks,

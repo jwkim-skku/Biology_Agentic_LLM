@@ -387,6 +387,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert len(audit["evidence"]["optimizer_diagnostics"]["benchmark"]["results_hash"]) == 64
     assert verification["status"] in {"pass", "warning"}
     assert verification["semantic_checks"]["deployment_readiness_evidence"] == "pass"
+    assert verification["semantic_checks"]["workflow_trace_archive_evidence"] == "pass"
+    assert verification["semantic_checks"]["workflow_trace_archive_hash"] == "pass"
+    assert verification["semantic_checks"]["workflow_trace_archive_steps"] == "pass"
     assert verification["semantic_checks"]["attention_gates_hash"] == "pass"
     assert verification["semantic_checks"]["required_actions_hash"] == "pass"
     with ZipFile(BytesIO(bundle)) as archive:
