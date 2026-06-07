@@ -129,6 +129,7 @@ def smoke_deployment_readiness() -> bool:
         "rag_regression_archive_semantics",
         "rag_vector_index_archive_semantics",
         "optimizer_benchmark_archive_semantics",
+        "workflow_trace_archive_semantics",
     }
     signing_ok = True
     if REQUIRE_SIGNING:
@@ -162,7 +163,9 @@ def smoke_production_audit() -> bool:
     import_archive = audit.get("evidence", {}).get("structured_import_archive_semantics") or {}
     rag_regression_archive = audit.get("evidence", {}).get("rag_regression_archive_semantics") or {}
     rag_vector_index_archive = audit.get("evidence", {}).get("rag_vector_index_archive_semantics") or {}
+    workflow_trace_archive = audit.get("evidence", {}).get("workflow_trace_archive_semantics") or {}
     timings = audit.get("evidence", {}).get("timings") or {}
+    semantic_checks = verification.get("semantic_checks") or {}
     signature_ok = True
     if REQUIRE_SIGNING:
         signature_ok = (
@@ -185,6 +188,7 @@ def smoke_production_audit() -> bool:
         and "structured_import_archive_semantics" in checks
         and "rag_regression_archive_semantics" in checks
         and "rag_vector_index_archive_semantics" in checks
+        and "workflow_trace_archive_semantics" in checks
         and object_store.get("status_schema") == "agentic-rag-artifact-object-store-v1"
         and object_store.get("status") in {"disabled", "ready", "misconfigured"}
         and embedding.get("embedding_schema") == "agentic-rag-embedding-backend-v1"
@@ -205,6 +209,11 @@ def smoke_production_audit() -> bool:
         and isinstance(rag_regression_archive.get("latest_artifacts"), list)
         and rag_vector_index_archive.get("status") in {"pass", "warning"}
         and isinstance(rag_vector_index_archive.get("latest_artifacts"), list)
+        and workflow_trace_archive.get("status") in {"pass", "warning"}
+        and isinstance(workflow_trace_archive.get("latest_artifacts"), list)
+        and semantic_checks.get("workflow_trace_archive_evidence") == "pass"
+        and semantic_checks.get("workflow_trace_archive_hash") == "pass"
+        and semantic_checks.get("workflow_trace_archive_steps") == "pass"
         and timings.get("total_seconds", 0) > 0
         and isinstance(timings.get("slowest"), list)
         and cache.get("status") in {"hit", "expired"}
