@@ -38,6 +38,8 @@ class AppSettings:
     rag_embedding_dimensions: int
     openai_api_key: str
     openai_embedding_base_url: str
+    openai_embedding_price_per_1k_tokens: float
+    openai_embedding_budget_usd: float
     rna_folding_backend: str
     rnafold_executable: str
     rnafold_timeout_seconds: int
@@ -109,6 +111,8 @@ def get_settings() -> AppSettings:
     rag_embedding_dimensions = _int_env("RAG_EMBEDDING_DIMENSIONS", 128)
     openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
     openai_embedding_base_url = os.getenv("OPENAI_EMBEDDING_BASE_URL", "https://api.openai.com/v1").strip().rstrip("/") or "https://api.openai.com/v1"
+    openai_embedding_price_per_1k_tokens = _float_env("OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS", 0.0)
+    openai_embedding_budget_usd = _float_env("OPENAI_EMBEDDING_BUDGET_USD", 0.0)
     rna_folding_backend = os.getenv("RNA_FOLDING_BACKEND", "deterministic_proxy").strip().lower() or "deterministic_proxy"
     if rna_folding_backend not in {"deterministic_proxy", "rnafold"}:
         rna_folding_backend = "deterministic_proxy"
@@ -150,6 +154,8 @@ def get_settings() -> AppSettings:
         rag_embedding_dimensions=max(16, rag_embedding_dimensions),
         openai_api_key=openai_api_key,
         openai_embedding_base_url=openai_embedding_base_url,
+        openai_embedding_price_per_1k_tokens=max(0.0, openai_embedding_price_per_1k_tokens),
+        openai_embedding_budget_usd=max(0.0, openai_embedding_budget_usd),
         rna_folding_backend=rna_folding_backend,
         rnafold_executable=rnafold_executable,
         rnafold_timeout_seconds=max(1, rnafold_timeout_seconds),
@@ -163,6 +169,16 @@ def _int_env(name: str, default: int) -> int:
         return default
     try:
         return int(raw)
+    except ValueError:
+        return default
+
+
+def _float_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return float(raw)
     except ValueError:
         return default
 

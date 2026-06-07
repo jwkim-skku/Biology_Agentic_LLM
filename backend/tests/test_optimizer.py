@@ -194,7 +194,14 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
 
     previous = {
         key: os.environ.get(key)
-        for key in ["RAG_EMBEDDING_BACKEND", "RAG_EMBEDDING_MODEL", "RAG_EMBEDDING_DIMENSIONS", "OPENAI_API_KEY"]
+        for key in [
+            "RAG_EMBEDDING_BACKEND",
+            "RAG_EMBEDDING_MODEL",
+            "RAG_EMBEDDING_DIMENSIONS",
+            "OPENAI_API_KEY",
+            "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS",
+            "OPENAI_EMBEDDING_BUDGET_USD",
+        ]
     }
     cache_path: Path | None = None
 
@@ -221,9 +228,13 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         assert missing_key["production_ready"] is False
 
         os.environ["OPENAI_API_KEY"] = "test-openai-key"
+        os.environ["OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS"] = "0.00002"
+        os.environ["OPENAI_EMBEDDING_BUDGET_USD"] = "100"
         configured = embeddings.rag_embedding_status()
         assert configured["active_backend"] == "openai"
         assert configured["production_ready"] is True
+        assert configured["openai"]["budget"]["budget_usd"] == 100.0
+        assert configured["openai"]["budget"]["price_configured"] is True
         cache_path = embeddings._openai_cache_path()
         cache_path.unlink(missing_ok=True)
         with patch("urllib.request.urlopen", return_value=FakeResponse()) as mocked:
@@ -243,7 +254,13 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         assert len(cache_status["entry_keys_hash"]) == 64
         assert cache_status["models"] == {"text-embedding-3-small": 1}
         assert cache_status["dimensions"] == {"16": 1}
+        assert cache_status["estimated_input_tokens"] >= 1
+        assert cache_status["estimated_cost_usd"] > 0
+        assert cache_status["missing_usage_entries"] == 0
         assert cache_status["invalid_entries"] == 0
+        budget = embeddings.rag_embedding_status()["openai"]["budget"]
+        assert budget["estimated_spend_usd"] == cache_status["estimated_cost_usd"]
+        assert budget["estimated_remaining_usd"] < 100.0
     finally:
         if cache_path is not None:
             cache_path.unlink(missing_ok=True)

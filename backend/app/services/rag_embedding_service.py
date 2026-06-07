@@ -7,6 +7,7 @@ import math
 import re
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
@@ -34,6 +35,7 @@ def rag_embedding_status() -> dict[str, Any]:
     fallback_active = requested != active
     model = settings.rag_embedding_model if active in {"sentence_transformers", "openai"} else HASH_BOW_MODEL
     dimensions = settings.rag_embedding_dimensions if active in {"sentence_transformers", "openai"} else DEFAULT_EMBEDDING_DIMENSIONS
+    openai_cache = _openai_cache_status(settings)
     warnings: list[str] = []
     if requested == "sentence_transformers" and not sentence_transformers_available:
         warnings.append("RAG_EMBEDDING_BACKEND=sentence_transformers requires the sentence-transformers package and a locally available model.")
@@ -60,7 +62,8 @@ def rag_embedding_status() -> dict[str, Any]:
             "base_url": settings.openai_embedding_base_url,
             "configured_model": settings.rag_embedding_model,
             "configured_dimensions": settings.rag_embedding_dimensions,
-            "cache": _openai_cache_status(settings),
+            "budget": _openai_budget_status(settings, openai_cache),
+            "cache": openai_cache,
         },
         "production_ready": active in {"sentence_transformers", "openai"} and not fallback_active,
         "warnings": warnings,
@@ -194,7 +197,7 @@ def _openai_embedding(text: str) -> dict[str, Any]:
         return {"status": "fail", "error": f"Invalid OpenAI embedding response: {exc}"}
     if settings.rag_embedding_dimensions and len(values) != settings.rag_embedding_dimensions:
         values = _resize_embedding(values, settings.rag_embedding_dimensions)
-    _write_openai_cache_entry(cache_key, values, model=settings.rag_embedding_model, dimensions=settings.rag_embedding_dimensions)
+    _write_openai_cache_entry(cache_key, values, text=text, model=settings.rag_embedding_model, dimensions=settings.rag_embedding_dimensions)
     return {
         "status": "pass",
         "embedding_model": settings.rag_embedding_model,
@@ -208,6 +211,9 @@ def _openai_cache_status(settings: Any | None = None) -> dict[str, Any]:
     path = _openai_cache_path(settings)
     entries = 0
     invalid_entries = 0
+    missing_usage_entries = 0
+    estimated_input_tokens = 0
+    estimated_cost_usd = 0.0
     models: dict[str, int] = {}
     dimensions: dict[str, int] = {}
     entry_keys_hash: str | None = None
@@ -232,6 +238,14 @@ def _openai_cache_status(settings: Any | None = None) -> dict[str, Any]:
                     dimensions[dimension_key] = dimensions.get(dimension_key, 0) + 1
                     if not isinstance(entry.get("embedding"), list):
                         invalid_entries += 1
+                    tokens = entry.get("estimated_input_tokens")
+                    if isinstance(tokens, int) and tokens >= 0:
+                        estimated_input_tokens += tokens
+                    else:
+                        missing_usage_entries += 1
+                    cost = entry.get("estimated_cost_usd")
+                    if isinstance(cost, int | float) and cost >= 0:
+                        estimated_cost_usd += float(cost)
         except json.JSONDecodeError:
             entries = 0
             invalid_entries = 1
@@ -244,6 +258,9 @@ def _openai_cache_status(settings: Any | None = None) -> dict[str, Any]:
         "entry_keys_hash": entry_keys_hash,
         "models": models,
         "dimensions": dimensions,
+        "estimated_input_tokens": estimated_input_tokens,
+        "estimated_cost_usd": round(estimated_cost_usd, 8),
+        "missing_usage_entries": missing_usage_entries,
         "invalid_entries": invalid_entries,
         "enabled": True,
     }
@@ -267,8 +284,11 @@ def _read_openai_cache_entry(cache_key: str) -> list[float] | None:
         return None
 
 
-def _write_openai_cache_entry(cache_key: str, embedding: list[float], *, model: str, dimensions: int) -> None:
+def _write_openai_cache_entry(cache_key: str, embedding: list[float], *, text: str, model: str, dimensions: int) -> None:
     path = _openai_cache_path()
+    settings = get_settings()
+    estimated_input_tokens = _estimate_openai_input_tokens(text)
+    estimated_cost_usd = _estimate_openai_embedding_cost(estimated_input_tokens, settings.openai_embedding_price_per_1k_tokens)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload: dict[str, Any] = {"cache_schema": OPENAI_CACHE_SCHEMA, "entries": {}}
     if path.exists():
@@ -282,6 +302,11 @@ def _write_openai_cache_entry(cache_key: str, embedding: list[float], *, model: 
     payload.setdefault("entries", {})[cache_key] = {
         "model": model,
         "dimensions": dimensions,
+        "input_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+        "estimated_input_tokens": estimated_input_tokens,
+        "estimated_cost_usd": estimated_cost_usd,
+        "price_per_1k_tokens_usd": settings.openai_embedding_price_per_1k_tokens,
+        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "embedding": embedding,
     }
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -296,6 +321,30 @@ def _openai_cache_key(text: str, *, model: str, dimensions: int) -> str:
 def _hash_json(payload: Any) -> str:
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _openai_budget_status(settings: Any, cache: dict[str, Any]) -> dict[str, Any]:
+    estimated_spend = float(cache.get("estimated_cost_usd") or 0.0)
+    budget = float(settings.openai_embedding_budget_usd or 0.0)
+    remaining = budget - estimated_spend if budget else None
+    return {
+        "price_per_1k_tokens_usd": settings.openai_embedding_price_per_1k_tokens,
+        "budget_usd": budget,
+        "estimated_spend_usd": round(estimated_spend, 8),
+        "estimated_remaining_usd": round(remaining, 8) if remaining is not None else None,
+        "budget_configured": budget > 0,
+        "price_configured": settings.openai_embedding_price_per_1k_tokens > 0,
+        "usage_estimate_policy": "ceil(len(input_text)/4) tokens; operator-supplied embedding price",
+        "missing_usage_entries": cache.get("missing_usage_entries", 0),
+    }
+
+
+def _estimate_openai_input_tokens(text: str) -> int:
+    return max(1, math.ceil(len(text.encode("utf-8")) / 4))
+
+
+def _estimate_openai_embedding_cost(tokens: int, price_per_1k_tokens: float) -> float:
+    return round((max(0, tokens) / 1000.0) * max(0.0, price_per_1k_tokens), 8)
 
 
 def _openai_cache_path(settings: Any | None = None) -> Path:

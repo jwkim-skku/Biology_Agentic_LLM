@@ -1312,6 +1312,16 @@ type RagDiagnosticsStatus = {
       base_url: string;
       configured_model: string;
       configured_dimensions: number;
+      budget?: {
+        price_per_1k_tokens_usd: number;
+        budget_usd: number;
+        estimated_spend_usd: number;
+        estimated_remaining_usd?: number | null;
+        budget_configured: boolean;
+        price_configured: boolean;
+        usage_estimate_policy?: string;
+        missing_usage_entries?: number;
+      };
       cache?: {
         cache_schema: string;
         path: string;
@@ -1321,6 +1331,9 @@ type RagDiagnosticsStatus = {
         entry_keys_hash?: string | null;
         models?: Record<string, number>;
         dimensions?: Record<string, number>;
+        estimated_input_tokens?: number;
+        estimated_cost_usd?: number;
+        missing_usage_entries?: number;
         invalid_entries?: number;
         enabled: boolean;
       };
@@ -3663,6 +3676,14 @@ export default function Dashboard() {
                 {ragDiagnostics?.embedding_backend?.openai?.cache?.enabled ? "on" : "off"}
               </span>
               <span>
+                OpenAI tokens {ragDiagnostics?.embedding_backend?.openai?.cache?.estimated_input_tokens ?? "n/a"} / spend{" "}
+                {formatCurrency(ragDiagnostics?.embedding_backend?.openai?.budget?.estimated_spend_usd)}
+              </span>
+              <span>
+                OpenAI budget {formatCurrency(ragDiagnostics?.embedding_backend?.openai?.budget?.budget_usd)} / left{" "}
+                {formatCurrency(ragDiagnostics?.embedding_backend?.openai?.budget?.estimated_remaining_usd)}
+              </span>
+              <span>
                 Cache hash {ragDiagnostics?.embedding_backend?.openai?.cache?.file_sha256?.slice(0, 10) ?? "n/a"} / keys{" "}
                 {ragDiagnostics?.embedding_backend?.openai?.cache?.entry_keys_hash?.slice(0, 10) ?? "n/a"}
               </span>
@@ -5172,6 +5193,11 @@ function formatBytes(value: number) {
 function formatMetric(value?: number, digits = 3) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
   return value.toFixed(digits);
+}
+
+function formatCurrency(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
+  return `$${value.toFixed(value >= 1 ? 2 : 6)}`;
 }
 
 function formatPercent(value?: number) {

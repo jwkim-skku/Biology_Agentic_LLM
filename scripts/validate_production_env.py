@@ -30,6 +30,8 @@ REQUIRED_KEYS = {
     "RAG_EMBEDDING_BACKEND",
     "RAG_EMBEDDING_MODEL",
     "RAG_EMBEDDING_DIMENSIONS",
+    "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS",
+    "OPENAI_EMBEDDING_BUDGET_USD",
     "RNA_FOLDING_BACKEND",
     "RNAFOLD_EXECUTABLE",
     "RNAFOLD_TIMEOUT_SECONDS",
@@ -123,6 +125,8 @@ def validate_template(values: dict[str, str], failures: list[str], warnings: lis
     _require(values.get("RAG_EMBEDDING_BACKEND") in {"sentence_transformers", "openai"}, failures, "template RAG_EMBEDDING_BACKEND must show sentence_transformers or openai.")
     _require(bool(values.get("RAG_EMBEDDING_MODEL")), failures, "template RAG_EMBEDDING_MODEL must be set.")
     _require(int_or_none(values.get("RAG_EMBEDDING_DIMENSIONS")) and int(values["RAG_EMBEDDING_DIMENSIONS"]) >= 128, failures, "template RAG_EMBEDDING_DIMENSIONS must be at least 128.")
+    _require(float_or_none(values.get("OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS")) is not None, failures, "template OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS must be numeric.")
+    _require(float_or_none(values.get("OPENAI_EMBEDDING_BUDGET_USD")) is not None, failures, "template OPENAI_EMBEDDING_BUDGET_USD must be numeric.")
     _require(values.get("RNA_FOLDING_BACKEND") == "rnafold", failures, "template RNA_FOLDING_BACKEND must show rnafold.")
     _require(bool(values.get("RNAFOLD_EXECUTABLE")), failures, "template RNAFOLD_EXECUTABLE must be set.")
     _require(int_or_none(values.get("RNAFOLD_TIMEOUT_SECONDS")) and int(values["RNAFOLD_TIMEOUT_SECONDS"]) > 0, failures, "template RNAFOLD_TIMEOUT_SECONDS must be positive.")
@@ -168,6 +172,10 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
             failures,
             "OPENAI_EMBEDDING_BASE_URL must be an https:// URL when RAG_EMBEDDING_BACKEND=openai.",
         )
+        price = float_or_none(values.get("OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS"))
+        budget = float_or_none(values.get("OPENAI_EMBEDDING_BUDGET_USD"))
+        _require(price is not None and price > 0, failures, "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS must be positive when RAG_EMBEDDING_BACKEND=openai.")
+        _require(budget is not None and budget > 0, failures, "OPENAI_EMBEDDING_BUDGET_USD must be positive when RAG_EMBEDDING_BACKEND=openai.")
     _require(values.get("RNA_FOLDING_BACKEND") == "rnafold", failures, "RNA_FOLDING_BACKEND must be rnafold for production.")
     _require(bool(values.get("RNAFOLD_EXECUTABLE")), failures, "RNAFOLD_EXECUTABLE must be set.")
     timeout = int_or_none(values.get("RNAFOLD_TIMEOUT_SECONDS"))
@@ -278,6 +286,15 @@ def int_or_none(value: str | None) -> int | None:
         return None
     try:
         return int(value)
+    except ValueError:
+        return None
+
+
+def float_or_none(value: str | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        return float(value)
     except ValueError:
         return None
 
