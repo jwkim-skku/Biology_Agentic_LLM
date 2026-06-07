@@ -10,6 +10,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 from zipfile import ZipFile
 
@@ -406,7 +407,7 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "pass",
         "checks": [
-            {"name": name, "returncode": 0, "status": "pass", "details": {"status": "pass"}}
+            {"name": name, "returncode": 0, "status": "pass", "details": _preflight_detail(name)}
             for name in module.REQUIRED_PREFLIGHT_CHECKS
         ],
         "failed": [],
@@ -435,6 +436,70 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert "## Preflight Evidence" in markdown
         assert "Missing required checks: `0`" in markdown
         assert "Skipped checks: `1`" in markdown
+    finally:
+        evidence_path.unlink(missing_ok=True)
+
+
+def _preflight_detail(name: str) -> dict[str, Any]:
+    if name == "structured_import_cli_preview":
+        return {
+            "status": "pass",
+            "preview": {
+                "status": "pass",
+                "source": {"sha256": "a" * 64},
+                "records": {"import_count": 1},
+                "validation": {"projected": {"error_count": 0}},
+            },
+        }
+    if name == "data_refresh_cli_plan":
+        return {
+            "status": "pass",
+            "plan": {
+                "dry_run": True,
+                "manifest_hash": "b" * 64,
+                "summary": {"planned": 1, "succeeded": 0, "failed": 0},
+            },
+        }
+    if name == "data_refresh_cli_validate":
+        return {
+            "status": "warning",
+            "validation": {
+                "validation_schema": "agentic-rag-data-refresh-plan-validation-v1",
+                "status": "warning",
+                "normalized_request": {"genes": ["SNCA"], "brain_regions": ["substantia nigra"]},
+                "plan": {"operation_count": 1},
+            },
+        }
+    return {"status": "pass"}
+
+
+def test_cli_production_audit_requires_preflight_data_evidence_details() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "production_audit.py"
+    spec = importlib.util.spec_from_file_location("cli_production_audit_preflight_data", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    evidence_path = root / "backend" / "app" / "data" / "runtime" / f"preflight_unit_bad_{uuid.uuid4().hex}.json"
+    evidence = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pass",
+        "checks": [
+            {"name": name, "returncode": 0, "status": "pass", "details": {"status": "pass"}}
+            for name in module.REQUIRED_PREFLIGHT_CHECKS
+        ],
+        "failed": [],
+        "skipped": [],
+    }
+    try:
+        evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+        preflight_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        failures = " ".join(preflight_check["failures"])
+        assert preflight_check["status"] == "fail"
+        assert "structured_import_cli_preview did not record source sha256" in failures
+        assert "data_refresh_cli_plan did not run as a dry run" in failures
+        assert "data_refresh_cli_validate did not include the expected validation schema" in failures
     finally:
         evidence_path.unlink(missing_ok=True)
 

@@ -261,6 +261,7 @@ def extract_preflight_summary(
         failures.append(f"preflight evidence is missing required checks: {', '.join(missing_checks)}")
     if not any(isinstance(check, dict) and "details" in check for check in checks):
         warnings.append("preflight evidence does not include parsed details fields")
+    validate_preflight_data_evidence(checks, failures)
     if skipped:
         warnings.append(f"preflight skipped checks: {', '.join(stringify_list(skipped))}")
 
@@ -281,6 +282,63 @@ def extract_preflight_summary(
         "skipped": skipped if isinstance(skipped, list) else stringify_list(skipped),
         "path_mtime": datetime.fromtimestamp(evidence_path.stat().st_mtime, tz=timezone.utc).isoformat() if evidence_path.exists() else None,
     }
+
+
+def validate_preflight_data_evidence(checks: list[Any], failures: list[str]) -> None:
+    by_name = {str(check.get("name")): check for check in checks if isinstance(check, dict) and check.get("name")}
+    structured = check_details(by_name.get("structured_import_cli_preview"))
+    preview = structured.get("preview") if isinstance(structured.get("preview"), dict) else {}
+    preview_validation = preview.get("validation") if isinstance(preview.get("validation"), dict) else {}
+    projected = preview_validation.get("projected") if isinstance(preview_validation.get("projected"), dict) else {}
+    records = preview.get("records") if isinstance(preview.get("records"), dict) else {}
+    source = preview.get("source") if isinstance(preview.get("source"), dict) else {}
+    if structured.get("status") not in {"pass", "warning"} or preview.get("status") not in {"pass", "warning"}:
+        failures.append("structured_import_cli_preview did not produce a pass/warning preview.")
+    if not source.get("sha256"):
+        failures.append("structured_import_cli_preview did not record source sha256.")
+    if int_value(records.get("import_count")) <= 0:
+        failures.append("structured_import_cli_preview did not report imported records.")
+    if int_value(projected.get("error_count")) != 0:
+        failures.append("structured_import_cli_preview projected validation errors.")
+
+    plan_details = check_details(by_name.get("data_refresh_cli_plan"))
+    plan = plan_details.get("plan") if isinstance(plan_details.get("plan"), dict) else {}
+    plan_summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
+    if plan_details.get("status") != "pass":
+        failures.append("data_refresh_cli_plan status is not pass.")
+    if plan.get("dry_run") is not True:
+        failures.append("data_refresh_cli_plan did not run as a dry run.")
+    if int_value(plan_summary.get("planned")) <= 0:
+        failures.append("data_refresh_cli_plan did not plan any operations.")
+    if not plan.get("manifest_hash"):
+        failures.append("data_refresh_cli_plan did not include a manifest hash.")
+
+    validation_details = check_details(by_name.get("data_refresh_cli_validate"))
+    validation = validation_details.get("validation") if isinstance(validation_details.get("validation"), dict) else {}
+    refresh_plan = validation.get("plan") if isinstance(validation.get("plan"), dict) else {}
+    normalized = validation.get("normalized_request") if isinstance(validation.get("normalized_request"), dict) else {}
+    if validation.get("validation_schema") != "agentic-rag-data-refresh-plan-validation-v1":
+        failures.append("data_refresh_cli_validate did not include the expected validation schema.")
+    if validation.get("status") not in {"pass", "warning"}:
+        failures.append("data_refresh_cli_validate status is not pass/warning.")
+    if int_value(refresh_plan.get("operation_count")) <= 0:
+        failures.append("data_refresh_cli_validate did not report planned operations.")
+    if not normalized.get("genes") or not normalized.get("brain_regions"):
+        failures.append("data_refresh_cli_validate did not record normalized genes and brain regions.")
+
+
+def check_details(check: dict[str, Any] | None) -> dict[str, Any]:
+    if not isinstance(check, dict):
+        return {}
+    details = check.get("details")
+    return details if isinstance(details, dict) else {}
+
+
+def int_value(value: Any) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
 
 
 def preflight_age_hours(generated_at: str) -> float | None:
