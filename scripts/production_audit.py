@@ -518,6 +518,17 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data release archive is missing records_hash")
         if checked_count and not latest.get("records_csv_hash"):
             failures.append("latest data release archive is missing records_csv_hash")
+    if name == "data_refresh_plan_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and int(latest.get("operation_count") or 0) < 1:
+            failures.append("latest data refresh plan archive is missing operation_count")
+        if checked_count and not latest.get("validation_status"):
+            failures.append("latest data refresh plan archive is missing validation_status")
+        if checked_count and not latest.get("dataset_id"):
+            failures.append("latest data refresh plan archive is missing dataset_id")
+        if checked_count and not latest.get("structured_manifest_hash"):
+            failures.append("latest data refresh plan archive is missing structured_manifest_hash")
     return failures
 
 
@@ -552,6 +563,12 @@ def api_warnings(name: str, details: Any) -> list[str]:
         latest = (payload.get("latest_artifacts") or [{}])[0]
         if latest.get("request_payload_status") not in {None, "pass"}:
             warnings.append("latest QC archive request_payload_status is not pass")
+    if name == "data_refresh_plan_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        if latest.get("validation_status") not in {None, "pass", "warning"}:
+            warnings.append("latest data refresh plan validation_status is not pass/warning")
+        if latest.get("release_lock_status") not in {None, "pass", "warning"}:
+            warnings.append("latest data refresh plan release_lock_status is not pass/warning")
     if name == "security_status":
         if not payload.get("auth_enabled"):
             warnings.append("API authentication is not enabled")

@@ -523,6 +523,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     valid_hash = "a" * 64
     api_check_names = {check["name"] for check in module.API_CHECKS}
     assert "structured_import_archive_semantics" in api_check_names
+    assert "data_refresh_plan_archive_semantics" in api_check_names
     assert "data_release_archive_semantics" in api_check_names
     assert "rag_regression_archive_semantics" in api_check_names
     assert module.api_failures(
@@ -644,6 +645,30 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"records_hash": valid_hash}]}},
     )
     assert "records_csv_hash" in " ".join(archive_hash_failures)
+    assert module.api_failures(
+        "data_refresh_plan_archive_semantics",
+        {
+            "data": {
+                "status": "pass",
+                "checked_count": 1,
+                "latest_artifacts": [
+                    {
+                        "operation_count": 2,
+                        "validation_status": "pass",
+                        "dataset_id": "gtex_v8",
+                        "structured_manifest_hash": valid_hash,
+                    }
+                ],
+            }
+        },
+    ) == []
+    refresh_plan_failures = module.api_failures(
+        "data_refresh_plan_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"validation_status": "pass"}]}},
+    )
+    assert "operation_count" in " ".join(refresh_plan_failures)
+    assert "dataset_id" in " ".join(refresh_plan_failures)
+    assert "structured_manifest_hash" in " ".join(refresh_plan_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
