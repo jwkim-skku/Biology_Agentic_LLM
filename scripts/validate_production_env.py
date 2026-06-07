@@ -124,6 +124,11 @@ def validate_template(values: dict[str, str], failures: list[str], warnings: lis
     _require("admin" in values.get("API_KEY_ROLES", ""), failures, "template API_KEY_ROLES must include an admin role.")
     _require("operator" in values.get("API_KEY_ROLES", ""), failures, "template API_KEY_ROLES must include an operator role.")
     _require("viewer" in values.get("API_KEY_ROLES", ""), failures, "template API_KEY_ROLES must include a viewer role.")
+    _require(
+        values.get("NEXT_PUBLIC_API_KEY") in parse_role_map(values.get("API_KEY_ROLES", "")),
+        failures,
+        "template NEXT_PUBLIC_API_KEY must be represented in API_KEY_ROLES.",
+    )
     _require(int_or_none(values.get("RATE_LIMIT_PER_MINUTE")) and int(values["RATE_LIMIT_PER_MINUTE"]) > 0, failures, "template rate limit must be positive.")
     _require(int_or_none(values.get("ARTIFACT_RETENTION_DAYS")) and int(values["ARTIFACT_RETENTION_DAYS"]) > 0, failures, "template retention days must be positive.")
     _require(values.get("ARTIFACT_OBJECT_STORE_ENABLED", "").lower() == "true", failures, "template object-store mirror must be enabled.")
@@ -173,6 +178,16 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
     assigned_roles = {role for roles in role_map.values() for role in roles}
     _require("admin" in assigned_roles, failures, "API_KEY_ROLES must include an admin role.")
     _require("viewer" in assigned_roles or "operator" in assigned_roles, failures, "API_KEY_ROLES should include a non-admin browser/operator role.")
+    browser_key = values.get("NEXT_PUBLIC_API_KEY", "")
+    _require(browser_key in api_keys, failures, "NEXT_PUBLIC_API_KEY must match one configured API_KEYS entry.")
+    browser_roles = role_map.get(browser_key, set())
+    _require(bool(browser_roles), failures, "NEXT_PUBLIC_API_KEY must have an explicit API_KEY_ROLES mapping.")
+    _require("admin" not in browser_roles, failures, "NEXT_PUBLIC_API_KEY must not be assigned the admin role.")
+    _require(
+        bool(browser_roles & {"viewer", "operator"}),
+        failures,
+        "NEXT_PUBLIC_API_KEY must be assigned a viewer or operator role.",
+    )
 
     rate_limit = int_or_none(values.get("RATE_LIMIT_PER_MINUTE"))
     _require(rate_limit is not None and rate_limit > 0, failures, "RATE_LIMIT_PER_MINUTE must be a positive integer.")
@@ -204,14 +219,22 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
         _require(bool(values.get("ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY")), failures, "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY must be set.")
 
     cors = split_csv(values.get("CORS_ORIGINS", ""))
+    _require(bool(cors), failures, "CORS_ORIGINS must include at least one deployed dashboard origin.")
+    if "*" in cors:
+        failures.append("CORS_ORIGINS must not contain wildcard '*'.")
     if any(origin.startswith("http://") for origin in cors):
-        warnings.append("CORS_ORIGINS contains http:// origins; production should normally use https://.")
+        failures.append("CORS_ORIGINS must use https:// origins in production.")
+    if any(origin.endswith("/") for origin in cors):
+        warnings.append("CORS_ORIGINS should omit trailing slashes.")
     if len(cors) > 5:
         warnings.append("CORS_ORIGINS has more than five origins; keep the browser attack surface narrow.")
 
     api_base = values.get("NEXT_PUBLIC_API_BASE_URL", "")
-    if api_base and not api_base.startswith("https://"):
-        warnings.append("NEXT_PUBLIC_API_BASE_URL is not https://.")
+    _require(api_base.startswith("https://"), failures, "NEXT_PUBLIC_API_BASE_URL must be an https:// URL.")
+    parsed_api_base = urlparse(api_base)
+    _require(bool(parsed_api_base.hostname), failures, "NEXT_PUBLIC_API_BASE_URL must include a hostname.")
+    if api_base.endswith("/"):
+        warnings.append("NEXT_PUBLIC_API_BASE_URL should omit a trailing slash.")
 
 
 def split_csv(value: str) -> list[str]:

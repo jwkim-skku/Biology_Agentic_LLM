@@ -48,6 +48,7 @@ Useful runtime variables:
 - `DATABASE_URL`: optional Postgres connection URL. It is redacted in status payloads.
 - `API_KEYS`: comma-separated API keys. Empty means local-development mode.
 - `API_KEY_ROLES`: optional API key role mapping. Use `key=admin;other=viewer,operator` or JSON such as `{"key":["admin"]}`. Without this mapping, configured keys default to `admin`.
+- `NEXT_PUBLIC_API_KEY`: browser demo key when API auth is enabled. It must map to a configured `viewer` or `operator` role, never `admin`.
 - `RATE_LIMIT_PER_MINUTE`: per-client in-process request limit. Set `0` to disable.
 - `ARTIFACT_SIGNING_KEY`: optional HMAC signing secret for run/job/data export manifests.
 - `ARTIFACT_SIGNING_KEY_ID`: optional public identifier for the signing key used in artifact manifests.
@@ -63,7 +64,6 @@ Useful runtime variables:
 - `ARTIFACT_OBJECT_STORE_REGION`: SigV4 region used for object-store requests.
 - `ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID` and `ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY`: object-store credentials used by the mirror endpoint.
 - `NEXT_PUBLIC_API_BASE_URL`: frontend API base URL.
-- `NEXT_PUBLIC_API_KEY`: browser demo key when API auth is enabled.
 
 Operational endpoints:
 
