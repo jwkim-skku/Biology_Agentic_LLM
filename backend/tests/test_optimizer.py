@@ -636,15 +636,20 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "request_hash": "pass",
                     "qc_report_hash": "pass",
                     "candidate_ranking_hash": "pass",
+                    "recommendation_audit_hash": "pass",
                     "optimizer_hash_report": "pass",
                     "candidate_csv_explainability_columns": "pass",
                     "recommended_constraint_risk_csv": "pass",
                     "objective_inventory": "pass",
                     "recommendation_audit": "pass",
+                    "recommendation_audit_file_schema": "pass",
+                    "recommendation_audit_file_report": "pass",
+                    "recommendation_audit_candidate": "pass",
                 },
                 "request_hash": valid_hash,
                 "qc_report_hash": valid_hash,
                 "candidate_ranking_hash": valid_hash,
+                "recommendation_audit_hash": valid_hash,
             }
         },
     ) == []
@@ -693,6 +698,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "request_hash" in " ".join(qc_failures)
     assert "qc_report_hash" in " ".join(qc_failures)
     assert "candidate_ranking_hash" in " ".join(qc_failures)
+    assert "recommendation_audit_hash" in " ".join(qc_failures)
     assert "optimizer_hash_report" in " ".join(qc_failures)
     assert "candidate_csv_explainability_columns" in " ".join(qc_failures)
     assert "recommended_constraint_risk_csv" in " ".join(qc_failures)
@@ -1714,12 +1720,16 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert "qc_report.html" in names
         assert "qc_report.pdf" in names
         assert "optimizer_reproducibility.json" in names
+        assert "recommendation_audit.json" in names
         assert "candidate_ranking.csv" in names
         optimizer_manifest = json.loads(archive.read("optimizer_reproducibility.json"))
+        recommendation_audit = json.loads(archive.read("recommendation_audit.json"))
         request = json.loads(archive.read("request.json"))
         assert request["brain_region"] == "cortex"
         assert optimizer_manifest["manifest_schema"] == "agentic-rag-optimizer-reproducibility-v1"
         assert optimizer_manifest["manifest_hash"]
+        assert recommendation_audit["audit_schema"] == "agentic-rag-recommendation-audit-v1"
+        assert recommendation_audit["recommended_candidate_id"] == design["recommended_candidate"]["candidate_id"]
         artifact_manifest = json.loads(archive.read("artifact_manifest.json"))
         bundle_manifest = json.loads(archive.read("bundle_manifest.json"))
         assert artifact_manifest["artifact_type"] == "qc_report_bundle"
@@ -1727,6 +1737,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert len(bundle_manifest["request_hash"]) == 64
         assert len(bundle_manifest["qc_report_hash"]) == 64
         assert len(bundle_manifest["candidate_ranking_hash"]) == 64
+        assert len(bundle_manifest["recommendation_audit_hash"]) == 64
         candidate_csv = archive.read("candidate_ranking.csv").decode("utf-8")
         assert "constraint_risk_status" in candidate_csv
         assert "selection_trace" in candidate_csv
@@ -1737,9 +1748,14 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["request_hash"] == bundle_manifest["request_hash"]
     assert verification["qc_report_hash"] == bundle_manifest["qc_report_hash"]
     assert verification["candidate_ranking_hash"] == bundle_manifest["candidate_ranking_hash"]
+    assert verification["recommendation_audit_hash"] == bundle_manifest["recommendation_audit_hash"]
     assert verification["semantic_checks"]["request_hash"] == "pass"
     assert verification["semantic_checks"]["qc_report_hash"] == "pass"
     assert verification["semantic_checks"]["candidate_ranking_hash"] == "pass"
+    assert verification["semantic_checks"]["recommendation_audit_hash"] == "pass"
+    assert verification["semantic_checks"]["recommendation_audit_file_schema"] == "pass"
+    assert verification["semantic_checks"]["recommendation_audit_file_report"] == "pass"
+    assert verification["semantic_checks"]["recommendation_audit_candidate"] == "pass"
     assert verification["semantic_checks"]["optimizer_hash_report"] == "pass"
     assert verification["semantic_checks"]["request_payload"] == "pass"
     assert verification["semantic_checks"]["request_target_brain_region"] == "pass"
@@ -1760,6 +1776,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert archived["metadata"]["qc_bundle_semantic_verification"]["optimizer_manifest_hash"] == optimizer_manifest["manifest_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["qc_report_hash"] == verification["qc_report_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["request_payload_status"] == "pass"
     assert archived["metadata"]["qc_bundle_semantic_verification"]["request_target_checks"]["brain_region"] == "pass"
     archived_verification = verify_archived_artifact(archived["artifact_id"])
@@ -1778,6 +1795,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert any(
         item["artifact_id"] == archived["artifact_id"]
         and item["metadata_indexed"] is True
+        and item["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
         and item["request_payload_status"] == "pass"
         and item["request_target_checks"]["modality"] == "pass"
         for item in indexed_semantics["latest_artifacts"]

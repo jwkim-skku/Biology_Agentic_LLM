@@ -434,6 +434,7 @@ def _semantic_metadata(verification: dict[str, Any]) -> dict[str, Any]:
         "request_hash": verification.get("request_hash"),
         "qc_report_hash": verification.get("qc_report_hash"),
         "candidate_ranking_hash": verification.get("candidate_ranking_hash"),
+        "recommendation_audit_hash": verification.get("recommendation_audit_hash"),
         "request_payload_status": semantic_checks.get("request_payload"),
         "request_target_checks": {
             key.removeprefix("request_target_"): value
@@ -605,6 +606,7 @@ def _semantic_summary_item_from_metadata(artifact: dict[str, Any]) -> dict[str, 
         "status": semantic.get("status") or artifact.get("verification_status"),
         "semantic_status": semantic.get("semantic_status") or "not_indexed",
         "optimizer_manifest_hash": semantic.get("optimizer_manifest_hash"),
+        "recommendation_audit_hash": semantic.get("recommendation_audit_hash"),
         "request_payload_status": semantic.get("request_payload_status"),
         "request_target_checks": semantic.get("request_target_checks") or {},
         "checked_files": semantic.get("checked_files"),
@@ -644,6 +646,7 @@ def _semantic_summary_item_from_verification(artifact: dict[str, Any], verificat
         "status": verification.get("status"),
         "semantic_status": bundle_verification.get("semantic_status") or "not_applicable",
         "optimizer_manifest_hash": bundle_verification.get("optimizer_manifest_hash"),
+        "recommendation_audit_hash": bundle_verification.get("recommendation_audit_hash"),
         "request_payload_status": (bundle_verification.get("semantic_checks") or {}).get("request_payload"),
         "request_target_checks": {
             key.removeprefix("request_target_"): value

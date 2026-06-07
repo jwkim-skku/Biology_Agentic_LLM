@@ -791,6 +791,7 @@ type ProductionAuditStatus = {
         artifact_id: string;
         semantic_status?: string;
         optimizer_manifest_hash?: string | null;
+        recommendation_audit_hash?: string | null;
         checked_files?: number;
         file_count?: number;
       }>;
@@ -1050,6 +1051,7 @@ type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     artifact_id: string;
     semantic_status?: string;
     optimizer_manifest_hash?: string | null;
+    recommendation_audit_hash?: string | null;
     request_payload_status?: string | null;
     request_target_checks?: Record<string, string>;
     checked_files?: number;
@@ -3957,6 +3959,9 @@ export default function Dashboard() {
                 QC optimizer {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.optimizer_manifest_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                QC recommend {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_audit_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Release records {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.record_count ?? "n/a"} /
                 promotion {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.promotion_status ?? "n/a"}
               </span>
@@ -4163,6 +4168,9 @@ export default function Dashboard() {
               <span>Freshness {formatArchiveFreshness(qcBundleSemantics)}</span>
               <span>
                 Latest optimizer {qcBundleSemantics?.latest_artifacts?.[0]?.optimizer_manifest_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Recommend audit {qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_audit_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Request {qcBundleSemantics?.latest_artifacts?.[0]?.request_payload_status ?? "n/a"} / target{" "}

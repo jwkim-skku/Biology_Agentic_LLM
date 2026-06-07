@@ -27,6 +27,7 @@ REQUIRED_QC_BUNDLE_FILES = {
     "qc_report.html",
     "qc_report.pdf",
     "optimizer_reproducibility.json",
+    "recommendation_audit.json",
     "data_quality.json",
     "optimizer_stress.json",
     "candidate_ranking.csv",
@@ -54,6 +55,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
     report_json = _json(report)
     request_json = _json(request_payload)
     candidate_csv = _candidate_csv(design.get("candidates") or [])
+    recommendation_audit = _recommendation_audit_payload(design, report)
     manifest = {
         "bundle_schema": "agentic-rag-qc-report-bundle-v1",
         "bundle_type": bundle_type,
@@ -65,6 +67,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         "request_hash": _hash_payload(request_payload),
         "qc_report_hash": _hash_payload(report),
         "candidate_ranking_hash": _hash_text(candidate_csv),
+        "recommendation_audit_hash": _hash_payload(recommendation_audit),
         "recommended_candidate_id": (design.get("recommended_candidate") or {}).get("candidate_id"),
     }
     data_quality = structured_quality_gate()
@@ -81,6 +84,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         bundle.writestr("qc_report.pdf", export_qc_report(report, "pdf"))
         bundle.writestr("candidate_diagnostics.json", _json(design.get("candidate_diagnostics") or report.get("candidate_diagnostics") or {}))
         bundle.writestr("optimizer_reproducibility.json", _json(report.get("optimizer_reproducibility") or optimizer_reproducibility_manifest(design)))
+        bundle.writestr("recommendation_audit.json", _json(recommendation_audit))
         bundle.writestr("data_quality.json", _json(data_quality))
         bundle.writestr("optimizer_stress.json", _json(optimizer_stress))
         bundle.writestr("candidate_ranking.csv", candidate_csv)
@@ -117,6 +121,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             design_summary = _read_json_member(archive, "design_summary.json")
             qc_report = _read_json_member(archive, "qc_report.json")
             optimizer_manifest = _read_json_member(archive, "optimizer_reproducibility.json")
+            recommendation_audit_file = _read_json_member(archive, "recommendation_audit.json")
             data_quality = _read_json_member(archive, "data_quality.json")
             optimizer_stress = _read_json_member(archive, "optimizer_stress.json")
             candidate_diagnostics = _read_json_member(archive, "candidate_diagnostics.json")
@@ -147,6 +152,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "request_hash": _hash_payload(request),
             "qc_report_hash": _hash_payload(qc_report),
             "candidate_ranking_hash": _hash_text(candidate_csv_text),
+            "recommendation_audit_hash": _hash_payload(recommendation_audit_file),
             "data_quality_status": data_quality.get("status"),
             "optimizer_stress_status": optimizer_stress.get("status"),
         }
@@ -266,6 +272,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         bundle_manifest.get("candidate_ranking_hash"),
         _hash_text(candidate_csv_text),
         "bundle_manifest.json candidate_ranking_hash does not match candidate_ranking.csv.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_audit_hash",
+        bundle_manifest.get("recommendation_audit_hash"),
+        _hash_payload(recommendation_audit_file),
+        "bundle_manifest.json recommendation_audit_hash does not match recommendation_audit.json.",
     )
     for key in ["gene", "species", "brain_region", "cell_type", "modality"]:
         if key not in request or key not in target_definition:
@@ -403,6 +417,30 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["recommendation_audit"] = "fail"
     else:
         semantic_checks["recommendation_audit"] = "pass"
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_audit_file_schema",
+        recommendation_audit_file.get("audit_schema"),
+        "agentic-rag-recommendation-audit-v1",
+        "recommendation_audit.json audit_schema is not recognized.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_audit_file_report",
+        _hash_payload(recommendation_audit_file),
+        _hash_payload(recommendation_audit),
+        "recommendation_audit.json does not match qc_report.json/candidate_diagnostics recommendation_audit.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_audit_candidate",
+        recommendation_audit_file.get("recommended_candidate_id"),
+        recommended_candidate_id,
+        "recommendation_audit.json recommended_candidate_id does not match qc_report.json.",
+    )
 
     if artifact_verification.get("status") == "warning":
         semantic_warnings.append("Underlying artifact manifest verification returned warning.")
@@ -483,6 +521,16 @@ def _candidate_csv(candidates: list[dict[str, Any]]) -> str:
             }
         )
     return output.getvalue()
+
+
+def _recommendation_audit_payload(design: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
+    return (
+        design.get("recommendation_audit")
+        or (design.get("candidate_diagnostics") or {}).get("recommendation_audit")
+        or report.get("recommendation_audit")
+        or (report.get("candidate_diagnostics") or {}).get("recommendation_audit")
+        or {}
+    )
 
 
 def _json(payload: Any) -> str:

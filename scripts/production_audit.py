@@ -492,7 +492,7 @@ def api_failures(name: str, details: Any) -> list[str]:
         checks = payload.get("semantic_checks") or {}
         if checks.get("request_payload") != "pass":
             failures.append("QC report bundle does not verify request_payload.")
-        for hash_check in ["request_hash", "qc_report_hash", "candidate_ranking_hash"]:
+        for hash_check in ["request_hash", "qc_report_hash", "candidate_ranking_hash", "recommendation_audit_hash"]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"QC report bundle does not verify {hash_check}.")
         required_qc_explainability = [
