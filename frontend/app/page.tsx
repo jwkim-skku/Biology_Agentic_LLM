@@ -1108,6 +1108,19 @@ type RagDiagnosticsStatus = {
     embedding_dimensions: number;
     production_ready: boolean;
     recommendation?: string;
+    warnings?: string[];
+    openai?: {
+      api_key_configured: boolean;
+      base_url: string;
+      configured_model: string;
+      configured_dimensions: number;
+    };
+    sentence_transformers?: {
+      package_available: boolean;
+      configured_model: string;
+      configured_dimensions: number;
+      model_load_policy: string;
+    };
   };
   index: {
     chunk_count: number;
@@ -3385,6 +3398,15 @@ export default function Dashboard() {
                 Embed {ragDiagnostics?.embedding_backend?.active_backend ?? "n/a"} /{" "}
                 {ragDiagnostics?.embedding_backend?.embedding_model ?? ragDiagnostics?.index.embedding_model ?? "n/a"} /{" "}
                 {ragDiagnostics?.embedding_backend?.production_ready ? "prod" : "warn"}
+              </span>
+              <span>
+                Embed request {ragDiagnostics?.embedding_backend?.requested_backend ?? "n/a"} -&gt;{" "}
+                {ragDiagnostics?.embedding_backend?.active_backend ?? "n/a"} / fallback{" "}
+                {ragDiagnostics?.embedding_backend?.fallback_active ? "yes" : "no"}
+              </span>
+              <span>
+                OpenAI key {ragDiagnostics?.embedding_backend?.openai?.api_key_configured ? "set" : "not set"} / dims{" "}
+                {ragDiagnostics?.embedding_backend?.openai?.configured_dimensions ?? ragDiagnostics?.embedding_backend?.embedding_dimensions ?? "n/a"}
               </span>
               <span>
                 Vector {ragDiagnostics?.vector_store_readiness?.target_backend ?? ragDiagnostics?.vector_store_readiness?.runtime?.target_backend ?? "n/a"} /{" "}
