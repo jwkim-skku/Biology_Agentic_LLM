@@ -435,6 +435,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["evidence_hashes_combined"] == "pass"
     assert verification["semantic_checks"]["attention_gates_hash"] == "pass"
     assert verification["semantic_checks"]["required_actions_hash"] == "pass"
+    assert verification["semantic_checks"]["required_action_detail_hashes"] == "pass"
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "production_audit.md" in names
@@ -457,6 +458,35 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert len(deployment_readiness["required_actions_hash"]) == 64
         assert evidence_hashes == audit["evidence_hashes"]
         assert evidence_hashes["items"]["evidence/promotion_summary.json"] == audit["evidence_hashes"]["items"]["evidence/promotion_summary.json"]
+
+
+def test_production_audit_bundle_rejects_tampered_action_detail_hash() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    deployment_readiness = json.loads(source.read("evidence/deployment_readiness.json").decode("utf-8"))
+    assert deployment_readiness["required_actions"]
+
+    deployment_readiness["required_actions"][0]["detail_hash"] = "0" * 64
+    audit["evidence"]["deployment_readiness"] = deployment_readiness
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/deployment_readiness.json":
+                tampered.writestr(item, json.dumps(deployment_readiness, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["required_action_detail_hashes"] == "fail"
+    assert "detail_hash" in " ".join(verification["errors"])
 
 
 def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:

@@ -463,6 +463,15 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 deployment_readiness.get("required_actions_hash") == _hash_payload(deployment_readiness.get("required_actions") or []),
                 "deployment readiness required_actions_hash does not match required_actions.",
             )
+            action_detail_mismatches = _required_action_detail_hash_mismatches(deployment_readiness)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "required_action_detail_hashes",
+                not action_detail_mismatches,
+                "deployment readiness required action detail_hash values do not match gate details: "
+                + ", ".join(action_detail_mismatches[:8]),
+            )
             signature_result = _verify_audit_signature(audit)
             if signature_result["status"] == "fail":
                 errors.extend(signature_result["messages"])
@@ -745,6 +754,28 @@ def _record_semantic_check(checks: dict[str, str], errors: list[str], name: str,
     checks[name] = "pass" if passed else "fail"
     if not passed:
         errors.append(message)
+
+
+def _required_action_detail_hash_mismatches(deployment_readiness: dict[str, Any]) -> list[str]:
+    gates_by_name = {
+        str(gate.get("name")): gate
+        for gate in deployment_readiness.get("gates") or []
+        if isinstance(gate, dict) and gate.get("name")
+    }
+    mismatches: list[str] = []
+    for action in deployment_readiness.get("required_actions") or []:
+        if not isinstance(action, dict):
+            mismatches.append("<malformed>")
+            continue
+        gate_name = str(action.get("gate") or "")
+        gate = gates_by_name.get(gate_name)
+        if not gate:
+            mismatches.append(gate_name or "<missing-gate>")
+            continue
+        expected_hash = _hash_payload(gate.get("details") or {})
+        if action.get("detail_hash") != expected_hash:
+            mismatches.append(gate_name)
+    return mismatches
 
 
 def _summary(checks: list[dict[str, Any]]) -> dict[str, Any]:
