@@ -36,6 +36,7 @@ def rag_embedding_status() -> dict[str, Any]:
     model = settings.rag_embedding_model if active in {"sentence_transformers", "openai"} else HASH_BOW_MODEL
     dimensions = settings.rag_embedding_dimensions if active in {"sentence_transformers", "openai"} else DEFAULT_EMBEDDING_DIMENSIONS
     openai_cache = _openai_cache_status(settings)
+    openai_budget = _openai_budget_status(settings, openai_cache)
     warnings: list[str] = []
     if requested == "sentence_transformers" and not sentence_transformers_available:
         warnings.append("RAG_EMBEDDING_BACKEND=sentence_transformers requires the sentence-transformers package and a locally available model.")
@@ -43,6 +44,15 @@ def rag_embedding_status() -> dict[str, Any]:
         warnings.append("RAG_EMBEDDING_BACKEND=openai requires OPENAI_API_KEY.")
     if requested != active:
         warnings.append(f"RAG embedding backend fell back from {requested} to {active}.")
+    if active == "openai" and not openai_budget["price_configured"]:
+        warnings.append("RAG_EMBEDDING_BACKEND=openai should set OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS for spend tracking.")
+    if active == "openai" and not openai_budget["budget_configured"]:
+        warnings.append("RAG_EMBEDDING_BACKEND=openai should set OPENAI_EMBEDDING_BUDGET_USD for spend guardrails.")
+    if active == "openai" and openai_budget["budget_exceeded"]:
+        warnings.append("OpenAI embedding estimated spend has reached or exceeded the configured budget.")
+    production_ready = active == "sentence_transformers" and not fallback_active
+    if active == "openai":
+        production_ready = not fallback_active and openai_budget["price_configured"] and openai_budget["budget_configured"] and openai_budget["within_budget"]
     return {
         "embedding_schema": RAG_EMBEDDING_SCHEMA,
         "status": "warning" if warnings else "pass",
@@ -62,10 +72,10 @@ def rag_embedding_status() -> dict[str, Any]:
             "base_url": settings.openai_embedding_base_url,
             "configured_model": settings.rag_embedding_model,
             "configured_dimensions": settings.rag_embedding_dimensions,
-            "budget": _openai_budget_status(settings, openai_cache),
+            "budget": openai_budget,
             "cache": openai_cache,
         },
-        "production_ready": active in {"sentence_transformers", "openai"} and not fallback_active,
+        "production_ready": production_ready,
         "warnings": warnings,
         "recommendation": _recommendation(active, fallback_active),
     }
@@ -171,6 +181,9 @@ def _openai_embedding(text: str) -> dict[str, Any]:
             "embedding": cached,
             "cache_status": "hit",
         }
+    budget_check = _openai_request_budget_check(text, settings=settings)
+    if budget_check["status"] == "fail":
+        return {"status": "fail", "error": budget_check["message"], "budget_check": budget_check}
     payload: dict[str, Any] = {
         "model": settings.rag_embedding_model,
         "input": text,
@@ -327,6 +340,7 @@ def _openai_budget_status(settings: Any, cache: dict[str, Any]) -> dict[str, Any
     estimated_spend = float(cache.get("estimated_cost_usd") or 0.0)
     budget = float(settings.openai_embedding_budget_usd or 0.0)
     remaining = budget - estimated_spend if budget else None
+    budget_exceeded = remaining is not None and remaining <= 0
     return {
         "price_per_1k_tokens_usd": settings.openai_embedding_price_per_1k_tokens,
         "budget_usd": budget,
@@ -334,8 +348,35 @@ def _openai_budget_status(settings: Any, cache: dict[str, Any]) -> dict[str, Any
         "estimated_remaining_usd": round(remaining, 8) if remaining is not None else None,
         "budget_configured": budget > 0,
         "price_configured": settings.openai_embedding_price_per_1k_tokens > 0,
+        "within_budget": remaining is None or remaining > 0,
+        "budget_exceeded": budget_exceeded,
+        "next_request_policy": "block requests when estimated cached spend plus estimated request cost exceeds OPENAI_EMBEDDING_BUDGET_USD",
         "usage_estimate_policy": "ceil(len(input_text)/4) tokens; operator-supplied embedding price",
         "missing_usage_entries": cache.get("missing_usage_entries", 0),
+    }
+
+
+def _openai_request_budget_check(text: str, *, settings: Any) -> dict[str, Any]:
+    cache = _openai_cache_status(settings)
+    budget = _openai_budget_status(settings, cache)
+    tokens = _estimate_openai_input_tokens(text)
+    request_cost = _estimate_openai_embedding_cost(tokens, settings.openai_embedding_price_per_1k_tokens)
+    projected_spend = round(float(budget["estimated_spend_usd"]) + request_cost, 8)
+    budget_usd = float(budget["budget_usd"] or 0.0)
+    allowed = not budget["budget_configured"] or projected_spend <= budget_usd
+    message = (
+        "OpenAI embedding request is within the configured budget."
+        if allowed
+        else f"OpenAI embedding request would exceed configured budget ${budget_usd:.4f}."
+    )
+    return {
+        "status": "pass" if allowed else "fail",
+        "estimated_input_tokens": tokens,
+        "estimated_request_cost_usd": request_cost,
+        "estimated_spend_usd": budget["estimated_spend_usd"],
+        "projected_spend_usd": projected_spend,
+        "budget_usd": budget_usd,
+        "message": message,
     }
 
 

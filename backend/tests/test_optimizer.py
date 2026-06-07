@@ -261,6 +261,20 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         budget = embeddings.rag_embedding_status()["openai"]["budget"]
         assert budget["estimated_spend_usd"] == cache_status["estimated_cost_usd"]
         assert budget["estimated_remaining_usd"] < 100.0
+        assert budget["within_budget"] is True
+        assert budget["budget_exceeded"] is False
+
+        os.environ["OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS"] = "1"
+        os.environ["OPENAI_EMBEDDING_BUDGET_USD"] = "0.00000001"
+        guarded_status = embeddings.rag_embedding_status()
+        assert guarded_status["production_ready"] is False
+        assert guarded_status["openai"]["budget"]["budget_exceeded"] is True
+        with patch("urllib.request.urlopen", return_value=FakeResponse()) as blocked:
+            guarded = embeddings.embed_text("budget guard " * 200)
+        assert blocked.call_count == 0
+        assert guarded["active_backend"] == "hash_bow"
+        assert guarded["fallback_active"] is True
+        assert "exceed configured budget" in " ".join(guarded["warnings"])
     finally:
         if cache_path is not None:
             cache_path.unlink(missing_ok=True)

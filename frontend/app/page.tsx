@@ -1341,6 +1341,9 @@ type RagDiagnosticsStatus = {
         estimated_remaining_usd?: number | null;
         budget_configured: boolean;
         price_configured: boolean;
+        within_budget?: boolean;
+        budget_exceeded?: boolean;
+        next_request_policy?: string;
         usage_estimate_policy?: string;
         missing_usage_entries?: number;
       };
@@ -3704,6 +3707,10 @@ export default function Dashboard() {
               <span>
                 OpenAI budget {formatCurrency(ragDiagnostics?.embedding_backend?.openai?.budget?.budget_usd)} / left{" "}
                 {formatCurrency(ragDiagnostics?.embedding_backend?.openai?.budget?.estimated_remaining_usd)}
+              </span>
+              <span>
+                OpenAI guard {ragDiagnostics?.embedding_backend?.openai?.budget?.within_budget ? "within" : "blocked"} /{" "}
+                {ragDiagnostics?.embedding_backend?.openai?.budget?.budget_exceeded ? "exceeded" : "ok"}
               </span>
               <span>
                 Cache hash {ragDiagnostics?.embedding_backend?.openai?.cache?.file_sha256?.slice(0, 10) ?? "n/a"} / keys{" "}
