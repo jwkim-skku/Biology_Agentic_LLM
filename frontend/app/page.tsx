@@ -858,6 +858,9 @@ type ProductionAuditStatus = {
         embedding_model?: string | null;
         retrieval_model?: string | null;
         recommended_backend?: string | null;
+        migration_target_backend?: string | null;
+        parity_status?: string | null;
+        vector_row_hash?: string | null;
         structured_manifest_hash?: string | null;
       }>;
     };
@@ -1140,6 +1143,9 @@ type RagVectorIndexArchiveSemanticSummary = ArchiveSemanticFreshness & {
     embedding_model?: string | null;
     retrieval_model?: string | null;
     recommended_backend?: string | null;
+    migration_target_backend?: string | null;
+    parity_status?: string | null;
+    vector_row_hash?: string | null;
     structured_manifest_hash?: string | null;
   }>;
 };
@@ -3980,6 +3986,10 @@ export default function Dashboard() {
                 backend {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.recommended_backend ?? "n/a"}
               </span>
               <span>
+                Vector parity {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.parity_status ?? "n/a"} /
+                row {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.vector_row_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Import semantic pass {productionAudit?.evidence?.structured_import_archive_semantics?.semantic_pass_count ?? "n/a"} /
                 fail {productionAudit?.evidence?.structured_import_archive_semantics?.semantic_fail_count ?? "n/a"}
               </span>
@@ -4262,6 +4272,11 @@ export default function Dashboard() {
                 Model {ragVectorIndexSemantics?.latest_artifacts?.[0]?.embedding_model ?? "n/a"} / backend{" "}
                 {ragVectorIndexSemantics?.latest_artifacts?.[0]?.recommended_backend ?? "n/a"}
               </span>
+              <span>
+                Migration {ragVectorIndexSemantics?.latest_artifacts?.[0]?.migration_target_backend ?? "n/a"} / parity{" "}
+                {ragVectorIndexSemantics?.latest_artifacts?.[0]?.parity_status ?? "n/a"}
+              </span>
+              <span>Row hash {ragVectorIndexSemantics?.latest_artifacts?.[0]?.vector_row_hash?.slice(0, 10) ?? "n/a"}</span>
             </div>
             <div className="data-quality" aria-label="Optimizer benchmark archive summary">
               <span>

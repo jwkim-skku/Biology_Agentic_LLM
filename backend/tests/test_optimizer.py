@@ -412,6 +412,9 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert vector_archive_gate["details"]["status"] in {"pass", "warning"}
     assert vector_archive_gate["details"]["latest_chunk_count"] is None or vector_archive_gate["details"]["latest_chunk_count"] >= 1
     assert vector_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
+    assert vector_archive_gate["details"]["latest_migration_target_backend"] in {None, "local_json", "pgvector", "qdrant"}
+    assert vector_archive_gate["details"]["latest_parity_status"] in {None, "pass", "warning"}
+    assert vector_archive_gate["details"]["latest_vector_row_hash"] is None or len(vector_archive_gate["details"]["latest_vector_row_hash"]) == 64
     optimizer_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark_archive_semantics")
     assert optimizer_archive_gate["details"]["status"] in {"pass", "warning"}
     assert optimizer_archive_gate["details"]["latest_stress_status"] in {None, "pass", "warning"}
@@ -1385,8 +1388,24 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
     assert verification["semantic_checks"]["chunk_count"] == "pass"
     assert verification["semantic_checks"]["embedding_dimensions"] == "pass"
     assert verification["semantic_checks"]["vector_readiness_schema"] == "pass"
+    assert verification["semantic_checks"]["migration_plan_schema"] == "pass"
+    assert verification["semantic_checks"]["migration_parity_schema"] == "pass"
+    assert verification["semantic_checks"]["migration_source_count"] == "pass"
+    assert verification["semantic_checks"]["migration_row_hash"] == "pass"
     assert verification["chunk_count"] >= 1
     assert verification["embedding_dimensions"] >= 1
+    assert verification["migration_target_backend"] in {"local_json", "pgvector", "qdrant"}
+    assert verification["parity_status"] in {"pass", "warning"}
+    assert len(verification["vector_row_hash"]) == 64
+    with ZipFile(BytesIO(bundle)) as archive:
+        names = set(archive.namelist())
+        assert "vector_store_import_plan.json" in names
+        assert "vector_store_parity.json" in names
+        manifest = json.loads(archive.read("bundle_manifest.json"))
+        import_plan = json.loads(archive.read("vector_store_import_plan.json"))
+        parity = json.loads(archive.read("vector_store_parity.json"))
+        assert manifest["vector_row_hash"] == import_plan["source"]["row_fingerprint"]["combined_row_hash"]
+        assert parity["comparison"]["source_row_hash"] == verification["vector_row_hash"]
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_rag_vector_index_bundle",
@@ -1399,6 +1418,9 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
     assert semantic["chunk_count"] == verification["chunk_count"]
     assert semantic["embedding_dimensions"] == verification["embedding_dimensions"]
     assert semantic["embedding_model"] == verification["embedding_model"]
+    assert semantic["migration_target_backend"] == verification["migration_target_backend"]
+    assert semantic["parity_status"] == verification["parity_status"]
+    assert semantic["vector_row_hash"] == verification["vector_row_hash"]
     summary = rag_vector_index_archive_summary(limit=5, verify_files=False)
     assert summary["verification_mode"] == "indexed"
     assert summary["status"] in {"pass", "warning"}
@@ -1406,6 +1428,7 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
         item["artifact_id"] == archived["artifact_id"]
         and item["chunk_count"] == verification["chunk_count"]
         and item["embedding_dimensions"] == verification["embedding_dimensions"]
+        and item["vector_row_hash"] == verification["vector_row_hash"]
         for item in summary["latest_artifacts"]
     )
 

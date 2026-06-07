@@ -10,6 +10,7 @@ from app.services.export_manifest_service import ManifestedZip, verify_artifact_
 from app.services.rag_diagnostics_service import rag_diagnostics
 from app.services.rag_embedding_service import rag_embedding_status
 from app.services.rag_service import load_rag_index, rag_status
+from app.services.rag_vector_store_migration_service import rag_vector_store_import_plan, rag_vector_store_parity_report
 from app.services.structured_data_service import structured_manifest
 
 
@@ -20,6 +21,8 @@ REQUIRED_VECTOR_INDEX_FILES = {
     "embedding_status.json",
     "pgvector_schema.sql",
     "qdrant_collection.json",
+    "vector_store_import_plan.json",
+    "vector_store_parity.json",
     "rag_status.json",
     "rag_diagnostics.json",
     "structured_manifest.json",
@@ -31,6 +34,9 @@ def build_rag_vector_index_bundle() -> bytes:
     diagnostics = rag_diagnostics()
     embedding = rag_embedding_status()
     readiness = diagnostics.get("vector_store_readiness") or {}
+    import_plan = rag_vector_store_import_plan(readiness.get("recommended_backend"))
+    parity = rag_vector_store_parity_report(target_backend=import_plan.get("target_backend"))
+    row_fingerprint = import_plan.get("source", {}).get("row_fingerprint") or {}
     metadata = {
         "bundle_schema": "agentic-rag-vector-index-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -43,6 +49,9 @@ def build_rag_vector_index_bundle() -> bytes:
         "structured_manifest_hash": index.get("structured_manifest_hash"),
         "active_backend": readiness.get("active_backend"),
         "recommended_backend": readiness.get("recommended_backend"),
+        "migration_target_backend": import_plan.get("target_backend"),
+        "vector_row_hash": row_fingerprint.get("combined_row_hash"),
+        "parity_status": parity.get("status"),
     }
     buffer = BytesIO()
     with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
@@ -53,6 +62,8 @@ def build_rag_vector_index_bundle() -> bytes:
         bundle.writestr("embedding_status.json", _json(embedding))
         bundle.writestr("pgvector_schema.sql", _pgvector_schema_sql(metadata, readiness))
         bundle.writestr("qdrant_collection.json", _json(_qdrant_collection_config(metadata, readiness)))
+        bundle.writestr("vector_store_import_plan.json", _json(import_plan))
+        bundle.writestr("vector_store_parity.json", _json(parity))
         bundle.writestr("rag_status.json", _json(rag_status()))
         bundle.writestr("rag_diagnostics.json", _json(diagnostics))
         bundle.writestr("structured_manifest.json", _json(structured_manifest()))
@@ -87,6 +98,8 @@ def verify_rag_vector_index_bundle(bundle: bytes) -> dict[str, Any]:
                 embedding_status: dict[str, Any] = {}
                 status: dict[str, Any] = {}
                 payload_schema: dict[str, Any] = {}
+                import_plan: dict[str, Any] = {}
+                parity: dict[str, Any] = {}
             else:
                 semantic_checks["required_files"] = "pass"
                 manifest = _read_json(archive, "bundle_manifest.json")
@@ -95,6 +108,8 @@ def verify_rag_vector_index_bundle(bundle: bytes) -> dict[str, Any]:
                 embedding_status = _read_json(archive, "embedding_status.json")
                 status = _read_json(archive, "rag_status.json")
                 payload_schema = _read_json(archive, "payload_schema.json")
+                import_plan = _read_json(archive, "vector_store_import_plan.json")
+                parity = _read_json(archive, "vector_store_parity.json")
                 _read_json(archive, "qdrant_collection.json")
                 archive.read("pgvector_schema.sql").decode("utf-8")
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError) as exc:
@@ -105,6 +120,8 @@ def verify_rag_vector_index_bundle(bundle: bytes) -> dict[str, Any]:
         embedding_status = {}
         status = {}
         payload_schema = {}
+        import_plan = {}
+        parity = {}
 
     expected_count = int(manifest.get("chunk_count") or -1)
     if expected_count != len(chunks):
@@ -153,6 +170,34 @@ def verify_rag_vector_index_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_checks["embedding_status_schema"] = "pass"
 
+    if import_plan.get("migration_schema") != "agentic-rag-vector-store-migration-v1":
+        semantic_errors.append("vector_store_import_plan.json migration_schema is invalid.")
+        semantic_checks["migration_plan_schema"] = "fail"
+    else:
+        semantic_checks["migration_plan_schema"] = "pass"
+
+    if parity.get("migration_schema") != "agentic-rag-vector-store-migration-v1":
+        semantic_errors.append("vector_store_parity.json migration_schema is invalid.")
+        semantic_checks["migration_parity_schema"] = "fail"
+    else:
+        semantic_checks["migration_parity_schema"] = "pass"
+
+    source_records = (import_plan.get("source") or {}).get("records")
+    if source_records != len(chunks):
+        semantic_errors.append("vector_store_import_plan.json source records do not match vector_chunks.jsonl rows.")
+        semantic_checks["migration_source_count"] = "fail"
+    else:
+        semantic_checks["migration_source_count"] = "pass"
+
+    source_hash = ((import_plan.get("source") or {}).get("row_fingerprint") or {}).get("combined_row_hash")
+    parity_source_hash = ((parity.get("source") or {}).get("row_fingerprint") or {}).get("combined_row_hash")
+    comparison_source_hash = (parity.get("comparison") or {}).get("source_row_hash")
+    if len({value for value in [manifest.get("vector_row_hash"), source_hash, parity_source_hash, comparison_source_hash] if value}) > 1:
+        semantic_errors.append("Vector row hash evidence disagrees across import plan, parity report, and bundle manifest.")
+        semantic_checks["migration_row_hash"] = "fail"
+    else:
+        semantic_checks["migration_row_hash"] = "pass" if source_hash else "warning"
+
     embedding_models = {
         str(value)
         for value in [
@@ -198,6 +243,9 @@ def verify_rag_vector_index_bundle(bundle: bytes) -> dict[str, Any]:
         "embedding_model": manifest.get("embedding_model"),
         "retrieval_model": manifest.get("retrieval_model"),
         "recommended_backend": manifest.get("recommended_backend"),
+        "migration_target_backend": manifest.get("migration_target_backend") or import_plan.get("target_backend"),
+        "parity_status": parity.get("status"),
+        "vector_row_hash": source_hash,
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }
 
