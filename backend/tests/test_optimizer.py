@@ -38,6 +38,7 @@ from app.services.artifact_archive_service import (
     archive_summary,
     data_refresh_plan_archive_summary,
     data_release_archive_summary,
+    data_snapshot_archive_summary,
     list_archived_artifacts,
     optimizer_benchmark_archive_summary,
     plan_artifact_retention,
@@ -406,6 +407,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "structured_import_archive_semantics" in audit["evidence"]
     assert "data_release_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "data_release_archive_semantics" in audit["evidence"]
+    assert "data_snapshot_archive_semantics" in {item["name"] for item in audit["checks"]}
+    assert "data_snapshot_archive_semantics" in audit["evidence"]
     assert "data_refresh_plan_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "data_refresh_plan_archive_semantics" in audit["evidence"]
     assert "rag_vector_index_archive_semantics" in {item["name"] for item in audit["checks"]}
@@ -439,6 +442,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/timings.json" in names
         assert "evidence/data_refresh_plan_archive_semantics.json" in names
         assert "evidence/data_release_archive_semantics.json" in names
+        assert "evidence/data_snapshot_archive_semantics.json" in names
         assert "evidence/rag_vector_index_archive_semantics.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
         assert "evidence/workflow_trace_archive_semantics.json" in names
@@ -478,6 +482,13 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert data_release_gate["details"]["latest_rag_index_hash"] is None or len(data_release_gate["details"]["latest_rag_index_hash"]) == 64
     assert data_release_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
     assert data_release_gate["details"]["freshness_warning_hours"] > 0
+    data_snapshot_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_snapshot_archive_semantics")
+    assert data_snapshot_gate["details"]["status"] in {"pass", "warning"}
+    assert data_snapshot_gate["details"]["latest_snapshot_manifest_hash"] is None or len(data_snapshot_gate["details"]["latest_snapshot_manifest_hash"]) == 64
+    assert data_snapshot_gate["details"]["latest_structured_manifest_hash"] is None or data_snapshot_gate["details"]["latest_structured_manifest_hash"]
+    assert data_snapshot_gate["details"]["latest_rag_index_hash"] is None or len(data_snapshot_gate["details"]["latest_rag_index_hash"]) == 64
+    assert data_snapshot_gate["details"]["latest_external_snapshot_file_count"] is None or data_snapshot_gate["details"]["latest_external_snapshot_file_count"] >= 1
+    assert data_snapshot_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
     refresh_plan_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_refresh_plan_archive_semantics")
     assert refresh_plan_gate["details"]["status"] in {"pass", "warning"}
     assert refresh_plan_gate["details"]["latest_operation_count"] is None or refresh_plan_gate["details"]["latest_operation_count"] >= 1
@@ -664,6 +675,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     valid_hash = "a" * 64
     api_check_names = {check["name"] for check in module.API_CHECKS}
     assert "structured_import_archive_semantics" in api_check_names
+    assert "data_snapshot_archive_semantics" in api_check_names
     assert "data_refresh_plan_archive_semantics" in api_check_names
     assert "data_release_archive_semantics" in api_check_names
     assert "rag_regression_archive_semantics" in api_check_names
@@ -906,6 +918,13 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         },
     )
     assert "missing external source snapshots" in " ".join(release_snapshot_failures)
+    snapshot_archive_failures = module.api_failures(
+        "data_snapshot_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"snapshot_manifest_hash": valid_hash}]}},
+    )
+    assert "structured_manifest_hash" in " ".join(snapshot_archive_failures)
+    assert "rag_index_hash" in " ".join(snapshot_archive_failures)
+    assert "external_snapshot_file_count" in " ".join(snapshot_archive_failures)
     assert module.api_failures(
         "data_refresh_plan_archive_semantics",
         {
@@ -1977,6 +1996,25 @@ def test_data_snapshot_bundle_contains_core_manifests() -> None:
     assert verification["structured_manifest_hash"]
     assert verification["external_snapshot_file_count"] >= 1
     assert verification["rag_index_hash"]
+    archived = archive_artifact_bundle(
+        bundle,
+        action="unit_test_data_snapshot_bundle",
+        resource_type="data_snapshot",
+        resource_id=verification["snapshot_manifest_hash"],
+        filename="unit_test_data_snapshot_bundle.zip",
+    )
+    semantic = archived["metadata"]["data_snapshot_semantic_verification"]
+    assert semantic["snapshot_manifest_hash"] == verification["snapshot_manifest_hash"]
+    assert semantic["structured_manifest_hash"] == verification["structured_manifest_hash"]
+    assert semantic["rag_index_hash"] == verification["rag_index_hash"]
+    assert semantic["external_snapshot_file_count"] == verification["external_snapshot_file_count"]
+    archive_semantics = data_snapshot_archive_summary(limit=5)
+    assert archive_semantics["status"] in {"pass", "warning"}
+    assert archive_semantics["checked_count"] >= 1
+    latest = archive_semantics["latest_artifacts"][0]
+    assert latest["snapshot_manifest_hash"]
+    assert latest["structured_manifest_hash"]
+    assert latest["rag_index_hash"]
 
 
 def test_data_lockfile_can_be_written_and_verified() -> None:

@@ -172,6 +172,7 @@ Invoke-RestMethod `
 - `POST /api/v1/data/external-sources/backfill?dry_run=true`: plan or apply source snapshot backfill for bundled/manual structured files that predate snapshot tracking.
 - `GET /api/v1/data/snapshot.zip`: export structured data, document extracts, RAG index, refresh log, manifests, and artifact-level SHA-256 hashes as a reproducibility snapshot.
 - `GET /api/v1/data/snapshot/verify`: rebuild the data snapshot and verify artifact hashes plus semantic snapshot evidence (`snapshot_manifest_hash`, structured manifest consistency, RAG index hash, and external snapshot file count).
+- `GET /api/v1/artifacts/data-snapshots/semantic-summary`: inspect archived data snapshot semantic verification, freshness, manifest hashes, RAG index hashes, and external snapshot file counts.
 - `POST /api/v1/structured/search`: search structured priors for a target context.
 - `POST /api/v1/structured/import/preview`: preview source parsing, replacement impact, duplicate IDs, projected manifest hash, merged validation, and provenance before mutating structured data.
 - `POST /api/v1/structured/import`: import local JSON/CSV structured prior files and archive a manifested, semantically verified structured import audit bundle.

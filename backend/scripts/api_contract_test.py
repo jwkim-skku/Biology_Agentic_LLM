@@ -47,6 +47,7 @@ REQUIRED_PATHS = {
     "/api/v1/artifacts/structured-imports/semantic-summary": {"get"},
     "/api/v1/artifacts/data-refresh-plans/semantic-summary": {"get"},
     "/api/v1/artifacts/data-releases/semantic-summary": {"get"},
+    "/api/v1/artifacts/data-snapshots/semantic-summary": {"get"},
     "/api/v1/artifacts/rag-evaluations/semantic-summary": {"get"},
     "/api/v1/artifacts/rag-regressions/semantic-summary": {"get"},
     "/api/v1/artifacts/rag-vector-indexes/semantic-summary": {"get"},

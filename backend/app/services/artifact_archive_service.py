@@ -415,6 +415,23 @@ def data_release_archive_summary(limit: int = 20, *, verify_files: bool = True) 
     )
 
 
+def data_snapshot_archive_summary(limit: int = 20, *, verify_files: bool = True) -> dict[str, Any]:
+    return _bundle_archive_semantic_summary(
+        limit=limit,
+        verify_files=verify_files,
+        artifact_type="data_snapshot_bundle",
+        metadata_key="data_snapshot_semantic_verification",
+        label="data snapshot bundle",
+        extra_fields=(
+            "snapshot_manifest_hash",
+            "structured_manifest_hash",
+            "rag_index_hash",
+            "external_snapshot_file_count",
+            "snapshot_file_count",
+        ),
+    )
+
+
 def data_refresh_plan_archive_summary(limit: int = 20, *, verify_files: bool = True) -> dict[str, Any]:
     return _bundle_archive_semantic_summary(
         limit=limit,

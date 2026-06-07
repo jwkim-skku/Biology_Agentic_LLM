@@ -16,6 +16,7 @@ from app.services.artifact_archive_service import (
     archive_summary,
     data_refresh_plan_archive_summary,
     data_release_archive_summary,
+    data_snapshot_archive_summary,
     optimizer_benchmark_archive_summary,
     qc_bundle_archive_semantic_summary,
     rag_evaluation_archive_summary,
@@ -120,6 +121,11 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         timings,
         lambda: data_release_archive_summary(limit=3, verify_files=False),
     )
+    data_snapshot_archive = _timed(
+        "data_snapshot_archive_semantics",
+        timings,
+        lambda: data_snapshot_archive_summary(limit=3, verify_files=False),
+    )
     import_archive = _timed(
         "structured_import_archive_semantics",
         timings,
@@ -205,6 +211,12 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             data_release_archive.get("status") in {"pass", "warning"},
             data_release_archive.get("status") == "pass",
             data_release_archive,
+        ),
+        _check(
+            "data_snapshot_archive_semantics",
+            data_snapshot_archive.get("status") in {"pass", "warning"},
+            data_snapshot_archive.get("status") == "pass",
+            data_snapshot_archive,
         ),
         _check(
             "structured_import_archive_semantics",
@@ -301,6 +313,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             "qc_bundle_archive_semantics": qc_archive,
             "data_refresh_plan_archive_semantics": data_refresh_plan_archive,
             "data_release_archive_semantics": data_release_archive,
+            "data_snapshot_archive_semantics": data_snapshot_archive,
             "structured_import_archive_semantics": import_archive,
             "rag_evaluation_archive_semantics": rag_archive,
             "rag_regression_archive_semantics": rag_regression_archive,
@@ -357,6 +370,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
         bundle.writestr("evidence/qc_bundle_archive_semantics.json", _json(audit["evidence"]["qc_bundle_archive_semantics"]))
         bundle.writestr("evidence/data_refresh_plan_archive_semantics.json", _json(audit["evidence"]["data_refresh_plan_archive_semantics"]))
         bundle.writestr("evidence/data_release_archive_semantics.json", _json(audit["evidence"]["data_release_archive_semantics"]))
+        bundle.writestr("evidence/data_snapshot_archive_semantics.json", _json(audit["evidence"]["data_snapshot_archive_semantics"]))
         bundle.writestr(
             "evidence/structured_import_archive_semantics.json",
             _json(audit["evidence"]["structured_import_archive_semantics"]),

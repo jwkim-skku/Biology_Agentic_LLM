@@ -66,6 +66,7 @@ API_CHECKS = [
     {"name": "artifact_ledger_verify", "path": "/artifacts/ledger/verify"},
     {"name": "qc_bundle_archive_semantics", "path": "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false"},
     {"name": "structured_import_archive_semantics", "path": "/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false"},
+    {"name": "data_snapshot_archive_semantics", "path": "/artifacts/data-snapshots/semantic-summary?limit=6&verify_files=false"},
     {"name": "data_refresh_plan_archive_semantics", "path": "/artifacts/data-refresh-plans/semantic-summary?limit=6&verify_files=false"},
     {"name": "data_release_archive_semantics", "path": "/artifacts/data-releases/semantic-summary?limit=6&verify_files=false"},
     {"name": "rag_evaluation_archive_semantics", "path": "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false"},
@@ -611,6 +612,16 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data release archive is missing external snapshot reference evidence")
         if checked_count and int(latest.get("external_snapshot_contained_count") or 0) < int(latest.get("external_snapshot_referenced_count") or 0):
             failures.append("latest data release archive does not contain all referenced external snapshots")
+    if name == "data_snapshot_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        for hash_field in ["snapshot_manifest_hash", "structured_manifest_hash", "rag_index_hash"]:
+            if checked_count and not latest.get(hash_field):
+                failures.append(f"latest data snapshot archive is missing {hash_field}")
+        if checked_count and int(latest.get("external_snapshot_file_count") or 0) < 1:
+            failures.append("latest data snapshot archive is missing external_snapshot_file_count")
+        if checked_count and int(latest.get("snapshot_file_count") or 0) < 1:
+            failures.append("latest data snapshot archive is missing snapshot_file_count")
     if name == "data_refresh_plan_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)
