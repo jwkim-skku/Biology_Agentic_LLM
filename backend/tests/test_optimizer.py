@@ -1041,11 +1041,19 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         evidence_used=True,
     )
     design["qc_report"] = generate_qc_report(design)
-    bundle = build_qc_report_bundle(design, {"cds": "ATGGCTGCTGCTGCTTAA"}, bundle_type="cds_report")
+    request_payload = {
+        "cds": "ATGGCTGCTGCTGCTTAA",
+        "species": "human",
+        "brain_region": "cortex",
+        "cell_type": "neuron",
+        "modality": "AAV",
+    }
+    bundle = build_qc_report_bundle(design, request_payload, bundle_type="cds_report")
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "artifact_manifest.json" in names
         assert "bundle_manifest.json" in names
+        assert "request.json" in names
         assert "qc_report.json" in names
         assert "qc_report.md" in names
         assert "qc_report.html" in names
@@ -1053,6 +1061,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert "optimizer_reproducibility.json" in names
         assert "candidate_ranking.csv" in names
         optimizer_manifest = json.loads(archive.read("optimizer_reproducibility.json"))
+        request = json.loads(archive.read("request.json"))
+        assert request["brain_region"] == "cortex"
         assert optimizer_manifest["manifest_schema"] == "agentic-rag-optimizer-reproducibility-v1"
         assert optimizer_manifest["manifest_hash"]
         artifact_manifest = json.loads(archive.read("artifact_manifest.json"))
@@ -1066,6 +1076,10 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["semantic_status"] == "pass"
     assert verification["optimizer_manifest_hash"] == optimizer_manifest["manifest_hash"]
     assert verification["semantic_checks"]["optimizer_hash_report"] == "pass"
+    assert verification["semantic_checks"]["request_payload"] == "pass"
+    assert verification["semantic_checks"]["request_target_brain_region"] == "pass"
+    assert verification["semantic_checks"]["request_target_cell_type"] == "pass"
+    assert verification["semantic_checks"]["request_target_modality"] == "pass"
     assert verification["semantic_checks"]["recommended_candidate_in_csv"] == "pass"
     assert verification["semantic_checks"]["candidate_csv_explainability_columns"] == "pass"
     assert verification["semantic_checks"]["recommended_constraint_risk_csv"] == "pass"

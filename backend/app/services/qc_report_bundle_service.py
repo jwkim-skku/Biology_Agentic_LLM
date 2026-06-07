@@ -19,6 +19,7 @@ from app.services.structured_quality_service import structured_quality_gate
 REQUIRED_QC_BUNDLE_FILES = {
     "artifact_manifest.json",
     "bundle_manifest.json",
+    "request.json",
     "design_summary.json",
     "qc_report.json",
     "qc_report.md",
@@ -105,6 +106,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
                 )
 
             bundle_manifest = _read_json_member(archive, "bundle_manifest.json")
+            request = _read_json_member(archive, "request.json")
             design_summary = _read_json_member(archive, "design_summary.json")
             qc_report = _read_json_member(archive, "qc_report.json")
             optimizer_manifest = _read_json_member(archive, "optimizer_reproducibility.json")
@@ -127,6 +129,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     optimizer_hash = optimizer_manifest.get("manifest_hash")
     data_quality_summary = qc_report.get("data_quality") or {}
     optimizer_stress_summary = qc_report.get("optimizer_stress") or {}
+    target_definition = qc_report.get("target_definition") or {}
     run_id = project_metadata.get("run_id")
     recommended_candidate_id = recommended.get("candidate_id")
     metadata.update(
@@ -227,6 +230,20 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         run_id,
         "design_summary.json run_id does not match qc_report.json project_metadata.run_id.",
     )
+    _record_check(semantic_checks, "request_payload", bool(request))
+    if not request:
+        semantic_errors.append("request.json must contain the source request payload.")
+    for key in ["gene", "species", "brain_region", "cell_type", "modality"]:
+        if key not in request or key not in target_definition:
+            continue
+        _expect_equal(
+            semantic_checks,
+            semantic_errors,
+            f"request_target_{key}",
+            _normalized_request_value(request.get(key)),
+            _normalized_request_value(target_definition.get(key)),
+            f"request.json {key} does not match qc_report.json target_definition.{key}.",
+        )
     _expect_equal(
         semantic_checks,
         semantic_errors,
@@ -453,6 +470,10 @@ def _read_candidate_csv(archive: ZipFile) -> tuple[list[dict[str, str]], list[st
 
 def _record_check(checks: dict[str, str], name: str, passed: bool) -> None:
     checks[name] = "pass" if passed else "fail"
+
+
+def _normalized_request_value(value: Any) -> str:
+    return " ".join(str(value or "").strip().lower().replace("_", " ").split())
 
 
 def _expect_equal(
