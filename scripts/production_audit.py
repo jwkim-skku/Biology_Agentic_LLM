@@ -412,10 +412,18 @@ def api_failures(name: str, details: Any) -> list[str]:
         checks = payload.get("semantic_checks") or {}
         if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
             failures.append("RAG regression bundle does not verify results_hash.")
-    if name == "optimizer_benchmark_bundle_verify" and (payload.get("semantic_checks") or {}).get("search_strategy_schema") != "pass":
-        failures.append("Optimizer benchmark bundle does not verify search_strategy_schema.")
     if name == "optimizer_benchmark_bundle_verify":
         checks = payload.get("semantic_checks") or {}
+        required_optimizer_checks = [
+            "search_strategy_schema",
+            "optimizer_seed_strategy",
+            "candidate_diagnostics",
+            "recommendation_audit",
+            "case_metric_columns",
+        ]
+        missing = [check for check in required_optimizer_checks if checks.get(check) != "pass"]
+        if missing:
+            failures.append(f"Optimizer benchmark bundle does not verify semantic checks: {', '.join(missing)}.")
         if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
             failures.append("Optimizer benchmark bundle does not verify results_hash.")
     if name == "qc_report_bundle_verify":
@@ -425,6 +433,16 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_check in ["request_hash", "qc_report_hash", "candidate_ranking_hash"]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"QC report bundle does not verify {hash_check}.")
+        required_qc_explainability = [
+            "optimizer_hash_report",
+            "candidate_csv_explainability_columns",
+            "recommended_constraint_risk_csv",
+            "objective_inventory",
+            "recommendation_audit",
+        ]
+        missing = [check for check in required_qc_explainability if checks.get(check) != "pass"]
+        if missing:
+            failures.append(f"QC report bundle does not verify explainability checks: {', '.join(missing)}.")
         failed_targets = [key for key, value in checks.items() if key.startswith("request_target_") and value != "pass"]
         if failed_targets:
             failures.append(f"QC report bundle request target checks failed: {', '.join(failed_targets)}")

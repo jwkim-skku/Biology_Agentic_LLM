@@ -477,7 +477,21 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     ) == []
     assert module.api_failures(
         "optimizer_benchmark_bundle_verify",
-        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"search_strategy_schema": "pass", "results_hash": "pass"}, "results_hash": valid_hash}},
+        {
+            "data": {
+                "status": "pass",
+                "semantic_status": "pass",
+                "semantic_checks": {
+                    "search_strategy_schema": "pass",
+                    "optimizer_seed_strategy": "pass",
+                    "candidate_diagnostics": "pass",
+                    "recommendation_audit": "pass",
+                    "case_metric_columns": "pass",
+                    "results_hash": "pass",
+                },
+                "results_hash": valid_hash,
+            }
+        },
     ) == []
     assert module.api_failures(
         "qc_report_bundle_verify",
@@ -490,6 +504,11 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "request_hash": "pass",
                     "qc_report_hash": "pass",
                     "candidate_ranking_hash": "pass",
+                    "optimizer_hash_report": "pass",
+                    "candidate_csv_explainability_columns": "pass",
+                    "recommended_constraint_risk_csv": "pass",
+                    "objective_inventory": "pass",
+                    "recommendation_audit": "pass",
                 },
                 "request_hash": valid_hash,
                 "qc_report_hash": valid_hash,
@@ -520,6 +539,20 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"search_strategy_schema": "pass"}}},
         )
     )
+    optimizer_failures = module.api_failures(
+        "optimizer_benchmark_bundle_verify",
+        {
+            "data": {
+                "status": "pass",
+                "semantic_status": "pass",
+                "semantic_checks": {"search_strategy_schema": "pass", "results_hash": "pass"},
+                "results_hash": valid_hash,
+            }
+        },
+    )
+    assert "optimizer_seed_strategy" in " ".join(optimizer_failures)
+    assert "candidate_diagnostics" in " ".join(optimizer_failures)
+    assert "recommendation_audit" in " ".join(optimizer_failures)
     qc_failures = module.api_failures(
         "qc_report_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"request_payload": "pass"}}},
@@ -527,6 +560,9 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "request_hash" in " ".join(qc_failures)
     assert "qc_report_hash" in " ".join(qc_failures)
     assert "candidate_ranking_hash" in " ".join(qc_failures)
+    assert "optimizer_hash_report" in " ".join(qc_failures)
+    assert "candidate_csv_explainability_columns" in " ".join(qc_failures)
+    assert "recommended_constraint_risk_csv" in " ".join(qc_failures)
     assert "archive semantic summary is fail" in " ".join(
         module.api_failures("data_release_archive_semantics", {"data": {"status": "fail", "checked_count": 1, "latest_artifacts": []}})
     )
