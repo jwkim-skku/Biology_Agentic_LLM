@@ -1134,6 +1134,11 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     stress_status?: string | null;
     case_count?: number | null;
     cases_hash?: string | null;
+    results_hash?: string | null;
+    benchmark_hash?: string | null;
+    diagnostics_hash?: string | null;
+    case_metrics_hash?: string | null;
+    candidate_diagnostics_hash?: string | null;
     structured_manifest_hash?: string | null;
   }>;
 };
@@ -1583,6 +1588,10 @@ type OptimizerBenchmarkBundleVerification = {
   semantic_status: string;
   cases_hash?: string;
   results_hash?: string;
+  benchmark_hash?: string;
+  diagnostics_hash?: string;
+  case_metrics_hash?: string;
+  candidate_diagnostics_hash?: string;
   case_count?: number;
   structured_manifest_hash?: string;
   semantic_checks?: Record<string, string>;
@@ -3423,6 +3432,7 @@ export default function Dashboard() {
                   <span>Cases {optimizerBundleVerification?.case_count ?? optimizerBenchmark?.case_count ?? "n/a"}</span>
                   <span>Case hash {optimizerBundleVerification?.cases_hash?.slice(0, 10) ?? optimizerBenchmark?.cases_hash?.slice(0, 10) ?? "n/a"}</span>
                   <span>Result hash {optimizerBundleVerification?.results_hash?.slice(0, 10) ?? optimizerBenchmark?.results_hash?.slice(0, 10) ?? "n/a"}</span>
+                  <span>Metrics hash {optimizerBundleVerification?.case_metrics_hash?.slice(0, 10) ?? "n/a"}</span>
                   <span>Strategy {optimizerBundleVerification?.semantic_checks?.search_strategy_schema ?? "n/a"}</span>
                   <span>{optimizerBundleVerification?.warnings?.[0] ?? optimizerBundleVerification?.errors?.[0] ?? "Benchmark bundle not verified"}</span>
                 </div>
@@ -4318,6 +4328,10 @@ export default function Dashboard() {
               <span>Freshness {formatArchiveFreshness(optimizerBenchmarkSemantics)}</span>
               <span>
                 Latest cases {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.cases_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Metrics {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.case_metrics_hash?.slice(0, 10) ?? "n/a"} / diagnostics{" "}
+                {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.diagnostics_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Stress {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.stress_status ?? "n/a"} / cases{" "}

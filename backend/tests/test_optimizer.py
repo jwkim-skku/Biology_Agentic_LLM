@@ -628,8 +628,16 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "recommendation_audit": "pass",
                     "case_metric_columns": "pass",
                     "results_hash": "pass",
+                    "benchmark_hash": "pass",
+                    "diagnostics_hash": "pass",
+                    "case_metrics_hash": "pass",
+                    "candidate_diagnostics_hash": "pass",
                 },
                 "results_hash": valid_hash,
+                "benchmark_hash": valid_hash,
+                "diagnostics_hash": valid_hash,
+                "case_metrics_hash": valid_hash,
+                "candidate_diagnostics_hash": valid_hash,
             }
         },
     ) == []
@@ -1112,10 +1120,18 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["optimizer_algorithm"] == "pass"
     assert verification["semantic_checks"]["optimizer_seed_strategy"] == "pass"
     assert verification["semantic_checks"]["results_hash"] == "pass"
+    assert verification["semantic_checks"]["benchmark_hash"] == "pass"
+    assert verification["semantic_checks"]["diagnostics_hash"] == "pass"
+    assert verification["semantic_checks"]["case_metrics_hash"] == "pass"
+    assert verification["semantic_checks"]["candidate_diagnostics_hash"] == "pass"
     assert verification["semantic_checks"]["case_metric_columns"] == "pass"
     assert verification["semantic_checks"]["stress_schema"] == "pass"
     assert verification["stress_status"] in {"pass", "warning"}
     assert len(verification["results_hash"]) == 64
+    assert len(verification["benchmark_hash"]) == 64
+    assert len(verification["diagnostics_hash"]) == 64
+    assert len(verification["case_metrics_hash"]) == 64
+    assert len(verification["candidate_diagnostics_hash"]) == 64
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "search_strategy.json" in names
@@ -1130,6 +1146,10 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert search_strategy["seed_strategy"] == manifest["optimizer_seed_strategy"]
         assert stress["status"] == manifest["stress_status"] == verification["stress_status"]
         assert benchmark["results_hash"] == manifest["results_hash"] == verification["results_hash"]
+        assert manifest["benchmark_hash"] == verification["benchmark_hash"]
+        assert manifest["diagnostics_hash"] == verification["diagnostics_hash"]
+        assert manifest["case_metrics_hash"] == verification["case_metrics_hash"]
+        assert manifest["candidate_diagnostics_hash"] == verification["candidate_diagnostics_hash"]
         assert "recommendation_max_regret" in case_metrics
         assert "recommendation_tradeoff_count" in case_metrics
     archived = archive_artifact_bundle(
@@ -1142,11 +1162,13 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     )
     semantic = archived["metadata"]["optimizer_benchmark_semantic_verification"]
     assert semantic["stress_status"] == verification["stress_status"]
+    assert semantic["case_metrics_hash"] == verification["case_metrics_hash"]
     summary = optimizer_benchmark_archive_summary(limit=5, verify_files=False)
     assert any(
         item["artifact_id"] == archived["artifact_id"]
         and item["stress_status"] == verification["stress_status"]
         and item["case_count"] == verification["case_count"]
+        and item["case_metrics_hash"] == verification["case_metrics_hash"]
         for item in summary["latest_artifacts"]
     )
 

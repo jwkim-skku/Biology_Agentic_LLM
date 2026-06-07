@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from datetime import datetime, timezone
+from hashlib import sha256
 from io import BytesIO, StringIO
 from typing import Any
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
@@ -40,6 +41,10 @@ def build_optimizer_benchmark_bundle() -> bytes:
     folding = rna_folding_status()
     cases = optimizer_benchmark_cases()
     search_strategy = optimizer_search_strategy()
+    benchmark_json = _json(benchmark)
+    diagnostics_json = _json(diagnostics)
+    case_metrics_csv = _case_metrics_csv(benchmark.get("results") or [])
+    candidate_diagnostics_json = _json(_candidate_diagnostics(benchmark.get("results") or []))
     metadata = {
         "bundle_schema": "agentic-rag-optimizer-benchmark-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -47,6 +52,10 @@ def build_optimizer_benchmark_bundle() -> bytes:
         "case_count": benchmark.get("case_count"),
         "cases_hash": benchmark.get("cases_hash"),
         "results_hash": benchmark.get("results_hash"),
+        "benchmark_hash": _hash_text(benchmark_json),
+        "diagnostics_hash": _hash_text(diagnostics_json),
+        "case_metrics_hash": _hash_text(case_metrics_csv),
+        "candidate_diagnostics_hash": _hash_text(candidate_diagnostics_json),
         "diagnostics_status": diagnostics.get("status"),
         "stress_status": stress.get("status"),
         "rna_folding_status": folding.get("status"),
@@ -59,14 +68,14 @@ def build_optimizer_benchmark_bundle() -> bytes:
     with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
         bundle = ManifestedZip(archive, "optimizer_benchmark_bundle", metadata)
         bundle.writestr("bundle_manifest.json", _json(metadata))
-        bundle.writestr("benchmark.json", _json(benchmark))
-        bundle.writestr("diagnostics.json", _json(diagnostics))
+        bundle.writestr("benchmark.json", benchmark_json)
+        bundle.writestr("diagnostics.json", diagnostics_json)
         bundle.writestr("stress_gate.json", _json(stress))
         bundle.writestr("rna_folding_status.json", _json(folding))
         bundle.writestr("search_strategy.json", _json(search_strategy))
         bundle.writestr("cases.json", _json(cases))
-        bundle.writestr("case_metrics.csv", _case_metrics_csv(benchmark.get("results") or []))
-        bundle.writestr("candidate_diagnostics.json", _json(_candidate_diagnostics(benchmark.get("results") or [])))
+        bundle.writestr("case_metrics.csv", case_metrics_csv)
+        bundle.writestr("candidate_diagnostics.json", candidate_diagnostics_json)
         bundle.writestr("optimizer_config.json", _json(OptimizationConfig().to_dict()))
         bundle.writestr("score_config.json", _json(ScoreConfig().to_dict()))
         bundle.writestr("structured_manifest.json", _json(structured_manifest()))
@@ -97,26 +106,38 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
                 semantic_checks["required_files"] = "fail"
                 payloads: dict[str, Any] = {}
                 metric_rows: list[dict[str, str]] = []
+                benchmark_text = ""
+                diagnostics_text = ""
+                case_metrics_text = ""
+                candidate_diagnostics_text = ""
             else:
                 semantic_checks["required_files"] = "pass"
+                benchmark_text = archive.read("benchmark.json").decode("utf-8")
+                diagnostics_text = archive.read("diagnostics.json").decode("utf-8")
+                case_metrics_text = archive.read("case_metrics.csv").decode("utf-8")
+                candidate_diagnostics_text = archive.read("candidate_diagnostics.json").decode("utf-8")
                 payloads = {
                     "bundle_manifest": _read_json(archive, "bundle_manifest.json"),
-                    "benchmark": _read_json(archive, "benchmark.json"),
-                    "diagnostics": _read_json(archive, "diagnostics.json"),
+                    "benchmark": _json_from_text(benchmark_text),
+                    "diagnostics": _json_from_text(diagnostics_text),
                     "stress_gate": _read_json(archive, "stress_gate.json"),
                     "rna_folding_status": _read_json(archive, "rna_folding_status.json"),
                     "search_strategy": _read_json(archive, "search_strategy.json"),
                     "cases": _read_json(archive, "cases.json"),
-                    "candidate_diagnostics": _read_json(archive, "candidate_diagnostics.json"),
+                    "candidate_diagnostics": _json_from_text(candidate_diagnostics_text),
                     "optimizer_config": _read_json(archive, "optimizer_config.json"),
                     "score_config": _read_json(archive, "score_config.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
                 }
-                metric_rows = list(csv.DictReader(StringIO(archive.read("case_metrics.csv").decode("utf-8"))))
+                metric_rows = list(csv.DictReader(StringIO(case_metrics_text)))
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, csv.Error) as exc:
         semantic_errors.append(f"Invalid optimizer benchmark bundle: {exc}")
         payloads = {}
         metric_rows = []
+        benchmark_text = ""
+        diagnostics_text = ""
+        case_metrics_text = ""
+        candidate_diagnostics_text = ""
 
     manifest = payloads.get("bundle_manifest") or {}
     benchmark = payloads.get("benchmark") or {}
@@ -155,6 +176,38 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["results_hash"] = "fail"
     else:
         semantic_checks["results_hash"] = "pass"
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "benchmark_hash",
+        manifest.get("benchmark_hash"),
+        _hash_text(benchmark_text),
+        "bundle_manifest.json benchmark_hash does not match benchmark.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "diagnostics_hash",
+        manifest.get("diagnostics_hash"),
+        _hash_text(diagnostics_text),
+        "bundle_manifest.json diagnostics_hash does not match diagnostics.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "case_metrics_hash",
+        manifest.get("case_metrics_hash"),
+        _hash_text(case_metrics_text),
+        "bundle_manifest.json case_metrics_hash does not match case_metrics.csv.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "candidate_diagnostics_hash",
+        manifest.get("candidate_diagnostics_hash"),
+        _hash_text(candidate_diagnostics_text),
+        "bundle_manifest.json candidate_diagnostics_hash does not match candidate_diagnostics.json.",
+    )
 
     if diagnostics.get("diagnostics_schema") != "agentic-rag-optimizer-diagnostics-v1":
         semantic_errors.append("diagnostics.json diagnostics_schema is invalid.")
@@ -284,6 +337,10 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "case_count": case_count,
         "cases_hash": next(iter(case_hashes), None),
         "results_hash": next(iter(result_hashes), None),
+        "benchmark_hash": manifest.get("benchmark_hash"),
+        "diagnostics_hash": manifest.get("diagnostics_hash"),
+        "case_metrics_hash": manifest.get("case_metrics_hash"),
+        "candidate_diagnostics_hash": manifest.get("candidate_diagnostics_hash"),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }
 
@@ -369,5 +426,28 @@ def _read_json(archive: ZipFile, name: str) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
+def _json_from_text(text: str) -> dict[str, Any]:
+    payload = json.loads(text)
+    return payload if isinstance(payload, dict) else {}
+
+
 def _json(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _hash_text(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()
+
+
+def _expect_equal(
+    checks: dict[str, str],
+    errors: list[str],
+    name: str,
+    actual: Any,
+    expected: Any,
+    message: str,
+) -> None:
+    passed = actual == expected and actual is not None
+    checks[name] = "pass" if passed else "fail"
+    if not passed:
+        errors.append(message)

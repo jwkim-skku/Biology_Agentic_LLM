@@ -344,7 +344,19 @@ def optimizer_benchmark_archive_summary(limit: int = 20, *, verify_files: bool =
         artifact_type="optimizer_benchmark_bundle",
         metadata_key="optimizer_benchmark_semantic_verification",
         label="optimizer benchmark bundle",
-        extra_fields=("benchmark_status", "diagnostics_status", "stress_status", "case_count", "cases_hash", "structured_manifest_hash"),
+        extra_fields=(
+            "benchmark_status",
+            "diagnostics_status",
+            "stress_status",
+            "case_count",
+            "cases_hash",
+            "results_hash",
+            "benchmark_hash",
+            "diagnostics_hash",
+            "case_metrics_hash",
+            "candidate_diagnostics_hash",
+            "structured_manifest_hash",
+        ),
     )
 
 
@@ -604,6 +616,11 @@ def _optimizer_benchmark_semantic_metadata(verification: dict[str, Any]) -> dict
         "stress_status": verification.get("stress_status"),
         "case_count": verification.get("case_count"),
         "cases_hash": verification.get("cases_hash"),
+        "results_hash": verification.get("results_hash"),
+        "benchmark_hash": verification.get("benchmark_hash"),
+        "diagnostics_hash": verification.get("diagnostics_hash"),
+        "case_metrics_hash": verification.get("case_metrics_hash"),
+        "candidate_diagnostics_hash": verification.get("candidate_diagnostics_hash"),
         "structured_manifest_hash": verification.get("structured_manifest_hash"),
         "checked_files": verification.get("checked_files"),
         "file_count": verification.get("file_count"),

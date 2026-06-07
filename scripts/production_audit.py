@@ -488,12 +488,19 @@ def api_failures(name: str, details: Any) -> list[str]:
             "candidate_diagnostics",
             "recommendation_audit",
             "case_metric_columns",
+            "benchmark_hash",
+            "diagnostics_hash",
+            "case_metrics_hash",
+            "candidate_diagnostics_hash",
         ]
         missing = [check for check in required_optimizer_checks if checks.get(check) != "pass"]
         if missing:
             failures.append(f"Optimizer benchmark bundle does not verify semantic checks: {', '.join(missing)}.")
         if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
             failures.append("Optimizer benchmark bundle does not verify results_hash.")
+        for hash_check in ["benchmark_hash", "diagnostics_hash", "case_metrics_hash", "candidate_diagnostics_hash"]:
+            if not payload.get(hash_check):
+                failures.append(f"Optimizer benchmark bundle does not expose {hash_check}.")
     if name == "qc_report_bundle_verify":
         checks = payload.get("semantic_checks") or {}
         if checks.get("request_payload") != "pass":
