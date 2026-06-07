@@ -457,6 +457,21 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"records_hash": "pass", "records_csv_hash": "pass"}, "records_hash": valid_hash, "records_csv_hash": valid_hash}},
     ) == []
     assert module.api_failures(
+        "rag_evaluation_bundle_verify",
+        {
+            "data": {
+                "status": "pass",
+                "semantic_status": "pass",
+                "semantic_checks": {
+                    "retrieval_trace_schema": "pass",
+                    "evidence_sufficiency_schema": "pass",
+                    "facet_gap_analysis": "pass",
+                    "query_term_coverage": "pass",
+                },
+            }
+        },
+    ) == []
+    assert module.api_failures(
         "rag_regression_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"results_hash": "pass"}, "results_hash": valid_hash}},
     ) == []
@@ -486,6 +501,13 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "results_hash" in " ".join(
         module.api_failures("rag_regression_bundle_verify", {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {}}})
     )
+    rag_eval_failures = module.api_failures(
+        "rag_evaluation_bundle_verify",
+        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"evidence_sufficiency_schema": "pass"}}},
+    )
+    assert "retrieval_trace_schema" in " ".join(rag_eval_failures)
+    assert "facet_gap_analysis" in " ".join(rag_eval_failures)
+    assert "query_term_coverage" in " ".join(rag_eval_failures)
     data_release_failures = module.api_failures(
         "data_release_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {}}},

@@ -392,8 +392,17 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append(f"{name} status is fail")
         if payload.get("semantic_status") == "fail":
             failures.append(f"{name} semantic_status is fail")
-    if name == "rag_evaluation_bundle_verify" and (payload.get("semantic_checks") or {}).get("evidence_sufficiency_schema") != "pass":
-        failures.append("RAG evaluation bundle does not verify evidence_sufficiency_schema.")
+    if name == "rag_evaluation_bundle_verify":
+        checks = payload.get("semantic_checks") or {}
+        required_rag_explainability = [
+            "retrieval_trace_schema",
+            "evidence_sufficiency_schema",
+            "facet_gap_analysis",
+            "query_term_coverage",
+        ]
+        missing = [check for check in required_rag_explainability if checks.get(check) != "pass"]
+        if missing:
+            failures.append(f"RAG evaluation bundle does not verify explainability checks: {', '.join(missing)}.")
     if name == "data_release_bundle_verify":
         checks = payload.get("semantic_checks") or {}
         for hash_check in ["records_hash", "records_csv_hash"]:
