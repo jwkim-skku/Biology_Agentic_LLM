@@ -708,11 +708,13 @@ def _optimizer_reproducibility_lines(manifest: dict[str, Any]) -> list[str]:
         return ["- n/a"]
     search = manifest.get("search_budget") or {}
     repair = manifest.get("repair_policy") or {}
+    seed_strategy = manifest.get("seed_strategy") or {}
     transcript = manifest.get("selected_transcript") or {}
     return [
         f"- Manifest hash: {manifest.get('manifest_hash', 'n/a')}",
         f"- Algorithm: {manifest.get('algorithm', 'n/a')}",
         f"- Seed: {manifest.get('seed', 'n/a')}",
+        f"- Seed strategy: {seed_strategy.get('version', 'n/a')}",
         f"- Search budget: population {search.get('population_size', 'n/a')}, generations {search.get('generations', 'n/a')}, max candidates {search.get('max_candidates', 'n/a')}",
         f"- Repair: {'enabled' if repair.get('enabled') else 'disabled'} / passes {repair.get('repair_passes', 'n/a')}",
         f"- Objectives: {len(manifest.get('objective_inventory') or [])}",

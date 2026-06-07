@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import random
 from dataclasses import asdict, dataclass
+from typing import Callable
 
 from app.optimizer.codon_table import (
+    HUMAN_CODON_WEIGHTS,
     STOP_CODONS,
     SYNONYMOUS_CODONS,
     preferred_codon,
@@ -107,11 +109,55 @@ def _seed_population(
 ) -> list[str]:
     seeds = [native_cds]
     multipliers = dict(score_config.codon_weight_multipliers)
-    preferred = "".join(preferred_codon(aa, multipliers) for aa in protein) + terminal_stop
-    seeds.append(preferred)
+    availability = dict(score_config.codon_availability_weights)
+    seeds.extend(_deterministic_seed_variants(protein, terminal_stop, multipliers, availability, score_config))
     while len(seeds) < population_size:
         seeds.append(_random_synonymous_cds(protein, rng, terminal_stop))
-    return _dedupe(seeds)
+    return _dedupe(seeds)[:population_size]
+
+
+def _deterministic_seed_variants(
+    protein: str,
+    terminal_stop: str,
+    multipliers: dict[str, float],
+    availability: dict[str, float],
+    score_config: ScoreConfig,
+) -> list[str]:
+    variants = [
+        _greedy_synonymous_cds(protein, terminal_stop, lambda codon, _idx, _prev: HUMAN_CODON_WEIGHTS.get(codon, 0.01) * multipliers.get(codon, 1.0)),
+        _greedy_synonymous_cds(
+            protein,
+            terminal_stop,
+            lambda codon, _idx, _prev: HUMAN_CODON_WEIGHTS.get(codon, 0.01) * multipliers.get(codon, 1.0) * availability.get(codon, 1.0),
+        ),
+        _greedy_synonymous_cds(protein, terminal_stop, lambda codon, _idx, _prev: -_gc_count(codon)),
+        _greedy_synonymous_cds(protein, terminal_stop, lambda codon, _idx, _prev: _gc_count(codon)),
+        _greedy_synonymous_cds(protein, terminal_stop, lambda codon, _idx, _prev: -abs((_gc_count(codon) / 3.0) - score_config.target_gc)),
+        _greedy_synonymous_cds(protein, terminal_stop, lambda codon, _idx, prev: -(_cpg_count(codon) + (1 if prev == "C" and codon.startswith("G") else 0))),
+    ]
+    return _dedupe(variants)
+
+
+def _greedy_synonymous_cds(
+    protein: str,
+    terminal_stop: str,
+    objective: Callable[[str, int, str], float],
+) -> str:
+    codons: list[str] = []
+    for idx, amino_acid in enumerate(protein):
+        previous_base = codons[-1][-1] if codons else ""
+        choices = SYNONYMOUS_CODONS[amino_acid]
+        selected = max(choices, key=lambda codon: (objective(codon, idx, previous_base), HUMAN_CODON_WEIGHTS.get(codon, 0.01), codon))
+        codons.append(selected)
+    return "".join(codons) + terminal_stop
+
+
+def _gc_count(codon: str) -> int:
+    return codon.count("G") + codon.count("C")
+
+
+def _cpg_count(codon: str) -> int:
+    return sum(1 for idx in range(len(codon) - 1) if codon[idx : idx + 2] == "CG")
 
 
 def _random_synonymous_cds(protein: str, rng: random.Random, terminal_stop: str) -> str:

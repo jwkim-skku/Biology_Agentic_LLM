@@ -198,6 +198,11 @@ type QcReport = {
       enabled: boolean;
       repair_passes: number;
     };
+    seed_strategy?: {
+      version?: string;
+      deterministic_seeds?: string[];
+      stochastic_fill?: string;
+    };
     search_budget: {
       population_size: number;
       generations: number;
@@ -4285,6 +4290,10 @@ function QcReportPanel({ report }: { report: QcReport }) {
           <div>
             <span>Seed</span>
             <strong>{optimizerRepro.seed}</strong>
+          </div>
+          <div>
+            <span>Seed strategy</span>
+            <strong>{optimizerRepro.seed_strategy?.version ?? "n/a"}</strong>
           </div>
           <div>
             <span>Repair</span>

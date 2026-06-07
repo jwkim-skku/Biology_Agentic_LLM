@@ -533,6 +533,23 @@ def test_optimizer_preserves_protein_sequence() -> None:
     assert all(translate(candidate.cds) == translate(native) for candidate in candidates)
 
 
+def test_optimizer_seed_population_surfaces_tradeoff_extremes() -> None:
+    native = "ATGGCTGCTGCTGCTTAA"
+    config = OptimizationConfig(
+        population_size=16,
+        generations=2,
+        max_candidates=6,
+        seed=7,
+        score_config=ScoreConfig(codon_availability_weights=(("GCC", 1.25), ("GCT", 0.80))),
+    )
+    candidates = optimize_cds(native, config)
+    gc_values = [candidate.scores.gc_fraction for candidate in candidates]
+    assert len({candidate.cds for candidate in candidates}) >= 4
+    assert max(gc_values) - min(gc_values) >= 0.10
+    assert any(candidate.scores.tissue_codon_adaptation > 1.0 for candidate in candidates)
+    assert all(translate(candidate.cds) == translate(native) for candidate in candidates)
+
+
 def test_optimizer_benchmark_suite_tracks_quality_and_constraints() -> None:
     cases = optimizer_benchmark_cases()
     result = evaluate_optimizer_benchmark()
@@ -942,6 +959,7 @@ def test_qc_report_contains_rationale() -> None:
     assert report["optimizer_reproducibility"]["manifest_schema"] == "agentic-rag-optimizer-reproducibility-v1"
     assert report["project_metadata"]["optimizer_manifest_hash"] == report["optimizer_reproducibility"]["manifest_hash"]
     assert report["optimizer_reproducibility"]["repair_policy"]["enabled"] is True
+    assert report["optimizer_reproducibility"]["seed_strategy"]["version"] == "deterministic-tradeoff-seeds-v1"
     assert "maximize_cai" in report["optimizer_reproducibility"]["objective_inventory"]
     assert report["target_structured_evidence"]["matched_record_count"] >= 1
     assert "top_records" in report["target_structured_evidence"]
