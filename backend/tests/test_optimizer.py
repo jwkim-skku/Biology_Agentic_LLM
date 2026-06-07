@@ -652,6 +652,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 "semantic_checks": {
                     "records_hash": "pass",
                     "records_csv_hash": "pass",
+                    "release_handoff_hash": "pass",
                     "rag_structured_manifest_hash": "pass",
                     "rag_index_hash": "pass",
                     "trna_caveat_count": "pass",
@@ -660,6 +661,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 },
                 "records_hash": valid_hash,
                 "records_csv_hash": valid_hash,
+                "release_handoff_hash": valid_hash,
                 "rag_structured_manifest_hash": "manifest-hash",
                 "rag_index_hash": valid_hash,
                 "trna_caveat_count": 0,
@@ -794,6 +796,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     )
     assert "records_hash" in " ".join(data_release_failures)
     assert "records_csv_hash" in " ".join(data_release_failures)
+    assert "release_handoff_hash" in " ".join(data_release_failures)
     assert "trna_caveat_count" in " ".join(data_release_failures)
     assert "trna_blocking_production_use" in " ".join(data_release_failures)
     assert "external_snapshot_reference_coverage" in " ".join(data_release_failures)
@@ -838,6 +841,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"records_hash": valid_hash}]}},
     )
     assert "records_csv_hash" in " ".join(archive_hash_failures)
+    assert "release_handoff_hash" in " ".join(archive_hash_failures)
     release_snapshot_failures = module.api_failures(
         "data_release_archive_semantics",
         {
@@ -848,6 +852,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     {
                         "records_hash": valid_hash,
                         "records_csv_hash": valid_hash,
+                        "release_handoff_hash": valid_hash,
                         "trna_caveat_count": 0,
                         "trna_blocking_production_use": False,
                         "external_snapshot_referenced_count": 2,
@@ -1921,6 +1926,7 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     assert verification["status"] in {"pass", "warning"}
     assert verification["semantic_checks"]["records_hash"] == "pass"
     assert verification["semantic_checks"]["records_csv_hash"] == "pass"
+    assert verification["semantic_checks"]["release_handoff_hash"] == "pass"
     assert verification["semantic_checks"]["rag_structured_manifest_hash"] == "pass"
     assert verification["semantic_checks"]["rag_index_hash"] in {"pass", "warning"}
     assert verification["semantic_checks"]["trna_caveat_count"] == "pass"
@@ -1928,6 +1934,7 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     assert verification["semantic_checks"]["external_snapshot_reference_coverage"] in {"pass", "warning"}
     assert len(verification["records_hash"]) == 64
     assert len(verification["records_csv_hash"]) == 64
+    assert len(verification["release_handoff_hash"]) == 64
     assert verification["rag_structured_manifest_hash"]
     if verification["rag_index_hash"] is not None:
         assert len(verification["rag_index_hash"]) == 64
@@ -1939,6 +1946,7 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
         release_manifest = json.loads(archive.read("release_manifest.json"))
         assert release_manifest["records_hash"] == verification["records_hash"]
         assert release_manifest["records_csv_hash"] == verification["records_csv_hash"]
+        assert release_manifest["release_handoff_hash"] == verification["release_handoff_hash"]
         assert release_manifest["rag_structured_manifest_hash"] == verification["rag_structured_manifest_hash"]
         assert release_manifest["rag_index_hash"] == verification["rag_index_hash"]
         assert release_manifest["trna_caveat_count"] == verification["trna_caveat_count"]
@@ -1953,6 +1961,7 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     semantic = archived["metadata"]["data_release_semantic_verification"]
     assert semantic["records_hash"] == verification["records_hash"]
     assert semantic["records_csv_hash"] == verification["records_csv_hash"]
+    assert semantic["release_handoff_hash"] == verification["release_handoff_hash"]
     assert semantic["rag_structured_manifest_hash"] == verification["rag_structured_manifest_hash"]
     assert semantic["rag_index_hash"] == verification["rag_index_hash"]
     assert semantic["trna_caveat_count"] == verification["trna_caveat_count"]
@@ -1963,6 +1972,7 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     latest = next(item for item in summary["latest_artifacts"] if item["artifact_id"] == archived["artifact_id"])
     assert latest["records_hash"] == verification["records_hash"]
     assert latest["records_csv_hash"] == verification["records_csv_hash"]
+    assert latest["release_handoff_hash"] == verification["release_handoff_hash"]
     assert latest["rag_structured_manifest_hash"] == verification["rag_structured_manifest_hash"]
     assert latest["rag_index_hash"] == verification["rag_index_hash"]
     assert latest["trna_caveat_count"] == verification["trna_caveat_count"]

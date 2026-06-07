@@ -485,7 +485,7 @@ def api_failures(name: str, details: Any) -> list[str]:
                 failures.append(f"RAG evaluation bundle does not expose {hash_check}.")
     if name == "data_release_bundle_verify":
         checks = payload.get("semantic_checks") or {}
-        for hash_check in ["records_hash", "records_csv_hash"]:
+        for hash_check in ["records_hash", "records_csv_hash", "release_handoff_hash"]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"Data release bundle does not verify {hash_check}.")
         if checks.get("rag_structured_manifest_hash") != "pass" or not payload.get("rag_structured_manifest_hash"):
@@ -567,6 +567,8 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data release archive is missing records_hash")
         if checked_count and not latest.get("records_csv_hash"):
             failures.append("latest data release archive is missing records_csv_hash")
+        if checked_count and not latest.get("release_handoff_hash"):
+            failures.append("latest data release archive is missing release_handoff_hash")
         if checked_count and not latest.get("rag_structured_manifest_hash"):
             failures.append("latest data release archive is missing rag_structured_manifest_hash")
         if checked_count and not latest.get("rag_index_hash"):

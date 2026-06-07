@@ -77,6 +77,7 @@ def build_data_release_bundle() -> bytes:
         "contains_source_bytes": True,
         "contains_external_snapshot_bytes": True,
     }
+    metadata["release_handoff_hash"] = _release_handoff_hash(metadata)
     buffer = BytesIO()
     with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
         bundle = ManifestedZip(archive, "data_release_bundle", metadata)
@@ -249,6 +250,14 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         row_evidence.get("records_csv_hash"),
         "release_manifest.json records_csv_hash does not match records.csv.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "release_handoff_hash",
+        release_manifest.get("release_handoff_hash"),
+        _release_handoff_hash(release_manifest),
+        "release_manifest.json release_handoff_hash does not match the release handoff evidence.",
+    )
 
     validation_errors = _int_or_none(validation.get("error_count"))
     if validation_errors and validation_errors > 0:
@@ -366,6 +375,7 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "record_count": next(iter(record_counts), None),
         "records_hash": row_evidence.get("records_hash"),
         "records_csv_hash": row_evidence.get("records_csv_hash"),
+        "release_handoff_hash": release_manifest.get("release_handoff_hash"),
         "quality_status": quality.get("status"),
         "provenance_status": provenance.get("status"),
         "trna_caveat_count": _int_or_none(trna_caveats.get("caveat_count")),
@@ -526,6 +536,29 @@ def _json(payload: Any) -> str:
 
 def _hash_text(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
+
+
+def _release_handoff_hash(metadata: dict[str, Any]) -> str:
+    payload = {
+        "bundle_schema": metadata.get("bundle_schema"),
+        "structured_manifest_hash": metadata.get("structured_manifest_hash"),
+        "rag_structured_manifest_hash": metadata.get("rag_structured_manifest_hash"),
+        "rag_index_hash": metadata.get("rag_index_hash"),
+        "record_count": metadata.get("record_count"),
+        "records_hash": metadata.get("records_hash"),
+        "records_csv_hash": metadata.get("records_csv_hash"),
+        "structured_file_count": metadata.get("structured_file_count"),
+        "external_snapshot_reference_count": metadata.get("external_snapshot_reference_count"),
+        "quality_status": metadata.get("quality_status"),
+        "provenance_status": metadata.get("provenance_status"),
+        "trna_caveat_count": metadata.get("trna_caveat_count"),
+        "trna_blocking_production_use": metadata.get("trna_blocking_production_use"),
+        "release_lock_status": metadata.get("release_lock_status"),
+        "promotion_status": metadata.get("promotion_status"),
+        "contains_source_bytes": metadata.get("contains_source_bytes"),
+        "contains_external_snapshot_bytes": metadata.get("contains_external_snapshot_bytes"),
+    }
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def _file_sha256(path: Path) -> str:

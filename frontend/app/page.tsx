@@ -833,6 +833,7 @@ type ProductionAuditStatus = {
         record_count?: number | null;
         records_hash?: string | null;
         records_csv_hash?: string | null;
+        release_handoff_hash?: string | null;
         structured_manifest_hash?: string | null;
         rag_structured_manifest_hash?: string | null;
         rag_index_hash?: string | null;
@@ -1139,6 +1140,7 @@ type DataReleaseArchiveSemanticSummary = ArchiveSemanticFreshness & {
     record_count?: number | null;
     records_hash?: string | null;
     records_csv_hash?: string | null;
+    release_handoff_hash?: string | null;
     structured_manifest_hash?: string | null;
     rag_structured_manifest_hash?: string | null;
     rag_index_hash?: string | null;
@@ -4110,6 +4112,10 @@ export default function Dashboard() {
                 CSV {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                Release handoff{" "}
+                {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.release_handoff_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Release RAG {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.rag_index_hash?.slice(0, 10) ?? "n/a"} /
                 manifest {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.rag_structured_manifest_hash?.slice(0, 10) ?? "n/a"}
               </span>
@@ -4376,6 +4382,7 @@ export default function Dashboard() {
                 Record hash {dataReleaseSemantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} / CSV{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
+              <span>Handoff hash {dataReleaseSemantics?.latest_artifacts?.[0]?.release_handoff_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>
                 RAG index {dataReleaseSemantics?.latest_artifacts?.[0]?.rag_index_hash?.slice(0, 10) ?? "n/a"} / manifest{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.rag_structured_manifest_hash?.slice(0, 10) ?? "n/a"}
