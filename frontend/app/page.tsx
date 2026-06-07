@@ -795,6 +795,22 @@ type ProductionAuditStatus = {
         file_count?: number;
       }>;
     };
+    data_release_archive_semantics?: {
+      status: string;
+      checked_count: number;
+      semantic_pass_count: number;
+      semantic_warning_count: number;
+      semantic_fail_count: number;
+      latest_artifacts?: Array<{
+        artifact_id: string;
+        semantic_status?: string;
+        promotion_status?: string | null;
+        record_count?: number | null;
+        records_hash?: string | null;
+        records_csv_hash?: string | null;
+        structured_manifest_hash?: string | null;
+      }>;
+    };
     structured_import_archive_semantics?: {
       status: string;
       checked_count: number;
@@ -3799,6 +3815,8 @@ export default function Dashboard() {
               <span>Verify {productionAudit?.verification?.status ?? "n/a"}</span>
               <span>QC archive {productionAudit?.evidence?.qc_bundle_archive_semantics?.status ?? "n/a"}</span>
               <span>QC checked {productionAudit?.evidence?.qc_bundle_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Data release {productionAudit?.evidence?.data_release_archive_semantics?.status ?? "n/a"}</span>
+              <span>Release checked {productionAudit?.evidence?.data_release_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Import audit {productionAudit?.evidence?.structured_import_archive_semantics?.status ?? "n/a"}</span>
               <span>Import checked {productionAudit?.evidence?.structured_import_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Audit {formatSeconds(productionAudit?.evidence?.timings?.total_seconds)}</span>
@@ -3817,6 +3835,14 @@ export default function Dashboard() {
               </span>
               <span>
                 QC optimizer {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.optimizer_manifest_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Release records {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.record_count ?? "n/a"} /
+                promotion {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.promotion_status ?? "n/a"}
+              </span>
+              <span>
+                Release hash {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} /
+                CSV {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Import semantic pass {productionAudit?.evidence?.structured_import_archive_semantics?.semantic_pass_count ?? "n/a"} /

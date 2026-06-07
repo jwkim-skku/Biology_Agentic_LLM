@@ -354,6 +354,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "deterministic-tradeoff-seeds-v1" in optimizer_item["detail"]
     assert "structured_import_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "structured_import_archive_semantics" in audit["evidence"]
+    assert "data_release_archive_semantics" in {item["name"] for item in audit["checks"]}
+    assert "data_release_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
     rag_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["results_hash"]) == 64
@@ -367,6 +369,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "production_audit.md" in names
         assert "evidence/promotion_summary.json" in names
         assert "evidence/timings.json" in names
+        assert "evidence/data_release_archive_semantics.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
         assert "## Timing" in bundled_markdown

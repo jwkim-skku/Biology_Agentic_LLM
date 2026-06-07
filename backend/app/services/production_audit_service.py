@@ -14,6 +14,7 @@ from app.config import get_settings
 from app.services.agent_memory_service import agent_memory_summary
 from app.services.artifact_archive_service import (
     archive_summary,
+    data_release_archive_summary,
     optimizer_benchmark_archive_summary,
     qc_bundle_archive_semantic_summary,
     rag_evaluation_archive_summary,
@@ -106,6 +107,11 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
     archive = _timed("artifact_archive", timings, archive_summary)
     object_store = _timed("artifact_object_store", timings, artifact_object_store_status)
     qc_archive = _timed("qc_bundle_archive_semantics", timings, lambda: qc_bundle_archive_semantic_summary(limit=3, verify_files=False))
+    data_release_archive = _timed(
+        "data_release_archive_semantics",
+        timings,
+        lambda: data_release_archive_summary(limit=3, verify_files=False),
+    )
     import_archive = _timed(
         "structured_import_archive_semantics",
         timings,
@@ -170,6 +176,12 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             object_store,
         ),
         _check("qc_bundle_archive_semantics", qc_archive.get("status") in {"pass", "warning"}, qc_archive.get("status") == "pass", qc_archive),
+        _check(
+            "data_release_archive_semantics",
+            data_release_archive.get("status") in {"pass", "warning"},
+            data_release_archive.get("status") == "pass",
+            data_release_archive,
+        ),
         _check(
             "structured_import_archive_semantics",
             import_archive.get("status") in {"pass", "warning"},
@@ -251,6 +263,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             "artifact_archive": archive,
             "artifact_object_store": object_store,
             "qc_bundle_archive_semantics": qc_archive,
+            "data_release_archive_semantics": data_release_archive,
             "structured_import_archive_semantics": import_archive,
             "rag_evaluation_archive_semantics": rag_archive,
             "rag_regression_archive_semantics": rag_regression_archive,
@@ -301,6 +314,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
         bundle.writestr("evidence/artifact_archive.json", _json(audit["evidence"]["artifact_archive"]))
         bundle.writestr("evidence/artifact_object_store.json", _json(audit["evidence"]["artifact_object_store"]))
         bundle.writestr("evidence/qc_bundle_archive_semantics.json", _json(audit["evidence"]["qc_bundle_archive_semantics"]))
+        bundle.writestr("evidence/data_release_archive_semantics.json", _json(audit["evidence"]["data_release_archive_semantics"]))
         bundle.writestr(
             "evidence/structured_import_archive_semantics.json",
             _json(audit["evidence"]["structured_import_archive_semantics"]),
