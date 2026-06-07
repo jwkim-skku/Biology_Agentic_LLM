@@ -25,6 +25,8 @@ REQUIRED_KEYS = {
     "POSTGRES_PASSWORD",
     "RAG_VECTOR_BACKEND",
     "RAG_PGVECTOR_TABLE",
+    "QDRANT_URL",
+    "QDRANT_COLLECTION",
     "RAG_EMBEDDING_BACKEND",
     "RAG_EMBEDDING_MODEL",
     "RAG_EMBEDDING_DIMENSIONS",
@@ -37,6 +39,9 @@ REQUIRED_KEYS = {
     "RATE_LIMIT_PER_MINUTE",
     "ARTIFACT_SIGNING_KEY",
     "ARTIFACT_SIGNING_KEY_ID",
+    "ARTIFACT_ED25519_PRIVATE_KEY",
+    "ARTIFACT_ED25519_PUBLIC_KEY",
+    "ARTIFACT_ED25519_KEY_ID",
     "ARTIFACT_RETENTION_DAYS",
     "ARTIFACT_RETENTION_KEEP_MIN",
     "ARTIFACT_OBJECT_STORE_ENABLED",
@@ -114,6 +119,7 @@ def validate_template(values: dict[str, str], failures: list[str], warnings: lis
     _require(values.get("DATABASE_URL", "").startswith("postgresql://"), failures, "template DATABASE_URL must be postgresql://.")
     _require(values.get("RAG_VECTOR_BACKEND") in {"pgvector", "qdrant"}, failures, "template RAG_VECTOR_BACKEND must show a production vector backend.")
     _require(bool(values.get("RAG_PGVECTOR_TABLE")), failures, "template RAG_PGVECTOR_TABLE must be set.")
+    _require(bool(values.get("QDRANT_COLLECTION")), failures, "template QDRANT_COLLECTION must be set for qdrant cutover planning.")
     _require(values.get("RAG_EMBEDDING_BACKEND") == "sentence_transformers", failures, "template RAG_EMBEDDING_BACKEND must show sentence_transformers.")
     _require(bool(values.get("RAG_EMBEDDING_MODEL")), failures, "template RAG_EMBEDDING_MODEL must be set.")
     _require(int_or_none(values.get("RAG_EMBEDDING_DIMENSIONS")) and int(values["RAG_EMBEDDING_DIMENSIONS"]) >= 128, failures, "template RAG_EMBEDDING_DIMENSIONS must be at least 128.")
@@ -130,6 +136,9 @@ def validate_template(values: dict[str, str], failures: list[str], warnings: lis
         "template NEXT_PUBLIC_API_KEY must be represented in API_KEY_ROLES.",
     )
     _require(int_or_none(values.get("RATE_LIMIT_PER_MINUTE")) and int(values["RATE_LIMIT_PER_MINUTE"]) > 0, failures, "template rate limit must be positive.")
+    _require(bool(values.get("ARTIFACT_SIGNING_KEY")), failures, "template ARTIFACT_SIGNING_KEY must be set.")
+    _require(bool(values.get("ARTIFACT_SIGNING_KEY_ID")), failures, "template ARTIFACT_SIGNING_KEY_ID must be set.")
+    _require(bool(values.get("ARTIFACT_ED25519_KEY_ID")), failures, "template ARTIFACT_ED25519_KEY_ID must be set.")
     _require(int_or_none(values.get("ARTIFACT_RETENTION_DAYS")) and int(values["ARTIFACT_RETENTION_DAYS"]) > 0, failures, "template retention days must be positive.")
     _require(values.get("ARTIFACT_OBJECT_STORE_ENABLED", "").lower() == "true", failures, "template object-store mirror must be enabled.")
     _require(values.get("ARTIFACT_OBJECT_STORE_ENDPOINT", "").startswith("https://"), failures, "template object-store endpoint must be https://.")
@@ -162,6 +171,7 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
         _require(bool(values.get("RAG_PGVECTOR_TABLE")), failures, "RAG_PGVECTOR_TABLE must be set for pgvector.")
     if values.get("RAG_VECTOR_BACKEND") == "qdrant":
         _require(bool(values.get("QDRANT_URL")), failures, "QDRANT_URL must be set for qdrant.")
+        _require(bool(values.get("QDRANT_COLLECTION")), failures, "QDRANT_COLLECTION must be set for qdrant.")
     database_url = values.get("DATABASE_URL", "")
     parsed = urlparse(database_url)
     _require(parsed.scheme in {"postgresql", "postgres"}, failures, "DATABASE_URL must be a Postgres URL.")
@@ -198,6 +208,8 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
     _require(bool(signing_key or ed25519_private or ed25519_public), failures, "Artifact signing or verification must be configured.")
     if signing_key and len(signing_key) < 32:
         failures.append("ARTIFACT_SIGNING_KEY should be at least 32 characters.")
+    if (ed25519_private or ed25519_public) and not values.get("ARTIFACT_ED25519_KEY_ID"):
+        failures.append("ARTIFACT_ED25519_KEY_ID must be set when Ed25519 signing or verification is configured.")
 
     retention_days = int_or_none(values.get("ARTIFACT_RETENTION_DAYS"))
     keep_min = int_or_none(values.get("ARTIFACT_RETENTION_KEEP_MIN"))

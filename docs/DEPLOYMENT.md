@@ -46,6 +46,9 @@ Useful runtime variables:
 - `CORS_ORIGINS`: comma-separated frontend origins.
 - `STORAGE_BACKEND`: `sqlite` for local runtime storage or `postgres` for the optional Postgres run/job/audit adapter.
 - `DATABASE_URL`: optional Postgres connection URL. It is redacted in status payloads.
+- `RAG_VECTOR_BACKEND`: `local_json`, `pgvector`, or `qdrant`. Production promotion expects `pgvector` or `qdrant`.
+- `RAG_PGVECTOR_TABLE`: pgvector table used when `RAG_VECTOR_BACKEND=pgvector`.
+- `QDRANT_URL` and `QDRANT_COLLECTION`: Qdrant endpoint and collection used when `RAG_VECTOR_BACKEND=qdrant`.
 - `API_KEYS`: comma-separated API keys. Empty means local-development mode.
 - `API_KEY_ROLES`: optional API key role mapping. Use `key=admin;other=viewer,operator` or JSON such as `{"key":["admin"]}`. Without this mapping, configured keys default to `admin`.
 - `NEXT_PUBLIC_API_KEY`: browser demo key when API auth is enabled. It must map to a configured `viewer` or `operator` role, never `admin`.
@@ -54,7 +57,7 @@ Useful runtime variables:
 - `ARTIFACT_SIGNING_KEY_ID`: optional public identifier for the signing key used in artifact manifests.
 - `ARTIFACT_ED25519_PRIVATE_KEY`: optional Ed25519 private key for asymmetric artifact and governance-attestation signatures. Supports PEM or base64 raw private key bytes.
 - `ARTIFACT_ED25519_PUBLIC_KEY`: optional Ed25519 public key for external verification. Supports PEM or base64 raw public key bytes.
-- `ARTIFACT_ED25519_KEY_ID`: optional public identifier for the Ed25519 keypair.
+- `ARTIFACT_ED25519_KEY_ID`: public identifier for the Ed25519 keypair when Ed25519 signing or verification is configured.
 - `ARTIFACT_RETENTION_DAYS`: archived export retention window. `0` disables automatic eligibility.
 - `ARTIFACT_RETENTION_KEEP_MIN`: minimum newest archived exports to preserve when retention is applied.
 - `ARTIFACT_OBJECT_STORE_ENABLED`: set `true` to enable S3-compatible mirroring for immutable archived ZIP bundles.
@@ -180,8 +183,10 @@ This returns pass/warning/fail gates for structured data, data provenance, struc
 The strict production gates expect:
 
 - `STORAGE_BACKEND=postgres` with `DATABASE_URL` configured and the active runtime adapter on Postgres.
+- `RAG_VECTOR_BACKEND=pgvector` with `RAG_PGVECTOR_TABLE`, or `RAG_VECTOR_BACKEND=qdrant` with `QDRANT_URL` and `QDRANT_COLLECTION`.
 - `API_KEYS`, explicit `API_KEY_ROLES`, and `RATE_LIMIT_PER_MINUTE > 0`.
-- `ARTIFACT_SIGNING_KEY` or Ed25519 signing/verification configured.
+- `ARTIFACT_SIGNING_KEY` plus key id, or Ed25519 signing/verification with `ARTIFACT_ED25519_KEY_ID`.
+- `ARTIFACT_OBJECT_STORE_ENABLED=true` with HTTPS endpoint, bucket, prefix, region, and credentials for immutable archive mirroring.
 - zero structured-data validation warnings and a clean artifact archive ledger.
 
 Governance attestation:
