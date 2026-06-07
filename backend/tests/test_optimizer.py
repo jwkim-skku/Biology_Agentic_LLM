@@ -382,6 +382,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert len(optimizer_gate["details"]["results_hash"]) == 64
     assert len(audit["evidence"]["optimizer_diagnostics"]["benchmark"]["results_hash"]) == 64
     assert verification["status"] in {"pass", "warning"}
+    assert verification["semantic_checks"]["deployment_readiness_evidence"] == "pass"
+    assert verification["semantic_checks"]["attention_gates_hash"] == "pass"
+    assert verification["semantic_checks"]["required_actions_hash"] == "pass"
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "production_audit.md" in names
@@ -393,8 +396,11 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/structured_import_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
         assert "## Timing" in bundled_markdown
+        assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
+        deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json"))
         assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
+        assert len(deployment_readiness["required_actions_hash"]) == 64
 
 
 def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:

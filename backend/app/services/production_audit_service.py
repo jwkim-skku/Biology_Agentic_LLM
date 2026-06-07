@@ -365,14 +365,40 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
     warnings = list(verification.get("warnings") or [])
     audit_hash = None
     summary: dict[str, Any] = {}
+    semantic_checks: dict[str, str] = {}
     try:
         with ZipFile(BytesIO(bundle), "r") as archive:
             audit = json.loads(archive.read("production_audit.json").decode("utf-8"))
+            deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
             audit_hash = audit.get("audit_hash")
             summary = audit.get("summary") or {}
             actual_hash = _hash_without_signatures(audit)
             if audit_hash != actual_hash:
                 errors.append("production_audit.json audit_hash does not match contents.")
+                semantic_checks["audit_hash"] = "fail"
+            else:
+                semantic_checks["audit_hash"] = "pass"
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "deployment_readiness_evidence",
+                deployment_readiness == ((audit.get("evidence") or {}).get("deployment_readiness") or {}),
+                "evidence/deployment_readiness.json does not match production_audit.json evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "attention_gates_hash",
+                deployment_readiness.get("attention_gates_hash") == _hash_payload(deployment_readiness.get("attention_gates") or []),
+                "deployment readiness attention_gates_hash does not match attention_gates.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "required_actions_hash",
+                deployment_readiness.get("required_actions_hash") == _hash_payload(deployment_readiness.get("required_actions") or []),
+                "deployment readiness required_actions_hash does not match required_actions.",
+            )
             signature_result = _verify_audit_signature(audit)
             if signature_result["status"] == "fail":
                 errors.extend(signature_result["messages"])
@@ -387,6 +413,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
         "warnings": warnings,
         "audit_hash": audit_hash,
         "summary": summary,
+        "semantic_checks": semantic_checks,
         "artifact_verification": verification,
         "signature": signature_result,
     }
@@ -404,6 +431,7 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
         f"- Production ready: `{audit['summary']['production_ready']}`",
         f"- Promotion summary: `{promotion.get('status', 'n/a')}`",
         f"- Remaining production actions: `{len(promotion.get('required_actions') or [])}`",
+        f"- Readiness action hash: `{((audit.get('evidence') or {}).get('deployment_readiness') or {}).get('required_actions_hash', 'n/a')}`",
         "",
         "## Promotion Summary",
         "",
@@ -647,6 +675,12 @@ def _check(name: str, pass_condition: bool, production_condition: bool, details:
         "message": message,
         "detail_hash": _hash_payload(details),
     }
+
+
+def _record_semantic_check(checks: dict[str, str], errors: list[str], name: str, passed: bool, message: str) -> None:
+    checks[name] = "pass" if passed else "fail"
+    if not passed:
+        errors.append(message)
 
 
 def _summary(checks: list[dict[str, Any]]) -> dict[str, Any]:
