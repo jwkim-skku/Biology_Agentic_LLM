@@ -22,7 +22,7 @@ Implemented:
 - RAG vector-store readiness diagnostics for pgvector/Qdrant migration payload contracts and backend recommendations
 - RAG vector-store runtime adapter boundary with local JSON default, pgvector candidate query path, Qdrant candidate query path, backend status endpoint, and fallback diagnostics
 - RAG vector-store dry-run import planning, pgvector/Qdrant bulk upsert hooks, and row-hash parity reports for cutover verification
-- RAG evaluation audit bundles with retrieval trace, score CSV, retrieved chunks JSONL, structured manifest, artifact verification, archive storage, and semantic cross-checks
+- RAG evaluation audit bundles with retrieval trace, evidence sufficiency, top-source distribution, score CSV, retrieved chunks JSONL, structured manifest, artifact verification, archive storage, and semantic cross-checks
 - RAG regression audit bundles with case metrics CSV, weak-case evidence, ranking policy, diagnostics, archive storage, and semantic cross-checks
 - RAG vector-index migration bundles with full chunk JSONL, payload schema, pgvector DDL, Qdrant collection config, archive storage, and semantic cross-checks
 - NSGA-II optimizer with constraint repair

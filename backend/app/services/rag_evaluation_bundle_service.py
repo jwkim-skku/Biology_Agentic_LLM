@@ -19,6 +19,7 @@ REQUIRED_RAG_EVALUATION_FILES = {
     "evaluation.json",
     "retrieval_trace.json",
     "evidence_sufficiency.json",
+    "top_sources.json",
     "score_breakdown.csv",
     "chunks.jsonl",
     "rag_status.json",
@@ -33,6 +34,7 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
     evaluation = evaluate_rag_query(query, filters, limit)
     search = rag_search(query, filters, limit)
     evaluation_json = _json(evaluation)
+    top_sources_json = _json(evaluation.get("top_sources") or [])
     score_breakdown_csv = _score_breakdown_csv(evaluation.get("score_breakdown") or [])
     chunks_jsonl = _chunks_jsonl(search.get("chunks") or [])
     metadata = {
@@ -43,6 +45,7 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         "ranking_policy": (evaluation.get("ranking_policy") or {}).get("version"),
         "result_count": evaluation.get("result_count"),
         "evaluation_hash": _hash_text(evaluation_json),
+        "top_sources_hash": _hash_text(top_sources_json),
         "score_breakdown_hash": _hash_text(score_breakdown_csv),
         "chunks_hash": _hash_text(chunks_jsonl),
         "structured_manifest_hash": rag_status().get("structured_manifest_hash"),
@@ -56,6 +59,7 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         bundle.writestr("evaluation.json", evaluation_json)
         bundle.writestr("retrieval_trace.json", _json(evaluation.get("retrieval_trace") or {}))
         bundle.writestr("evidence_sufficiency.json", _json(evaluation.get("evidence_sufficiency") or {}))
+        bundle.writestr("top_sources.json", top_sources_json)
         bundle.writestr("score_breakdown.csv", score_breakdown_csv)
         bundle.writestr("chunks.jsonl", chunks_jsonl)
         bundle.writestr("rag_status.json", _json(rag_status()))
@@ -89,11 +93,13 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                 score_rows: list[dict[str, str]] = []
                 chunk_rows: list[dict[str, Any]] = []
                 evaluation_text = ""
+                top_sources_text = ""
                 score_breakdown_text = ""
                 chunks_text = ""
             else:
                 semantic_checks["required_files"] = "pass"
                 evaluation_text = archive.read("evaluation.json").decode("utf-8")
+                top_sources_text = archive.read("top_sources.json").decode("utf-8")
                 score_breakdown_text = archive.read("score_breakdown.csv").decode("utf-8")
                 chunks_text = archive.read("chunks.jsonl").decode("utf-8")
                 payloads = {
@@ -102,6 +108,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                     "evaluation": _json_from_text(evaluation_text),
                     "retrieval_trace": _read_json(archive, "retrieval_trace.json"),
                     "evidence_sufficiency": _read_json(archive, "evidence_sufficiency.json"),
+                    "top_sources": _json_value_from_text(top_sources_text),
                     "rag_status": _read_json(archive, "rag_status.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
                 }
@@ -113,6 +120,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         score_rows = []
         chunk_rows = []
         evaluation_text = ""
+        top_sources_text = ""
         score_breakdown_text = ""
         chunks_text = ""
 
@@ -120,6 +128,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     evaluation = payloads.get("evaluation") or {}
     trace = payloads.get("retrieval_trace") or {}
     sufficiency = payloads.get("evidence_sufficiency") or {}
+    top_sources = payloads.get("top_sources")
     request = payloads.get("request") or {}
     rag = payloads.get("rag_status") or {}
     structured = payloads.get("structured_manifest") or {}
@@ -156,6 +165,14 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     _expect_equal(
         semantic_checks,
         semantic_errors,
+        "top_sources_hash",
+        manifest.get("top_sources_hash"),
+        _hash_text(top_sources_text),
+        "bundle_manifest.json top_sources_hash does not match top_sources.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
         "score_breakdown_hash",
         manifest.get("score_breakdown_hash"),
         _hash_text(score_breakdown_text),
@@ -183,6 +200,14 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["evidence_sufficiency_schema"] = "fail"
     else:
         semantic_checks["evidence_sufficiency_schema"] = "pass"
+    if not isinstance(top_sources, list):
+        semantic_errors.append("top_sources.json must contain an array.")
+        semantic_checks["top_sources_consistency"] = "fail"
+    elif top_sources != (evaluation.get("top_sources") or []):
+        semantic_errors.append("top_sources.json does not match evaluation.json top_sources.")
+        semantic_checks["top_sources_consistency"] = "fail"
+    else:
+        semantic_checks["top_sources_consistency"] = "pass"
     facet_gap = evaluation.get("facet_gap_analysis") or {}
     if facet_gap.get("analysis_schema") != "agentic-rag-facet-gap-analysis-v1":
         semantic_errors.append("evaluation.json facet_gap_analysis schema is invalid.")
@@ -252,6 +277,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         "semantic_checks": semantic_checks,
         "query_fingerprint": next(iter(expected_fingerprints), None),
         "evaluation_hash": manifest.get("evaluation_hash"),
+        "top_sources_hash": manifest.get("top_sources_hash"),
         "score_breakdown_hash": manifest.get("score_breakdown_hash"),
         "chunks_hash": manifest.get("chunks_hash"),
         "result_count": result_count,
@@ -347,6 +373,10 @@ def _read_jsonl(archive: ZipFile, name: str) -> list[dict[str, Any]]:
 def _json_from_text(text: str) -> dict[str, Any]:
     payload = json.loads(text)
     return payload if isinstance(payload, dict) else {}
+
+
+def _json_value_from_text(text: str) -> Any:
+    return json.loads(text)
 
 
 def _jsonl_from_text(text: str) -> list[dict[str, Any]]:
