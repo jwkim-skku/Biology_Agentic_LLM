@@ -3782,6 +3782,7 @@ export default function Dashboard() {
               <span>Fail {deploymentReadiness?.summary?.fail ?? "n/a"}</span>
               <span>Gates {deploymentReadiness?.gates?.length ?? "n/a"}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
+              <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>

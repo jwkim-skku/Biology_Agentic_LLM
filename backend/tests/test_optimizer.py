@@ -386,6 +386,10 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     optimizer_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark")
     assert len(optimizer_gate["details"]["cases_hash"]) == 64
     assert len(optimizer_gate["details"]["results_hash"]) == 64
+    data_release_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_release_archive_semantics")
+    assert data_release_gate["details"]["status"] in {"pass", "warning"}
+    assert data_release_gate["details"]["latest_records_hash"] is None or len(data_release_gate["details"]["latest_records_hash"]) == 64
+    assert data_release_gate["details"]["latest_records_csv_hash"] is None or len(data_release_gate["details"]["latest_records_csv_hash"]) == 64
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:

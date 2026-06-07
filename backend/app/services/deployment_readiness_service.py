@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.services.agent_memory_service import agent_memory_summary
 from app.services.artifact_archive_service import (
     archive_summary,
+    data_release_archive_summary,
     optimizer_benchmark_archive_summary,
     qc_bundle_archive_semantic_summary,
     rag_evaluation_archive_summary,
@@ -65,6 +66,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
     object_store = artifact_object_store_status()
     ledger = verify_artifact_ledger()
     qc_archive = qc_bundle_archive_semantic_summary(limit=3, verify_files=False)
+    data_release_archive = data_release_archive_summary(limit=3, verify_files=False)
     import_archive = structured_import_archive_summary(limit=3, verify_files=False)
     rag_archive = rag_evaluation_archive_summary(limit=3, verify_files=False)
     rag_regression_archive = rag_regression_archive_summary(limit=3, verify_files=False)
@@ -364,6 +366,23 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
             },
             fail_message="Archived QC bundle semantic verification failed.",
             warn_message="Archived QC bundles have semantic warnings.",
+        ),
+        _gate(
+            "data_release_archive_semantics",
+            data_release_archive["status"] in {"pass", "warning"},
+            _warning=data_release_archive["status"] == "pass",
+            details={
+                "status": data_release_archive["status"],
+                "checked_count": data_release_archive["checked_count"],
+                "semantic_pass_count": data_release_archive["semantic_pass_count"],
+                "semantic_warning_count": data_release_archive["semantic_warning_count"],
+                "semantic_fail_count": data_release_archive["semantic_fail_count"],
+                "latest_record_count": (data_release_archive.get("latest_artifacts") or [{}])[0].get("record_count"),
+                "latest_records_hash": (data_release_archive.get("latest_artifacts") or [{}])[0].get("records_hash"),
+                "latest_records_csv_hash": (data_release_archive.get("latest_artifacts") or [{}])[0].get("records_csv_hash"),
+            },
+            fail_message="Archived data release semantic verification failed.",
+            warn_message="Archived data release bundles have semantic warnings.",
         ),
         _gate(
             "structured_import_archive_semantics",

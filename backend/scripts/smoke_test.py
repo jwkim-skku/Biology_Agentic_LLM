@@ -122,6 +122,7 @@ def smoke_deployment_readiness() -> bool:
         "artifact_archive",
         "artifact_object_store",
         "qc_bundle_archive_semantics",
+        "data_release_archive_semantics",
         "structured_import_archive_semantics",
         "rag_evaluation_archive_semantics",
         "rag_regression_archive_semantics",
@@ -150,6 +151,7 @@ def smoke_production_audit() -> bool:
     bundle = get_bytes("/deployment/audit/export.zip", timeout=60)
     checks = {item["name"]: item for item in audit.get("checks", [])}
     qc_archive = audit.get("evidence", {}).get("qc_bundle_archive_semantics") or {}
+    data_release_archive = audit.get("evidence", {}).get("data_release_archive_semantics") or {}
     object_store = audit.get("evidence", {}).get("artifact_object_store") or {}
     embedding = audit.get("evidence", {}).get("rag_embedding") or {}
     folding = audit.get("evidence", {}).get("rna_folding") or {}
@@ -174,6 +176,7 @@ def smoke_production_audit() -> bool:
         and "rag_embedding_backend" in checks
         and "rna_folding_backend" in checks
         and "workflow_runtime" in checks
+        and "data_release_archive_semantics" in checks
         and "structured_import_archive_semantics" in checks
         and "rag_regression_archive_semantics" in checks
         and object_store.get("status_schema") == "agentic-rag-artifact-object-store-v1"
@@ -186,6 +189,8 @@ def smoke_production_audit() -> bool:
         and workflow_runtime.get("status") == "pass"
         and qc_archive.get("status") in {"pass", "warning"}
         and isinstance(qc_archive.get("latest_artifacts"), list)
+        and data_release_archive.get("status") in {"pass", "warning"}
+        and isinstance(data_release_archive.get("latest_artifacts"), list)
         and import_archive.get("status") in {"pass", "warning"}
         and isinstance(import_archive.get("latest_artifacts"), list)
         and rag_regression_archive.get("status") in {"pass", "warning"}
