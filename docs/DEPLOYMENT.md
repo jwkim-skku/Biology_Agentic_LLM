@@ -271,3 +271,5 @@ python scripts/api_contract_test.py
 python scripts/golden_response_test.py
 python scripts/golden_value_test.py
 ```
+
+Run these commands from the `backend/` directory, matching the preflight runner's working directory.
