@@ -41,6 +41,7 @@ from app.services.artifact_archive_service import (
     list_archived_artifacts,
     plan_artifact_retention,
     qc_bundle_archive_semantic_summary,
+    rag_vector_index_archive_summary,
     structured_import_archive_summary,
     verify_archived_artifact,
     verify_artifact_ledger,
@@ -61,6 +62,7 @@ from app.services.rag_diagnostics_service import rag_diagnostics
 from app.services.rag_evaluation_bundle_service import build_rag_evaluation_bundle, verify_rag_evaluation_bundle
 from app.services.rag_regression_bundle_service import build_rag_regression_bundle, verify_rag_regression_bundle
 from app.services.rag_regression_service import evaluate_rag_regression, rag_regression_cases
+from app.services.rag_vector_index_bundle_service import build_rag_vector_index_bundle, verify_rag_vector_index_bundle
 from app.services.report_service import export_qc_report, generate_qc_report, synthesize_evidence
 from app.services.run_export_service import build_run_export_bundle
 from app.services.sequence_policy_service import audit_sequence_policy
@@ -361,6 +363,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "data_release_archive_semantics" in audit["evidence"]
     assert "data_refresh_plan_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "data_refresh_plan_archive_semantics" in audit["evidence"]
+    assert "rag_vector_index_archive_semantics" in {item["name"] for item in audit["checks"]}
+    assert "rag_vector_index_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
     rag_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["results_hash"]) == 64
@@ -376,6 +380,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/timings.json" in names
         assert "evidence/data_refresh_plan_archive_semantics.json" in names
         assert "evidence/data_release_archive_semantics.json" in names
+        assert "evidence/rag_vector_index_archive_semantics.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
         assert "## Timing" in bundled_markdown
@@ -399,6 +404,9 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     refresh_plan_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_refresh_plan_archive_semantics")
     assert refresh_plan_gate["details"]["status"] in {"pass", "warning"}
     assert refresh_plan_gate["details"]["latest_operation_count"] is None or refresh_plan_gate["details"]["latest_operation_count"] >= 1
+    vector_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_vector_index_archive_semantics")
+    assert vector_archive_gate["details"]["status"] in {"pass", "warning"}
+    assert vector_archive_gate["details"]["latest_chunk_count"] is None or vector_archive_gate["details"]["latest_chunk_count"] >= 1
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
@@ -526,6 +534,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "data_refresh_plan_archive_semantics" in api_check_names
     assert "data_release_archive_semantics" in api_check_names
     assert "rag_regression_archive_semantics" in api_check_names
+    assert "rag_vector_index_archive_semantics" in api_check_names
     assert module.api_failures(
         "data_release_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"records_hash": "pass", "records_csv_hash": "pass"}, "records_hash": valid_hash, "records_csv_hash": valid_hash}},
@@ -669,6 +678,32 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "operation_count" in " ".join(refresh_plan_failures)
     assert "dataset_id" in " ".join(refresh_plan_failures)
     assert "structured_manifest_hash" in " ".join(refresh_plan_failures)
+    assert module.api_failures(
+        "rag_vector_index_archive_semantics",
+        {
+            "data": {
+                "status": "pass",
+                "checked_count": 1,
+                "latest_artifacts": [
+                    {
+                        "chunk_count": 8,
+                        "embedding_dimensions": 64,
+                        "embedding_model": "hash-bow-v1",
+                        "retrieval_model": "hybrid-hash-bm25-facet-rerank-v2",
+                        "structured_manifest_hash": valid_hash,
+                    }
+                ],
+            }
+        },
+    ) == []
+    vector_index_failures = module.api_failures(
+        "rag_vector_index_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"chunk_count": 8}]}},
+    )
+    assert "embedding_dimensions" in " ".join(vector_index_failures)
+    assert "embedding_model" in " ".join(vector_index_failures)
+    assert "retrieval_model" in " ".join(vector_index_failures)
+    assert "structured_manifest_hash" in " ".join(vector_index_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
@@ -1227,6 +1262,38 @@ def test_rag_regression_bundle_verifies_result_hash() -> None:
         manifest = json.loads(archive.read("bundle_manifest.json"))
         regression = json.loads(archive.read("regression.json"))
         assert manifest["results_hash"] == regression["results_hash"] == verification["results_hash"]
+
+
+def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
+    bundle = build_rag_vector_index_bundle()
+    verification = verify_rag_vector_index_bundle(bundle)
+    assert verification["status"] in {"pass", "warning"}
+    assert verification["semantic_checks"]["chunk_count"] == "pass"
+    assert verification["semantic_checks"]["embedding_dimensions"] == "pass"
+    assert verification["semantic_checks"]["vector_readiness_schema"] == "pass"
+    assert verification["chunk_count"] >= 1
+    assert verification["embedding_dimensions"] >= 1
+    archived = archive_artifact_bundle(
+        bundle,
+        action="unit_test_rag_vector_index_bundle",
+        resource_type="rag_vector_index",
+        resource_id=str(verification.get("manifest_hash") or "rag_vector_index"),
+        filename="unit_test_rag_vector_index_bundle.zip",
+        metadata={"verification_status": verification["status"]},
+    )
+    semantic = archived["metadata"]["rag_vector_index_semantic_verification"]
+    assert semantic["chunk_count"] == verification["chunk_count"]
+    assert semantic["embedding_dimensions"] == verification["embedding_dimensions"]
+    assert semantic["embedding_model"] == verification["embedding_model"]
+    summary = rag_vector_index_archive_summary(limit=5, verify_files=False)
+    assert summary["verification_mode"] == "indexed"
+    assert summary["status"] in {"pass", "warning"}
+    assert any(
+        item["artifact_id"] == archived["artifact_id"]
+        and item["chunk_count"] == verification["chunk_count"]
+        and item["embedding_dimensions"] == verification["embedding_dimensions"]
+        for item in summary["latest_artifacts"]
+    )
 
 
 def test_structured_manifest_validates_sources() -> None:

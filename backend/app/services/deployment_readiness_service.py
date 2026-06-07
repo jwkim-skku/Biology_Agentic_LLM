@@ -12,6 +12,7 @@ from app.services.artifact_archive_service import (
     qc_bundle_archive_semantic_summary,
     rag_evaluation_archive_summary,
     rag_regression_archive_summary,
+    rag_vector_index_archive_summary,
     structured_import_archive_summary,
     verify_artifact_ledger,
 )
@@ -72,6 +73,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
     import_archive = structured_import_archive_summary(limit=3, verify_files=False)
     rag_archive = rag_evaluation_archive_summary(limit=3, verify_files=False)
     rag_regression_archive = rag_regression_archive_summary(limit=3, verify_files=False)
+    rag_vector_index_archive = rag_vector_index_archive_summary(limit=3, verify_files=False)
     optimizer_archive = optimizer_benchmark_archive_summary(limit=3, verify_files=False)
     workflow_runtime = workflow_runtime_status()
 
@@ -444,6 +446,24 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
             },
             fail_message="Archived RAG regression bundle semantic verification failed.",
             warn_message="Archived RAG regression bundles have semantic warnings.",
+        ),
+        _gate(
+            "rag_vector_index_archive_semantics",
+            rag_vector_index_archive["status"] in {"pass", "warning"},
+            _warning=rag_vector_index_archive["status"] == "pass",
+            details={
+                "status": rag_vector_index_archive["status"],
+                "checked_count": rag_vector_index_archive["checked_count"],
+                "semantic_pass_count": rag_vector_index_archive["semantic_pass_count"],
+                "semantic_warning_count": rag_vector_index_archive["semantic_warning_count"],
+                "semantic_fail_count": rag_vector_index_archive["semantic_fail_count"],
+                "latest_chunk_count": (rag_vector_index_archive.get("latest_artifacts") or [{}])[0].get("chunk_count"),
+                "latest_embedding_dimensions": (rag_vector_index_archive.get("latest_artifacts") or [{}])[0].get("embedding_dimensions"),
+                "latest_recommended_backend": (rag_vector_index_archive.get("latest_artifacts") or [{}])[0].get("recommended_backend"),
+                "latest_structured_manifest_hash": (rag_vector_index_archive.get("latest_artifacts") or [{}])[0].get("structured_manifest_hash"),
+            },
+            fail_message="Archived RAG vector index bundle semantic verification failed.",
+            warn_message="Archived RAG vector index bundles have semantic warnings.",
         ),
         _gate(
             "optimizer_benchmark_archive_semantics",

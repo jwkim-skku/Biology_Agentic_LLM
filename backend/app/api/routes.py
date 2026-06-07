@@ -41,6 +41,7 @@ from app.services.artifact_archive_service import (
     qc_bundle_archive_semantic_summary,
     rag_evaluation_archive_summary,
     rag_regression_archive_summary,
+    rag_vector_index_archive_summary,
     read_archived_artifact,
     structured_import_archive_summary,
     verify_archived_artifact,
@@ -590,6 +591,11 @@ def rag_evaluation_archive_semantic_summary_endpoint(limit: int = 20, verify_fil
 @router.get("/artifacts/rag-regressions/semantic-summary", response_model=ApiResponse)
 def rag_regression_archive_semantic_summary_endpoint(limit: int = 20, verify_files: bool = True) -> ApiResponse:
     return ApiResponse(data=rag_regression_archive_summary(limit=limit, verify_files=verify_files))
+
+
+@router.get("/artifacts/rag-vector-indexes/semantic-summary", response_model=ApiResponse)
+def rag_vector_index_archive_semantic_summary_endpoint(limit: int = 20, verify_files: bool = True) -> ApiResponse:
+    return ApiResponse(data=rag_vector_index_archive_summary(limit=limit, verify_files=verify_files))
 
 
 @router.get("/artifacts/optimizer-benchmarks/semantic-summary", response_model=ApiResponse)

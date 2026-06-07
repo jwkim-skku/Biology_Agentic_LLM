@@ -20,6 +20,7 @@ from app.services.artifact_archive_service import (
     qc_bundle_archive_semantic_summary,
     rag_evaluation_archive_summary,
     rag_regression_archive_summary,
+    rag_vector_index_archive_summary,
     structured_import_archive_summary,
     verify_artifact_ledger,
 )
@@ -129,6 +130,11 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         timings,
         lambda: rag_regression_archive_summary(limit=3, verify_files=False),
     )
+    rag_vector_index_archive = _timed(
+        "rag_vector_index_archive_semantics",
+        timings,
+        lambda: rag_vector_index_archive_summary(limit=3, verify_files=False),
+    )
     optimizer_archive = _timed(
         "optimizer_benchmark_archive_semantics",
         timings,
@@ -213,6 +219,12 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             rag_regression_archive,
         ),
         _check(
+            "rag_vector_index_archive_semantics",
+            rag_vector_index_archive.get("status") in {"pass", "warning"},
+            rag_vector_index_archive.get("status") == "pass",
+            rag_vector_index_archive,
+        ),
+        _check(
             "optimizer_benchmark_archive_semantics",
             optimizer_archive.get("status") in {"pass", "warning"},
             optimizer_archive.get("status") == "pass",
@@ -280,6 +292,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             "structured_import_archive_semantics": import_archive,
             "rag_evaluation_archive_semantics": rag_archive,
             "rag_regression_archive_semantics": rag_regression_archive,
+            "rag_vector_index_archive_semantics": rag_vector_index_archive,
             "optimizer_benchmark_archive_semantics": optimizer_archive,
             "audit_log": audit_log,
             "timings": timings,
@@ -335,6 +348,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
         )
         bundle.writestr("evidence/rag_evaluation_archive_semantics.json", _json(audit["evidence"]["rag_evaluation_archive_semantics"]))
         bundle.writestr("evidence/rag_regression_archive_semantics.json", _json(audit["evidence"]["rag_regression_archive_semantics"]))
+        bundle.writestr("evidence/rag_vector_index_archive_semantics.json", _json(audit["evidence"]["rag_vector_index_archive_semantics"]))
         bundle.writestr(
             "evidence/optimizer_benchmark_archive_semantics.json",
             _json(audit["evidence"]["optimizer_benchmark_archive_semantics"]),

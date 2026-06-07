@@ -841,6 +841,23 @@ type ProductionAuditStatus = {
         validation_warning_count?: number | null;
       }>;
     };
+    rag_vector_index_archive_semantics?: {
+      status: string;
+      checked_count: number;
+      semantic_pass_count: number;
+      semantic_warning_count: number;
+      semantic_fail_count: number;
+      latest_artifacts?: Array<{
+        artifact_id: string;
+        semantic_status?: string;
+        chunk_count?: number | null;
+        embedding_dimensions?: number | null;
+        embedding_model?: string | null;
+        retrieval_model?: string | null;
+        recommended_backend?: string | null;
+        structured_manifest_hash?: string | null;
+      }>;
+    };
   };
   summary?: {
     status: string;
@@ -1086,6 +1103,24 @@ type AuditBundleArchiveSemanticSummary = {
     semantic_status?: string;
     query_fingerprint?: string | null;
     cases_hash?: string | null;
+    structured_manifest_hash?: string | null;
+  }>;
+};
+
+type RagVectorIndexArchiveSemanticSummary = {
+  status: string;
+  checked_count: number;
+  semantic_pass_count: number;
+  semantic_warning_count: number;
+  semantic_fail_count: number;
+  latest_artifacts: Array<{
+    artifact_id: string;
+    semantic_status?: string;
+    chunk_count?: number | null;
+    embedding_dimensions?: number | null;
+    embedding_model?: string | null;
+    retrieval_model?: string | null;
+    recommended_backend?: string | null;
     structured_manifest_hash?: string | null;
   }>;
 };
@@ -1591,6 +1626,7 @@ export default function Dashboard() {
   const [dataRefreshPlanSemantics, setDataRefreshPlanSemantics] = useState<DataRefreshPlanArchiveSemanticSummary | null>(null);
   const [ragEvaluationSemantics, setRagEvaluationSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [ragRegressionSemantics, setRagRegressionSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
+  const [ragVectorIndexSemantics, setRagVectorIndexSemantics] = useState<RagVectorIndexArchiveSemanticSummary | null>(null);
   const [optimizerBenchmarkSemantics, setOptimizerBenchmarkSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [retentionPlan, setRetentionPlan] = useState<ArtifactRetentionPlan | null>(null);
   const [objectStorePlan, setObjectStorePlan] = useState<ArtifactObjectStoreMirrorPlan | null>(null);
@@ -1926,6 +1962,7 @@ export default function Dashboard() {
         dataRefreshPlanSemanticsResponse,
         ragSemanticsResponse,
         ragRegressionSemanticsResponse,
+        ragVectorIndexSemanticsResponse,
         optimizerSemanticsResponse
       ] = await Promise.all([
         fetch(`${API_BASE}/artifacts?limit=6`, { headers: apiHeaders() }),
@@ -1937,6 +1974,7 @@ export default function Dashboard() {
         fetch(`${API_BASE}/artifacts/data-refresh-plans/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
+        fetch(`${API_BASE}/artifacts/rag-vector-indexes/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() })
       ]);
       const artifactsPayload = await artifactsResponse.json();
@@ -1948,6 +1986,7 @@ export default function Dashboard() {
       const dataRefreshPlanSemanticsPayload = await dataRefreshPlanSemanticsResponse.json();
       const ragSemanticsPayload = await ragSemanticsResponse.json();
       const ragRegressionSemanticsPayload = await ragRegressionSemanticsResponse.json();
+      const ragVectorIndexSemanticsPayload = await ragVectorIndexSemanticsResponse.json();
       const optimizerSemanticsPayload = await optimizerSemanticsResponse.json();
       if (artifactsResponse.ok) {
         setArtifacts(artifactsPayload.data.artifacts ?? []);
@@ -1975,6 +2014,9 @@ export default function Dashboard() {
       }
       if (ragRegressionSemanticsResponse.ok) {
         setRagRegressionSemantics(ragRegressionSemanticsPayload.data);
+      }
+      if (ragVectorIndexSemanticsResponse.ok) {
+        setRagVectorIndexSemantics(ragVectorIndexSemanticsPayload.data);
       }
       if (optimizerSemanticsResponse.ok) {
         setOptimizerBenchmarkSemantics(optimizerSemanticsPayload.data);
@@ -3825,6 +3867,7 @@ export default function Dashboard() {
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
+              <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>
             <div className="metrics-list">
@@ -3861,6 +3904,8 @@ export default function Dashboard() {
               <span>Release checked {productionAudit?.evidence?.data_release_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Refresh plan {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.status ?? "n/a"}</span>
               <span>Plan checked {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Vector index {productionAudit?.evidence?.rag_vector_index_archive_semantics?.status ?? "n/a"}</span>
+              <span>Vector checked {productionAudit?.evidence?.rag_vector_index_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Import audit {productionAudit?.evidence?.structured_import_archive_semantics?.status ?? "n/a"}</span>
               <span>Import checked {productionAudit?.evidence?.structured_import_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Audit {formatSeconds(productionAudit?.evidence?.timings?.total_seconds)}</span>
@@ -3895,6 +3940,14 @@ export default function Dashboard() {
               <span>
                 Plan dataset {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.dataset_id ?? "n/a"} /
                 lock {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.release_lock_status ?? "n/a"}
+              </span>
+              <span>
+                Vector chunks {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.chunk_count ?? "n/a"} /
+                dim {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.embedding_dimensions ?? "n/a"}
+              </span>
+              <span>
+                Vector model {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.embedding_model ?? "n/a"} /
+                backend {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.recommended_backend ?? "n/a"}
               </span>
               <span>
                 Import semantic pass {productionAudit?.evidence?.structured_import_archive_semantics?.semantic_pass_count ?? "n/a"} /
@@ -4148,6 +4201,24 @@ export default function Dashboard() {
               </span>
               <span>
                 Latest cases {ragRegressionSemantics?.latest_artifacts?.[0]?.cases_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+            </div>
+            <div className="data-quality" aria-label="RAG vector index archive summary">
+              <span>
+                RAG vector archive {ragVectorIndexSemantics?.status ?? "n/a"} / checked {ragVectorIndexSemantics?.checked_count ?? "n/a"}
+              </span>
+              <span>
+                Pass {ragVectorIndexSemantics?.semantic_pass_count ?? "n/a"} / warn{" "}
+                {ragVectorIndexSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
+                {ragVectorIndexSemantics?.semantic_fail_count ?? "n/a"}
+              </span>
+              <span>
+                Chunks {ragVectorIndexSemantics?.latest_artifacts?.[0]?.chunk_count ?? "n/a"} / dim{" "}
+                {ragVectorIndexSemantics?.latest_artifacts?.[0]?.embedding_dimensions ?? "n/a"}
+              </span>
+              <span>
+                Model {ragVectorIndexSemantics?.latest_artifacts?.[0]?.embedding_model ?? "n/a"} / backend{" "}
+                {ragVectorIndexSemantics?.latest_artifacts?.[0]?.recommended_backend ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="Optimizer benchmark archive summary">

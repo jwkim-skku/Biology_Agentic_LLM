@@ -69,6 +69,7 @@ API_CHECKS = [
     {"name": "data_release_archive_semantics", "path": "/artifacts/data-releases/semantic-summary?limit=6&verify_files=false"},
     {"name": "rag_evaluation_archive_semantics", "path": "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false"},
     {"name": "rag_regression_archive_semantics", "path": "/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false"},
+    {"name": "rag_vector_index_archive_semantics", "path": "/artifacts/rag-vector-indexes/semantic-summary?limit=6&verify_files=false"},
     {"name": "optimizer_benchmark_archive_semantics", "path": "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false"},
 ]
 
@@ -529,6 +530,19 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data refresh plan archive is missing dataset_id")
         if checked_count and not latest.get("structured_manifest_hash"):
             failures.append("latest data refresh plan archive is missing structured_manifest_hash")
+    if name == "rag_vector_index_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and int(latest.get("chunk_count") or 0) < 1:
+            failures.append("latest RAG vector index archive is missing chunk_count")
+        if checked_count and int(latest.get("embedding_dimensions") or 0) < 1:
+            failures.append("latest RAG vector index archive is missing embedding_dimensions")
+        if checked_count and not latest.get("embedding_model"):
+            failures.append("latest RAG vector index archive is missing embedding_model")
+        if checked_count and not latest.get("retrieval_model"):
+            failures.append("latest RAG vector index archive is missing retrieval_model")
+        if checked_count and not latest.get("structured_manifest_hash"):
+            failures.append("latest RAG vector index archive is missing structured_manifest_hash")
     return failures
 
 

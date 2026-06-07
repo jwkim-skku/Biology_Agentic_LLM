@@ -303,6 +303,24 @@ def rag_evaluation_archive_summary(limit: int = 20, *, verify_files: bool = True
     )
 
 
+def rag_vector_index_archive_summary(limit: int = 20, *, verify_files: bool = True) -> dict[str, Any]:
+    return _bundle_archive_semantic_summary(
+        limit=limit,
+        verify_files=verify_files,
+        artifact_type="rag_vector_index_bundle",
+        metadata_key="rag_vector_index_semantic_verification",
+        label="RAG vector index bundle",
+        extra_fields=(
+            "chunk_count",
+            "embedding_dimensions",
+            "embedding_model",
+            "retrieval_model",
+            "recommended_backend",
+            "structured_manifest_hash",
+        ),
+    )
+
+
 def optimizer_benchmark_archive_summary(limit: int = 20, *, verify_files: bool = True) -> dict[str, Any]:
     return _bundle_archive_semantic_summary(
         limit=limit,

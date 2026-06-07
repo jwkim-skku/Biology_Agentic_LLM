@@ -127,6 +127,7 @@ def smoke_deployment_readiness() -> bool:
         "structured_import_archive_semantics",
         "rag_evaluation_archive_semantics",
         "rag_regression_archive_semantics",
+        "rag_vector_index_archive_semantics",
         "optimizer_benchmark_archive_semantics",
     }
     signing_ok = True
@@ -160,6 +161,7 @@ def smoke_production_audit() -> bool:
     workflow_runtime = audit.get("evidence", {}).get("workflow_runtime") or {}
     import_archive = audit.get("evidence", {}).get("structured_import_archive_semantics") or {}
     rag_regression_archive = audit.get("evidence", {}).get("rag_regression_archive_semantics") or {}
+    rag_vector_index_archive = audit.get("evidence", {}).get("rag_vector_index_archive_semantics") or {}
     timings = audit.get("evidence", {}).get("timings") or {}
     signature_ok = True
     if REQUIRE_SIGNING:
@@ -182,6 +184,7 @@ def smoke_production_audit() -> bool:
         and "data_release_archive_semantics" in checks
         and "structured_import_archive_semantics" in checks
         and "rag_regression_archive_semantics" in checks
+        and "rag_vector_index_archive_semantics" in checks
         and object_store.get("status_schema") == "agentic-rag-artifact-object-store-v1"
         and object_store.get("status") in {"disabled", "ready", "misconfigured"}
         and embedding.get("embedding_schema") == "agentic-rag-embedding-backend-v1"
@@ -200,6 +203,8 @@ def smoke_production_audit() -> bool:
         and isinstance(import_archive.get("latest_artifacts"), list)
         and rag_regression_archive.get("status") in {"pass", "warning"}
         and isinstance(rag_regression_archive.get("latest_artifacts"), list)
+        and rag_vector_index_archive.get("status") in {"pass", "warning"}
+        and isinstance(rag_vector_index_archive.get("latest_artifacts"), list)
         and timings.get("total_seconds", 0) > 0
         and isinstance(timings.get("slowest"), list)
         and cache.get("status") in {"hit", "expired"}
@@ -657,6 +662,7 @@ def smoke_artifact_archive() -> bool:
     data_release_semantics = get_json("/artifacts/data-releases/semantic-summary?limit=5&verify_files=false")["data"]
     rag_semantics = get_json("/artifacts/rag-evaluations/semantic-summary?limit=5&verify_files=false")["data"]
     rag_regression_semantics = get_json("/artifacts/rag-regressions/semantic-summary?limit=5&verify_files=false")["data"]
+    rag_vector_index_semantics = get_json("/artifacts/rag-vector-indexes/semantic-summary?limit=5&verify_files=false")["data"]
     optimizer_semantics = get_json("/artifacts/optimizer-benchmarks/semantic-summary?limit=5&verify_files=false")["data"]
     artifacts = get_json("/artifacts?limit=5")["data"]["artifacts"]
     if summary["total_artifacts"] < 1 or not artifacts:
@@ -690,6 +696,9 @@ def smoke_artifact_archive() -> bool:
         and rag_regression_semantics["status"] in {"pass", "warning"}
         and rag_regression_semantics["verification_mode"] == "indexed"
         and isinstance(rag_regression_semantics["latest_artifacts"], list)
+        and rag_vector_index_semantics["status"] in {"pass", "warning"}
+        and rag_vector_index_semantics["verification_mode"] == "indexed"
+        and isinstance(rag_vector_index_semantics["latest_artifacts"], list)
         and optimizer_semantics["status"] in {"pass", "warning"}
         and optimizer_semantics["verification_mode"] == "indexed"
         and isinstance(optimizer_semantics["latest_artifacts"], list)
