@@ -1126,6 +1126,9 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     artifact_id: string;
     semantic_status?: string;
     query_fingerprint?: string | null;
+    evaluation_hash?: string | null;
+    score_breakdown_hash?: string | null;
+    chunks_hash?: string | null;
     benchmark_status?: string | null;
     diagnostics_status?: string | null;
     stress_status?: string | null;
@@ -4258,6 +4261,10 @@ export default function Dashboard() {
               <span>Freshness {formatArchiveFreshness(ragEvaluationSemantics)}</span>
               <span>
                 Latest trace {ragEvaluationSemantics?.latest_artifacts?.[0]?.query_fingerprint?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Eval hash {ragEvaluationSemantics?.latest_artifacts?.[0]?.evaluation_hash?.slice(0, 10) ?? "n/a"} / chunks{" "}
+                {ragEvaluationSemantics?.latest_artifacts?.[0]?.chunks_hash?.slice(0, 10) ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="RAG regression archive summary">

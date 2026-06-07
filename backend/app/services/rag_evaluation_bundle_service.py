@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from datetime import datetime, timezone
+from hashlib import sha256
 from io import BytesIO, StringIO
 from typing import Any
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
@@ -31,6 +32,9 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
     limit = int(request_payload.get("limit") or 10)
     evaluation = evaluate_rag_query(query, filters, limit)
     search = rag_search(query, filters, limit)
+    evaluation_json = _json(evaluation)
+    score_breakdown_csv = _score_breakdown_csv(evaluation.get("score_breakdown") or [])
+    chunks_jsonl = _chunks_jsonl(search.get("chunks") or [])
     metadata = {
         "bundle_schema": "agentic-rag-evaluation-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -38,6 +42,9 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         "retrieval_model": (evaluation.get("index") or {}).get("retrieval_model"),
         "ranking_policy": (evaluation.get("ranking_policy") or {}).get("version"),
         "result_count": evaluation.get("result_count"),
+        "evaluation_hash": _hash_text(evaluation_json),
+        "score_breakdown_hash": _hash_text(score_breakdown_csv),
+        "chunks_hash": _hash_text(chunks_jsonl),
         "structured_manifest_hash": rag_status().get("structured_manifest_hash"),
     }
 
@@ -46,11 +53,11 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         bundle = ManifestedZip(archive, "rag_evaluation_bundle", metadata)
         bundle.writestr("bundle_manifest.json", _json(metadata))
         bundle.writestr("request.json", _json(_request_summary(request_payload)))
-        bundle.writestr("evaluation.json", _json(evaluation))
+        bundle.writestr("evaluation.json", evaluation_json)
         bundle.writestr("retrieval_trace.json", _json(evaluation.get("retrieval_trace") or {}))
         bundle.writestr("evidence_sufficiency.json", _json(evaluation.get("evidence_sufficiency") or {}))
-        bundle.writestr("score_breakdown.csv", _score_breakdown_csv(evaluation.get("score_breakdown") or []))
-        bundle.writestr("chunks.jsonl", _chunks_jsonl(search.get("chunks") or []))
+        bundle.writestr("score_breakdown.csv", score_breakdown_csv)
+        bundle.writestr("chunks.jsonl", chunks_jsonl)
         bundle.writestr("rag_status.json", _json(rag_status()))
         bundle.writestr("structured_manifest.json", _json(structured_manifest()))
         bundle.write_artifact_manifest()
@@ -81,24 +88,33 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                 payloads: dict[str, Any] = {}
                 score_rows: list[dict[str, str]] = []
                 chunk_rows: list[dict[str, Any]] = []
+                evaluation_text = ""
+                score_breakdown_text = ""
+                chunks_text = ""
             else:
                 semantic_checks["required_files"] = "pass"
+                evaluation_text = archive.read("evaluation.json").decode("utf-8")
+                score_breakdown_text = archive.read("score_breakdown.csv").decode("utf-8")
+                chunks_text = archive.read("chunks.jsonl").decode("utf-8")
                 payloads = {
                     "bundle_manifest": _read_json(archive, "bundle_manifest.json"),
                     "request": _read_json(archive, "request.json"),
-                    "evaluation": _read_json(archive, "evaluation.json"),
+                    "evaluation": _json_from_text(evaluation_text),
                     "retrieval_trace": _read_json(archive, "retrieval_trace.json"),
                     "evidence_sufficiency": _read_json(archive, "evidence_sufficiency.json"),
                     "rag_status": _read_json(archive, "rag_status.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
                 }
-                score_rows = list(csv.DictReader(StringIO(archive.read("score_breakdown.csv").decode("utf-8"))))
-                chunk_rows = _read_jsonl(archive, "chunks.jsonl")
+                score_rows = list(csv.DictReader(StringIO(score_breakdown_text)))
+                chunk_rows = _jsonl_from_text(chunks_text)
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, csv.Error) as exc:
         semantic_errors.append(f"Invalid RAG evaluation bundle: {exc}")
         payloads = {}
         score_rows = []
         chunk_rows = []
+        evaluation_text = ""
+        score_breakdown_text = ""
+        chunks_text = ""
 
     manifest = payloads.get("bundle_manifest") or {}
     evaluation = payloads.get("evaluation") or {}
@@ -129,6 +145,30 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["query_fingerprint"] = "fail"
     else:
         semantic_checks["query_fingerprint"] = "pass"
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "evaluation_hash",
+        manifest.get("evaluation_hash"),
+        _hash_text(evaluation_text),
+        "bundle_manifest.json evaluation_hash does not match evaluation.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "score_breakdown_hash",
+        manifest.get("score_breakdown_hash"),
+        _hash_text(score_breakdown_text),
+        "bundle_manifest.json score_breakdown_hash does not match score_breakdown.csv.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "chunks_hash",
+        manifest.get("chunks_hash"),
+        _hash_text(chunks_text),
+        "bundle_manifest.json chunks_hash does not match chunks.jsonl.",
+    )
 
     if trace.get("trace_schema") != "agentic-rag-retrieval-trace-v1":
         semantic_errors.append("retrieval_trace.json trace_schema is invalid.")
@@ -211,6 +251,9 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         "semantic_warnings": semantic_warnings,
         "semantic_checks": semantic_checks,
         "query_fingerprint": next(iter(expected_fingerprints), None),
+        "evaluation_hash": manifest.get("evaluation_hash"),
+        "score_breakdown_hash": manifest.get("score_breakdown_hash"),
+        "chunks_hash": manifest.get("chunks_hash"),
         "result_count": result_count,
         "chunk_count": len(chunk_rows),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
@@ -298,8 +341,17 @@ def _read_json(archive: ZipFile, name: str) -> dict[str, Any]:
 
 
 def _read_jsonl(archive: ZipFile, name: str) -> list[dict[str, Any]]:
+    return _jsonl_from_text(archive.read(name).decode("utf-8"))
+
+
+def _json_from_text(text: str) -> dict[str, Any]:
+    payload = json.loads(text)
+    return payload if isinstance(payload, dict) else {}
+
+
+def _jsonl_from_text(text: str) -> list[dict[str, Any]]:
     rows = []
-    for line in archive.read(name).decode("utf-8").splitlines():
+    for line in text.splitlines():
         if not line.strip():
             continue
         payload = json.loads(line)
@@ -310,3 +362,21 @@ def _read_jsonl(archive: ZipFile, name: str) -> list[dict[str, Any]]:
 
 def _json(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _hash_text(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()
+
+
+def _expect_equal(
+    checks: dict[str, str],
+    errors: list[str],
+    name: str,
+    actual: Any,
+    expected: Any,
+    message: str,
+) -> None:
+    passed = actual == expected and actual is not None
+    checks[name] = "pass" if passed else "fail"
+    if not passed:
+        errors.append(message)

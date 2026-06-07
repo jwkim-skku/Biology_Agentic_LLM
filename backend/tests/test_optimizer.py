@@ -601,7 +601,13 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "evidence_sufficiency_schema": "pass",
                     "facet_gap_analysis": "pass",
                     "query_term_coverage": "pass",
+                    "evaluation_hash": "pass",
+                    "score_breakdown_hash": "pass",
+                    "chunks_hash": "pass",
                 },
+                "evaluation_hash": valid_hash,
+                "score_breakdown_hash": valid_hash,
+                "chunks_hash": valid_hash,
             }
         },
     ) == []
@@ -1330,10 +1336,20 @@ def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
     verification = verify_rag_evaluation_bundle(bundle)
     assert verification["status"] == "pass"
     assert verification["semantic_checks"]["evidence_sufficiency_schema"] == "pass"
+    assert verification["semantic_checks"]["evaluation_hash"] == "pass"
+    assert verification["semantic_checks"]["score_breakdown_hash"] == "pass"
+    assert verification["semantic_checks"]["chunks_hash"] == "pass"
+    assert len(verification["evaluation_hash"]) == 64
+    assert len(verification["score_breakdown_hash"]) == 64
+    assert len(verification["chunks_hash"]) == 64
     with ZipFile(BytesIO(bundle)) as archive:
         assert "evidence_sufficiency.json" in set(archive.namelist())
+        manifest = json.loads(archive.read("bundle_manifest.json"))
         sufficiency = json.loads(archive.read("evidence_sufficiency.json"))
         evaluation = json.loads(archive.read("evaluation.json"))
+        assert manifest["evaluation_hash"] == verification["evaluation_hash"]
+        assert manifest["score_breakdown_hash"] == verification["score_breakdown_hash"]
+        assert manifest["chunks_hash"] == verification["chunks_hash"]
         assert sufficiency["sufficiency_schema"] == "agentic-rag-evidence-sufficiency-v1"
         assert sufficiency["status"] == evaluation["evidence_sufficiency"]["status"]
         assert sufficiency["source_count"] >= 1

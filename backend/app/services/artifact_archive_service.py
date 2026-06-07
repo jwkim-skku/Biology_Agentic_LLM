@@ -304,7 +304,15 @@ def rag_evaluation_archive_summary(limit: int = 20, *, verify_files: bool = True
         artifact_type="rag_evaluation_bundle",
         metadata_key="rag_evaluation_semantic_verification",
         label="RAG evaluation bundle",
-        extra_fields=("query_fingerprint", "result_count", "chunk_count", "structured_manifest_hash"),
+        extra_fields=(
+            "query_fingerprint",
+            "evaluation_hash",
+            "score_breakdown_hash",
+            "chunks_hash",
+            "result_count",
+            "chunk_count",
+            "structured_manifest_hash",
+        ),
     )
 
 
@@ -529,6 +537,9 @@ def _rag_evaluation_semantic_metadata(verification: dict[str, Any]) -> dict[str,
         "status": verification.get("status"),
         "semantic_status": verification.get("semantic_status"),
         "query_fingerprint": verification.get("query_fingerprint"),
+        "evaluation_hash": verification.get("evaluation_hash"),
+        "score_breakdown_hash": verification.get("score_breakdown_hash"),
+        "chunks_hash": verification.get("chunks_hash"),
         "result_count": verification.get("result_count"),
         "chunk_count": verification.get("chunk_count"),
         "structured_manifest_hash": verification.get("structured_manifest_hash"),
