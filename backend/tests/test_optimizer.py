@@ -465,6 +465,7 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert set(readiness["attention_gates"]) == {gate["name"] for gate in readiness["gates"] if gate["status"] != "pass"}
     assert all(action["gate"] in readiness["attention_gates"] for action in readiness["required_actions"])
     assert all(action["priority"] in {"blocking", "promotion"} for action in readiness["required_actions"])
+    assert all(len(action["detail_hash"]) == 64 for action in readiness["required_actions"])
     assert len(readiness["attention_gates_hash"]) == 64
     assert len(readiness["required_actions_hash"]) == 64
     if readiness["required_actions"]:
@@ -539,11 +540,13 @@ def test_deployment_readiness_archive_actions_are_specific() -> None:
         {"name": "optimizer_benchmark_archive_semantics", "status": "warning", "message": "Optimizer archive stale.", "details": {}},
     ]
     actions = {item["gate"]: item["action"] for item in deployment_readiness_service._required_actions(gates)}
+    action_hashes = {item["gate"]: item["detail_hash"] for item in deployment_readiness_service._required_actions(gates)}
     assert "QC report bundle" in actions["qc_bundle_archive_semantics"]
     assert "data snapshot bundle" in actions["data_snapshot_archive_semantics"]
     assert "vector index bundle" in actions["rag_vector_index_archive_semantics"]
     assert "optimizer benchmark bundle" in actions["optimizer_benchmark_archive_semantics"]
     assert len(set(actions.values())) == len(actions)
+    assert all(len(value) == 64 for value in action_hashes.values())
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:

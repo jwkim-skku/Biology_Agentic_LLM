@@ -792,6 +792,7 @@ type DeploymentReadinessStatus = {
     priority: string;
     message: string;
     action: string;
+    detail_hash?: string;
   }>;
   required_actions_hash?: string;
   gates: Array<{
@@ -4131,6 +4132,7 @@ export default function Dashboard() {
                 <article key={`${item.gate}-${item.priority}`}>
                   <strong>{item.gate.replaceAll("_", " ")} - {item.priority}</strong>
                   <span>{item.action}</span>
+                  <small>detail {item.detail_hash?.slice(0, 10) ?? "n/a"}</small>
                 </article>
               ))}
               {readinessAttentionGates(deploymentReadiness).map((gate) => (

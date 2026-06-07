@@ -647,6 +647,7 @@ def _required_actions(gates: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "priority": "blocking" if gate["status"] == "fail" else "promotion",
                 "message": gate["message"],
                 "action": _gate_action(gate),
+                "detail_hash": _hash_payload(gate.get("details") or {}),
             }
         )
     return actions
