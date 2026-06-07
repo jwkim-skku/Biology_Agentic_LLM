@@ -477,6 +477,10 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_check in ["records_hash", "records_csv_hash"]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"Data release bundle does not verify {hash_check}.")
+        if checks.get("rag_structured_manifest_hash") != "pass" or not payload.get("rag_structured_manifest_hash"):
+            failures.append("Data release bundle does not verify rag_structured_manifest_hash.")
+        if checks.get("rag_index_hash") not in {"pass", "warning"}:
+            failures.append("Data release bundle does not expose rag_index_hash status.")
         for caveat_check in ["trna_caveat_count", "trna_blocking_production_use"]:
             if checks.get(caveat_check) != "pass" or caveat_check not in payload:
                 failures.append(f"Data release bundle does not verify {caveat_check}.")
@@ -542,6 +546,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data release archive is missing records_hash")
         if checked_count and not latest.get("records_csv_hash"):
             failures.append("latest data release archive is missing records_csv_hash")
+        if checked_count and not latest.get("rag_structured_manifest_hash"):
+            failures.append("latest data release archive is missing rag_structured_manifest_hash")
+        if checked_count and not latest.get("rag_index_hash"):
+            failures.append("latest data release archive is missing rag_index_hash")
         if checked_count and latest.get("trna_caveat_count") is None:
             failures.append("latest data release archive is missing trna_caveat_count")
         if checked_count and latest.get("trna_blocking_production_use") is None:

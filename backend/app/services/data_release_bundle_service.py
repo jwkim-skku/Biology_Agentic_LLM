@@ -14,7 +14,7 @@ from app.services.data_refresh_service import data_catalog, refresh_log
 from app.services.data_release_lock_service import read_data_release_lock, verify_data_release_lock
 from app.services.external_data_service import external_source_status
 from app.services.export_manifest_service import ManifestedZip, verify_artifact_bundle
-from app.services.rag_service import rag_status
+from app.services.rag_service import RAG_INDEX_PATH, rag_status
 from app.services.structured_data_service import (
     STRUCTURED_DIR,
     load_structured_records,
@@ -52,13 +52,17 @@ def build_data_release_bundle() -> bytes:
     quality = structured_quality_gate()
     provenance = data_provenance_audit()
     release_lock = verify_data_release_lock()
+    rag = rag_status()
     trna_caveats = provenance.get("trna_prior_caveats") or {}
     records_jsonl = _records_jsonl(records)
     records_csv = _records_csv(records)
+    rag_index_hash = _file_sha256(RAG_INDEX_PATH) if RAG_INDEX_PATH.exists() else None
     metadata = {
         "bundle_schema": RELEASE_BUNDLE_SCHEMA,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "structured_manifest_hash": manifest.get("manifest_hash"),
+        "rag_structured_manifest_hash": rag.get("structured_manifest_hash"),
+        "rag_index_hash": rag_index_hash,
         "record_count": len(records),
         "records_hash": _hash_text(records_jsonl),
         "records_csv_hash": _hash_text(records_csv),
@@ -87,7 +91,7 @@ def build_data_release_bundle() -> bytes:
         bundle.writestr("external_sources.json", _json(external_source_status()))
         bundle.writestr("data_release_lock.json", _json(release_lock))
         bundle.writestr("data_release_lock_persisted.json", _json(read_data_release_lock() or {}))
-        bundle.writestr("rag_status.json", _json(rag_status()))
+        bundle.writestr("rag_status.json", _json(rag))
         bundle.writestr("refresh_log.json", _json(refresh_log(limit=500)))
         bundle.writestr("records.jsonl", records_jsonl)
         bundle.writestr("records.csv", records_csv)
@@ -137,6 +141,7 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     provenance = payloads.get("data_provenance.json") or {}
     trna_caveats = provenance.get("trna_prior_caveats") or {}
     release_lock = payloads.get("data_release_lock.json") or {}
+    rag = payloads.get("rag_status.json") or {}
 
     _expect_equal(
         semantic_checks,
@@ -183,6 +188,30 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_warnings.append("Structured manifest hash is not recorded in the data release bundle.")
         semantic_checks["structured_manifest_hash"] = "warning"
+
+    rag_structured_hashes = {
+        str(value)
+        for value in [
+            release_manifest.get("structured_manifest_hash"),
+            release_manifest.get("rag_structured_manifest_hash"),
+            rag.get("structured_manifest_hash"),
+        ]
+        if value
+    }
+    if len(rag_structured_hashes) > 1:
+        semantic_errors.append("RAG status structured_manifest_hash does not match release structured manifest hash.")
+        semantic_checks["rag_structured_manifest_hash"] = "fail"
+    elif rag_structured_hashes:
+        semantic_checks["rag_structured_manifest_hash"] = "pass"
+    else:
+        semantic_warnings.append("RAG status structured_manifest_hash is not recorded in the data release bundle.")
+        semantic_checks["rag_structured_manifest_hash"] = "warning"
+
+    if release_manifest.get("rag_index_hash"):
+        semantic_checks["rag_index_hash"] = "pass"
+    else:
+        semantic_warnings.append("Data release bundle does not record a persisted RAG index hash.")
+        semantic_checks["rag_index_hash"] = "warning"
 
     record_counts = {
         value
@@ -332,6 +361,8 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "semantic_warnings": semantic_warnings,
         "semantic_checks": semantic_checks,
         "structured_manifest_hash": next(iter(manifest_hashes), None),
+        "rag_structured_manifest_hash": rag.get("structured_manifest_hash"),
+        "rag_index_hash": release_manifest.get("rag_index_hash"),
         "record_count": next(iter(record_counts), None),
         "records_hash": row_evidence.get("records_hash"),
         "records_csv_hash": row_evidence.get("records_csv_hash"),
@@ -495,3 +526,11 @@ def _json(payload: Any) -> str:
 
 def _hash_text(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
