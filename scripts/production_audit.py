@@ -391,12 +391,23 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append(f"{name} semantic_status is fail")
     if name == "rag_evaluation_bundle_verify" and (payload.get("semantic_checks") or {}).get("evidence_sufficiency_schema") != "pass":
         failures.append("RAG evaluation bundle does not verify evidence_sufficiency_schema.")
+    if name == "rag_regression_bundle_verify":
+        checks = payload.get("semantic_checks") or {}
+        if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
+            failures.append("RAG regression bundle does not verify results_hash.")
     if name == "optimizer_benchmark_bundle_verify" and (payload.get("semantic_checks") or {}).get("search_strategy_schema") != "pass":
         failures.append("Optimizer benchmark bundle does not verify search_strategy_schema.")
+    if name == "optimizer_benchmark_bundle_verify":
+        checks = payload.get("semantic_checks") or {}
+        if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
+            failures.append("Optimizer benchmark bundle does not verify results_hash.")
     if name == "qc_report_bundle_verify":
         checks = payload.get("semantic_checks") or {}
         if checks.get("request_payload") != "pass":
             failures.append("QC report bundle does not verify request_payload.")
+        for hash_check in ["request_hash", "qc_report_hash", "candidate_ranking_hash"]:
+            if checks.get(hash_check) != "pass" or not payload.get(hash_check):
+                failures.append(f"QC report bundle does not verify {hash_check}.")
         failed_targets = [key for key, value in checks.items() if key.startswith("request_target_") and value != "pass"]
         if failed_targets:
             failures.append(f"QC report bundle request target checks failed: {', '.join(failed_targets)}")

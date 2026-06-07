@@ -430,6 +430,60 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         evidence_path.unlink(missing_ok=True)
 
 
+def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "production_audit.py"
+    spec = importlib.util.spec_from_file_location("cli_production_audit_hash_checks", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    valid_hash = "a" * 64
+    assert module.api_failures(
+        "rag_regression_bundle_verify",
+        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"results_hash": "pass"}, "results_hash": valid_hash}},
+    ) == []
+    assert module.api_failures(
+        "optimizer_benchmark_bundle_verify",
+        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"search_strategy_schema": "pass", "results_hash": "pass"}, "results_hash": valid_hash}},
+    ) == []
+    assert module.api_failures(
+        "qc_report_bundle_verify",
+        {
+            "data": {
+                "status": "pass",
+                "semantic_status": "pass",
+                "semantic_checks": {
+                    "request_payload": "pass",
+                    "request_hash": "pass",
+                    "qc_report_hash": "pass",
+                    "candidate_ranking_hash": "pass",
+                },
+                "request_hash": valid_hash,
+                "qc_report_hash": valid_hash,
+                "candidate_ranking_hash": valid_hash,
+            }
+        },
+    ) == []
+
+    assert "results_hash" in " ".join(
+        module.api_failures("rag_regression_bundle_verify", {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {}}})
+    )
+    assert "results_hash" in " ".join(
+        module.api_failures(
+            "optimizer_benchmark_bundle_verify",
+            {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"search_strategy_schema": "pass"}}},
+        )
+    )
+    qc_failures = module.api_failures(
+        "qc_report_bundle_verify",
+        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"request_payload": "pass"}}},
+    )
+    assert "request_hash" in " ".join(qc_failures)
+    assert "qc_report_hash" in " ".join(qc_failures)
+    assert "candidate_ranking_hash" in " ".join(qc_failures)
+
+
 def test_audit_log_records_filters_and_summarizes_events() -> None:
     marker = f"test_audit_{random.randint(1, 10_000_000)}"
     event = record_audit_event(
