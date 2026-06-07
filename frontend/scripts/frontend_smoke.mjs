@@ -81,6 +81,10 @@ async function main() {
     const qualityText = await sectionText(page, "Quality gates");
     assert(/Diag\s+(pass|warning|fail|n\/a)/.test(qualityText), `Optimizer diagnostics were not rendered: ${qualityText}`);
     assert(/Constraints\s+(pass|warning|fail|n\/a)/.test(qualityText), `Optimizer constraint band was not rendered: ${qualityText}`);
+    assert(/Alg\s+(seeded_nsga2|n\/a)/.test(qualityText), `Optimizer algorithm was not rendered: ${qualityText}`);
+    assert(/Seed\s+(deterministic-tradeoff-seeds-v1|n\/a)/.test(qualityText), `Optimizer seed strategy was not rendered in quality gates: ${qualityText}`);
+    assert(/Variants\s+(\d+|n\/a)/.test(qualityText), `Optimizer seed variant count was not rendered: ${qualityText}`);
+    assert(/Repair\s+(\d+x|off)/.test(qualityText), `Optimizer repair policy was not rendered: ${qualityText}`);
     assert(/Stress\s+(pass|warning|fail|n\/a)/.test(qualityText), `Optimizer stress gate was not rendered: ${qualityText}`);
     await expectSection(page, "RAG inspector", /RAG Inspector/);
     const ragText = await sectionText(page, "RAG inspector");
@@ -99,6 +103,7 @@ async function main() {
     const verifiedQualityText = await sectionText(page, "Quality gates");
     assert(/Bundle\s+(pass|warning|fail)/.test(verifiedQualityText), `Optimizer benchmark bundle semantic status was not rendered: ${verifiedQualityText}`);
     assert(/Hash\s+([a-f0-9]{10}|n\/a)/.test(verifiedQualityText), `Optimizer benchmark cases hash was not rendered: ${verifiedQualityText}`);
+    assert(/Strategy\s+pass/.test(verifiedQualityText), `Optimizer benchmark search strategy semantic check was not rendered: ${verifiedQualityText}`);
     const ragSection = page.locator('section[aria-label="RAG inspector"]');
     const ragEvaluationReady = waitForApi(page, "/rag/evaluate");
     await ragSection.getByTitle("Run RAG evaluation").click();

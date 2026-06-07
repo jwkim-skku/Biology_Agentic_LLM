@@ -1211,6 +1211,28 @@ type OptimizerBenchmarkStatus = {
 
 type OptimizerDiagnosticsStatus = {
   status: string;
+  optimizer?: {
+    algorithm?: string;
+    seed_strategy?: string;
+    search_strategy?: {
+      strategy_schema?: string;
+      algorithm?: string;
+      seed_strategy?: string;
+      deterministic_seed_variants?: string[];
+      stochastic_operator?: {
+        rng_seed?: number;
+        mutation_rate?: number;
+        crossover_rate?: number;
+        population_size?: number;
+        generations?: number;
+      };
+      repair_policy?: {
+        enabled?: boolean;
+        repair_passes?: number;
+      };
+      selection_policy?: string;
+    };
+  };
   benchmark: {
     status: string;
     case_count: number;
@@ -1383,6 +1405,7 @@ type OptimizerBenchmarkBundleVerification = {
   cases_hash?: string;
   case_count?: number;
   structured_manifest_hash?: string;
+  semantic_checks?: Record<string, string>;
   errors?: string[];
   warnings?: string[];
 };
@@ -3153,6 +3176,17 @@ export default function Dashboard() {
                   <span>Runtime {optimizerDiagnostics?.quality_bands.runtime ?? "n/a"}</span>
                 </div>
                 <div className="quality-metrics">
+                  <span>Alg {optimizerDiagnostics?.optimizer?.algorithm ?? optimizerDiagnostics?.optimizer?.search_strategy?.algorithm ?? "n/a"}</span>
+                  <span>Seed {optimizerDiagnostics?.optimizer?.seed_strategy ?? optimizerDiagnostics?.optimizer?.search_strategy?.seed_strategy ?? "n/a"}</span>
+                  <span>Variants {optimizerDiagnostics?.optimizer?.search_strategy?.deterministic_seed_variants?.length ?? "n/a"}</span>
+                  <span>
+                    Repair{" "}
+                    {optimizerDiagnostics?.optimizer?.search_strategy?.repair_policy?.enabled
+                      ? `${optimizerDiagnostics.optimizer.search_strategy.repair_policy.repair_passes ?? "n/a"}x`
+                      : "off"}
+                  </span>
+                </div>
+                <div className="quality-metrics">
                   <span>Stress {optimizerStress?.status ?? optimizerDiagnostics?.stress_gate?.status ?? "n/a"}</span>
                   <span>Stress pass {optimizerStress?.summary.pass_count ?? optimizerDiagnostics?.stress_gate?.summary.pass_count ?? "n/a"}</span>
                   <span>Stress warn {optimizerStress?.summary.warning_count ?? optimizerDiagnostics?.stress_gate?.summary.warning_count ?? "n/a"}</span>
@@ -3187,6 +3221,7 @@ export default function Dashboard() {
                   <span>Bundle {optimizerBundleVerification?.semantic_status ?? "n/a"}</span>
                   <span>Cases {optimizerBundleVerification?.case_count ?? optimizerBenchmark?.case_count ?? "n/a"}</span>
                   <span>Hash {optimizerBundleVerification?.cases_hash?.slice(0, 10) ?? optimizerBenchmark?.cases_hash?.slice(0, 10) ?? "n/a"}</span>
+                  <span>Strategy {optimizerBundleVerification?.semantic_checks?.search_strategy_schema ?? "n/a"}</span>
                   <span>{optimizerBundleVerification?.warnings?.[0] ?? optimizerBundleVerification?.errors?.[0] ?? "Benchmark bundle not verified"}</span>
                 </div>
                 <small>{qualityIssueText(optimizerBenchmark?.results)}</small>
