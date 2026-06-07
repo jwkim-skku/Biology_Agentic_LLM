@@ -196,6 +196,19 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         ),
     ]
     summary = _summary(checks)
+    promotion_summary = _promotion_summary(
+        summary=summary,
+        readiness=readiness,
+        structured_quality=structured_quality,
+        data_release_bundle=data_release_bundle,
+        rag_embedding=embedding,
+        optimizer=optimizer,
+        folding=folding,
+        storage=storage,
+        security=security,
+        signing=signing_status(),
+        object_store=object_store,
+    )
     payload = {
         "audit_schema": "agentic-rag-production-audit-v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -216,9 +229,11 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             "signing": signing_status(),
         },
         "summary": summary,
+        "promotion_summary": promotion_summary,
         "checks": checks,
         "evidence": {
             "deployment_readiness": readiness,
+            "promotion_summary": promotion_summary,
             "security": security,
             "storage": storage,
             "data_provenance": provenance,
@@ -268,6 +283,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
         bundle.writestr("production_audit.json", _json(audit))
         bundle.writestr("production_audit.md", render_production_audit_markdown(audit))
         bundle.writestr("evidence/deployment_readiness.json", _json(audit["evidence"]["deployment_readiness"]))
+        bundle.writestr("evidence/promotion_summary.json", _json(audit["evidence"]["promotion_summary"]))
         bundle.writestr("evidence/security.json", _json(audit["evidence"]["security"]))
         bundle.writestr("evidence/storage.json", _json(audit["evidence"]["storage"]))
         bundle.writestr("evidence/data_provenance.json", _json(audit["evidence"]["data_provenance"]))
@@ -335,6 +351,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
 
 
 def render_production_audit_markdown(audit: dict[str, Any]) -> str:
+    promotion = audit.get("promotion_summary") or {}
     lines = [
         "# Production Audit Report",
         "",
@@ -343,12 +360,36 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
         f"- Status: `{audit['summary']['status']}`",
         f"- Deployment ready: `{audit['summary']['deployment_ready']}`",
         f"- Production ready: `{audit['summary']['production_ready']}`",
+        f"- Promotion summary: `{promotion.get('status', 'n/a')}`",
+        f"- Remaining production actions: `{len(promotion.get('required_actions') or [])}`",
         "",
+        "## Promotion Summary",
+        "",
+        "| Area | Status | Detail | Action |",
+        "| --- | --- | --- | --- |",
+    ]
+    for item in promotion.get("items") or []:
+        lines.append(
+            "| {area} | {status} | {detail} | {action} |".format(
+                area=_escape_cell(str(item.get("area") or "unknown")),
+                status=_escape_cell(str(item.get("status") or "unknown")),
+                detail=_escape_cell(str(item.get("detail") or "")),
+                action=_escape_cell(str(item.get("action") or "")),
+            )
+        )
+    if promotion.get("required_actions"):
+        lines.extend(["", "Required actions:"])
+        for action in promotion.get("required_actions") or []:
+            lines.append(f"- {action}")
+    lines.extend(
+        [
+            "",
         "## Checks",
         "",
         "| Check | Status | Blocking | Message |",
         "| --- | --- | --- | --- |",
-    ]
+        ]
+    )
     for check in audit["checks"]:
         lines.append(
             "| {name} | {status} | {blocking} | {message} |".format(
@@ -397,6 +438,115 @@ def _security_summary() -> dict[str, Any]:
         "artifact_asymmetric_verification_enabled": settings.artifact_asymmetric_verification_enabled,
         "signing": signing_status(),
     }
+
+
+def _promotion_summary(
+    *,
+    summary: dict[str, Any],
+    readiness: dict[str, Any],
+    structured_quality: dict[str, Any],
+    data_release_bundle: dict[str, Any],
+    rag_embedding: dict[str, Any],
+    optimizer: dict[str, Any],
+    folding: dict[str, Any],
+    storage: dict[str, Any],
+    security: dict[str, Any],
+    signing: dict[str, Any],
+    object_store: dict[str, Any],
+) -> dict[str, Any]:
+    optimizer_seed_strategy = (
+        (optimizer.get("optimizer") or {})
+        .get("default_config", {})
+        .get("seed_strategy")
+    )
+    items = [
+        _promotion_item(
+            "structured_data",
+            structured_quality.get("status"),
+            f"{structured_quality.get('record_count')} records; live fraction {(structured_quality.get('coverage') or {}).get('live_record_fraction')}",
+            "; ".join((structured_quality.get("operator_actions") or [])[:2]),
+        ),
+        _promotion_item(
+            "data_release_bundle",
+            data_release_bundle.get("promotion_status"),
+            f"semantic {data_release_bundle.get('semantic_status')}; snapshots {data_release_bundle.get('external_snapshot_file_count')}/{data_release_bundle.get('external_snapshot_reference_count')}",
+            "Resolve seed/local prior warnings before final production interpretation."
+            if data_release_bundle.get("promotion_status") != "pass"
+            else "Release evidence bundle is promotion-clean.",
+        ),
+        _promotion_item(
+            "rag_embedding",
+            "pass" if rag_embedding.get("production_ready") else rag_embedding.get("status"),
+            f"{rag_embedding.get('active_backend')} / {rag_embedding.get('embedding_model')}",
+            "Pin and load a local biomedical sentence-transformers model."
+            if not rag_embedding.get("production_ready")
+            else "Embedding backend is production configured.",
+        ),
+        _promotion_item(
+            "optimizer",
+            optimizer.get("status"),
+            f"benchmark {((optimizer.get('benchmark') or {}).get('status'))}; seed strategy {optimizer_seed_strategy or 'deterministic-tradeoff-seeds-v1'}",
+            "; ".join((optimizer.get("recommendations") or [])[:2]) or "Optimizer diagnostics are clean.",
+        ),
+        _promotion_item(
+            "rna_folding",
+            "pass" if folding.get("production_ready") else folding.get("status"),
+            f"{folding.get('active_backend')} / requested {folding.get('requested_backend')}",
+            "Install ViennaRNA RNAfold and set RNA_FOLDING_BACKEND=rnafold."
+            if not folding.get("production_ready")
+            else "RNAfold backend is production configured.",
+        ),
+        _promotion_item(
+            "storage",
+            "pass" if storage.get("active_runtime_adapter") == "postgres" and storage.get("database_url_configured") else storage.get("status"),
+            f"{storage.get('active_runtime_adapter')} / target {storage.get('target_backend')}",
+            "Use STORAGE_BACKEND=postgres with DATABASE_URL for multi-user production."
+            if storage.get("active_runtime_adapter") != "postgres"
+            else "Runtime storage is on Postgres.",
+        ),
+        _promotion_item(
+            "security",
+            "pass" if security.get("auth_enabled") and security.get("rbac_enabled") and security.get("rate_limit_per_minute", 0) > 0 else "warning",
+            f"auth {security.get('auth_enabled')}; roles {security.get('configured_role_bindings')}; rate {security.get('rate_limit_per_minute')}",
+            "Enable API_KEYS, explicit API_KEY_ROLES, and positive RATE_LIMIT_PER_MINUTE."
+            if not (security.get("auth_enabled") and security.get("rbac_enabled") and security.get("rate_limit_per_minute", 0) > 0)
+            else "Auth, RBAC, and rate limiting are configured.",
+        ),
+        _promotion_item(
+            "artifact_signing",
+            "pass" if (signing.get("hmac") or {}).get("signing_enabled") or (signing.get("ed25519") or {}).get("signing_enabled") else "warning",
+            f"hmac {(signing.get('hmac') or {}).get('signing_enabled')}; ed25519 {(signing.get('ed25519') or {}).get('signing_enabled')}",
+            "Configure HMAC or Ed25519 artifact signing."
+            if not ((signing.get("hmac") or {}).get("signing_enabled") or (signing.get("ed25519") or {}).get("signing_enabled"))
+            else "Artifact signing is enabled.",
+        ),
+        _promotion_item(
+            "artifact_object_store",
+            "pass" if object_store.get("status") == "ready" else object_store.get("status"),
+            f"enabled {object_store.get('enabled')}; bucket {object_store.get('bucket') or 'n/a'}",
+            object_store.get("recommendation") or "Configure managed object-store mirroring for immutable retention.",
+        ),
+    ]
+    required_actions = [item["action"] for item in items if item["status"] != "pass" and item.get("action")]
+    return {
+        "summary_schema": "agentic-rag-production-promotion-summary-v1",
+        "status": summary.get("status"),
+        "deployment_ready": readiness.get("deployment_ready"),
+        "production_ready": readiness.get("production_ready"),
+        "warning_checks": summary.get("warning_checks", []),
+        "blocking_checks": summary.get("blocking_checks", []),
+        "items": items,
+        "required_actions": required_actions,
+    }
+
+
+def _promotion_item(area: str, status: Any, detail: str, action: str) -> dict[str, Any]:
+    normalized = str(status or "warning")
+    if normalized in {"ready", "current", "verified"}:
+        normalized = "pass"
+    if normalized in {"disabled", "proxy", "fallback", "missing", "unsigned"}:
+        normalized = "warning"
+    return {"area": area, "status": normalized, "detail": detail, "action": action}
 
 
 def _timed(name: str, timings: dict[str, Any], factory: Any) -> Any:

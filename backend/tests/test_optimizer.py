@@ -280,17 +280,24 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert timings["total_seconds"] > 0
     assert timings["slowest"]
     assert "## Timing" in markdown
+    assert "## Promotion Summary" in markdown
     assert "Total seconds" in markdown
+    assert audit["promotion_summary"]["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
+    assert audit["promotion_summary"]["items"]
     assert "structured_import_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "structured_import_archive_semantics" in audit["evidence"]
+    assert "promotion_summary" in audit["evidence"]
     assert verification["status"] in {"pass", "warning"}
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "production_audit.md" in names
+        assert "evidence/promotion_summary.json" in names
         assert "evidence/timings.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
         assert "## Timing" in bundled_markdown
+        promotion = json.loads(archive.read("evidence/promotion_summary.json"))
+        assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
