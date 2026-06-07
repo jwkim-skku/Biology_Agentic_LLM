@@ -38,6 +38,7 @@ def build_rag_regression_bundle() -> bytes:
         "status": regression.get("status"),
         "case_count": regression.get("case_count"),
         "cases_hash": regression.get("cases_hash"),
+        "results_hash": regression.get("results_hash"),
         "retrieval_model": regression.get("retrieval_model"),
         "structured_manifest_hash": rag.get("structured_manifest_hash"),
     }
@@ -145,6 +146,17 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_checks["cases_hash"] = "pass"
 
+    result_hashes = {
+        str(value)
+        for value in [manifest.get("results_hash"), metadata.get("results_hash"), regression.get("results_hash")]
+        if value
+    }
+    if len(result_hashes) != 1:
+        semantic_errors.append("RAG regression result hashes are missing or disagree.")
+        semantic_checks["results_hash"] = "fail"
+    else:
+        semantic_checks["results_hash"] = "pass"
+
     _expect_equal(
         semantic_checks,
         semantic_errors,
@@ -206,6 +218,7 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
         "regression_status": regression.get("status"),
         "case_count": case_count,
         "cases_hash": next(iter(case_hashes), None),
+        "results_hash": next(iter(result_hashes), None),
         "weak_case_count": weak_cases.get("weak_case_count"),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }

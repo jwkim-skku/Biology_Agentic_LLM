@@ -134,7 +134,7 @@ Invoke-RestMethod `
 - `GET /api/v1/rag/vector-index/export.zip`: export the full local RAG vector index as JSONL plus pgvector schema, Qdrant collection config, payload contract, diagnostics, and structured manifest.
 - `GET /api/v1/rag/vector-index/export/verify`: rebuild and semantically verify the full RAG vector-index migration bundle.
 - `GET /api/v1/rag/regression`: run fixed retrieval regression cases for required evidence coverage, Recall@k, and nDCG@k.
-- `GET /api/v1/rag/regression/export.zip`: export a manifested RAG regression suite bundle with results, cases, metrics CSV, weak cases, diagnostics, ranking policy, RAG status, and structured manifest.
+- `GET /api/v1/rag/regression/export.zip`: export a manifested RAG regression suite bundle with results, stable result hashes, cases, metrics CSV, weak cases, diagnostics, ranking policy, RAG status, and structured manifest.
 - `GET /api/v1/rag/regression/export/verify`: rebuild and semantically verify the RAG regression suite bundle.
 - `GET /api/v1/rag/regression/cases`: inspect the retrieval regression fixture.
 - `GET /api/v1/runs`: list persisted design/report runs.

@@ -61,6 +61,7 @@ def rag_diagnostics() -> dict[str, Any]:
             "warning_count": regression.get("warning_count"),
             "fail_count": regression.get("fail_count"),
             "cases_hash": regression.get("cases_hash"),
+            "results_hash": regression.get("results_hash"),
             "macro": regression.get("macro"),
             "weak_cases": weak_cases,
         },

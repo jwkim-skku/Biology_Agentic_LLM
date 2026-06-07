@@ -153,6 +153,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "documents": rag["documents"],
                 "retrieval_model": rag["retrieval_model"],
                 "status": rag_regression["status"],
+                "cases_hash": rag_regression.get("cases_hash"),
+                "results_hash": rag_regression.get("results_hash"),
                 "recall_at_k": rag_regression.get("macro", {}).get("recall_at_k"),
                 "ndcg_at_k": rag_regression.get("macro", {}).get("ndcg_at_k"),
             },

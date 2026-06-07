@@ -1082,6 +1082,8 @@ type RagRegressionStatus = {
   case_count: number;
   pass_count: number;
   fail_count: number;
+  cases_hash?: string;
+  results_hash?: string;
   macro: {
     recall_at_k: number;
     ndcg_at_k: number;
@@ -1190,6 +1192,7 @@ type RagDiagnosticsStatus = {
     warning_count?: number;
     fail_count?: number;
     cases_hash?: string;
+    results_hash?: string;
     macro: {
       recall_at_k: number;
       ndcg_at_k: number;
@@ -1394,6 +1397,7 @@ type RagRegressionBundleVerification = {
   regression_status?: string;
   case_count?: number;
   cases_hash?: string;
+  results_hash?: string;
   weak_case_count?: number;
   structured_manifest_hash?: string;
   semantic_checks?: Record<string, string>;
@@ -3448,6 +3452,13 @@ export default function Dashboard() {
               <span>
                 Weak {ragRegressionBundleVerification?.weak_case_count ?? ragDiagnostics?.regression.weak_cases.length ?? "n/a"} / hash{" "}
                 {ragRegressionBundleVerification?.cases_hash?.slice(0, 10) ?? ragDiagnostics?.regression.cases_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                RAG result hash{" "}
+                {ragRegressionBundleVerification?.results_hash?.slice(0, 10) ??
+                  ragDiagnostics?.regression.results_hash?.slice(0, 10) ??
+                  ragRegression?.results_hash?.slice(0, 10) ??
+                  "n/a"}
               </span>
               <span>
                 Vector bundle {ragVectorBundleVerification?.chunk_count ?? ragDiagnostics?.index.chunk_count ?? "n/a"} chunks /{" "}

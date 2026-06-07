@@ -38,6 +38,7 @@ def evaluate_rag_regression() -> dict[str, Any]:
         "warning_count": len(warnings),
         "fail_count": len(failed),
         "cases_hash": _hash_payload(cases),
+        "results_hash": _hash_payload(_semantic_results(results)),
         "macro": macro,
         "results": results,
     }
@@ -203,3 +204,35 @@ def _normalize(value: str) -> str:
 
 def _hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _semantic_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [
+        {
+            "case_id": result.get("case_id"),
+            "status": result.get("status"),
+            "query": result.get("query"),
+            "filters": result.get("filters") or {},
+            "limit": result.get("limit"),
+            "result_count": result.get("result_count"),
+            "recall_at_k": result.get("recall_at_k"),
+            "ndcg_at_k": result.get("ndcg_at_k"),
+            "source_coverage": result.get("source_coverage"),
+            "collection_coverage": result.get("collection_coverage"),
+            "errors": result.get("errors") or [],
+            "warnings": result.get("warnings") or [],
+            "missing": result.get("missing") or {},
+            "top_results": [
+                {
+                    "rank": item.get("rank"),
+                    "document_id": item.get("document_id"),
+                    "chunk_id": item.get("chunk_id"),
+                    "collection": item.get("collection"),
+                    "source": item.get("source"),
+                    "relevance": item.get("relevance"),
+                }
+                for item in (result.get("top_results") or [])
+            ],
+        }
+        for result in results
+    ]

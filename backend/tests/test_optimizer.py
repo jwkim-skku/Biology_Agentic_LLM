@@ -54,6 +54,7 @@ from app.services.job_export_service import build_job_export_bundle
 from app.services.rag_service import evaluate_rag_query, rag_search, rag_status, rebuild_rag_index
 from app.services.rag_diagnostics_service import rag_diagnostics
 from app.services.rag_evaluation_bundle_service import build_rag_evaluation_bundle, verify_rag_evaluation_bundle
+from app.services.rag_regression_bundle_service import build_rag_regression_bundle, verify_rag_regression_bundle
 from app.services.rag_regression_service import evaluate_rag_regression, rag_regression_cases
 from app.services.report_service import export_qc_report, generate_qc_report, synthesize_evidence
 from app.services.run_export_service import build_run_export_bundle
@@ -352,6 +353,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "structured_import_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "structured_import_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
+    rag_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression")
+    assert len(rag_gate["details"]["results_hash"]) == 64
+    assert len(audit["evidence"]["rag_diagnostics"]["regression"]["results_hash"]) == 64
     optimizer_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "optimizer_benchmark")
     assert len(optimizer_gate["details"]["results_hash"]) == 64
     assert len(audit["evidence"]["optimizer_diagnostics"]["benchmark"]["results_hash"]) == 64
@@ -371,6 +375,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
 def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
     readiness = deployment_readiness(openapi)
+    rag_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_regression")
+    assert len(rag_gate["details"]["cases_hash"]) == 64
+    assert len(rag_gate["details"]["results_hash"]) == 64
     optimizer_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark")
     assert len(optimizer_gate["details"]["cases_hash"]) == 64
     assert len(optimizer_gate["details"]["results_hash"]) == 64
@@ -944,6 +951,7 @@ def test_rag_regression_suite_passes_required_evidence() -> None:
     result = evaluate_rag_regression()
     assert cases["case_count"] >= 5
     assert result["status"] == "pass"
+    assert len(result["results_hash"]) == 64
     assert result["macro"]["recall_at_k"] >= 0.9
     assert result["macro"]["source_coverage"] >= 0.9
     assert {case["case_id"] for case in result["results"]} >= {
@@ -964,7 +972,20 @@ def test_rag_diagnostics_reports_index_and_regression_health() -> None:
     assert diagnostics["embedding_stats"]["dimension_mismatch_count"] == 0
     assert diagnostics["regression"]["macro"]["recall_at_k"] >= 0.9
     assert diagnostics["regression"]["status"] == "pass"
+    assert len(diagnostics["regression"]["results_hash"]) == 64
     assert diagnostics["recommendations"]
+
+
+def test_rag_regression_bundle_verifies_result_hash() -> None:
+    bundle = build_rag_regression_bundle()
+    verification = verify_rag_regression_bundle(bundle)
+    assert verification["status"] in {"pass", "warning"}
+    assert verification["semantic_checks"]["results_hash"] == "pass"
+    assert len(verification["results_hash"]) == 64
+    with ZipFile(BytesIO(bundle)) as archive:
+        manifest = json.loads(archive.read("bundle_manifest.json"))
+        regression = json.loads(archive.read("regression.json"))
+        assert manifest["results_hash"] == regression["results_hash"] == verification["results_hash"]
 
 
 def test_structured_manifest_validates_sources() -> None:
