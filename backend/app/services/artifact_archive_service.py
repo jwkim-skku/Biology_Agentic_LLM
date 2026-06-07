@@ -368,6 +368,9 @@ def _semantic_metadata(verification: dict[str, Any]) -> dict[str, Any]:
         "status": verification.get("status"),
         "semantic_status": verification.get("semantic_status"),
         "optimizer_manifest_hash": verification.get("optimizer_manifest_hash"),
+        "request_hash": verification.get("request_hash"),
+        "qc_report_hash": verification.get("qc_report_hash"),
+        "candidate_ranking_hash": verification.get("candidate_ranking_hash"),
         "request_payload_status": semantic_checks.get("request_payload"),
         "request_target_checks": {
             key.removeprefix("request_target_"): value

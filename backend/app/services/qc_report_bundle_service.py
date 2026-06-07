@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from datetime import datetime, timezone
+from hashlib import sha256
 from io import BytesIO, StringIO
 from typing import Any
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
@@ -50,6 +51,9 @@ EXPLAINABILITY_CANDIDATE_COLUMNS = {
 def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, Any], *, bundle_type: str) -> bytes:
     report = design.get("qc_report") or {}
     run_id = str(design.get("run_id") or "unsaved_run")
+    report_json = _json(report)
+    request_json = _json(request_payload)
+    candidate_csv = _candidate_csv(design.get("candidates") or [])
     manifest = {
         "bundle_schema": "agentic-rag-qc-report-bundle-v1",
         "bundle_type": bundle_type,
@@ -58,6 +62,9 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         "pipeline_version": design.get("pipeline_version"),
         "structured_manifest_hash": (design.get("provenance") or {}).get("structured_manifest_hash"),
         "optimizer_manifest_hash": ((report.get("optimizer_reproducibility") or {}).get("manifest_hash")),
+        "request_hash": _hash_payload(request_payload),
+        "qc_report_hash": _hash_payload(report),
+        "candidate_ranking_hash": _hash_text(candidate_csv),
         "recommended_candidate_id": (design.get("recommended_candidate") or {}).get("candidate_id"),
     }
     data_quality = structured_quality_gate()
@@ -66,9 +73,9 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
     with ZipFile(buffer, "w", ZIP_DEFLATED) as archive:
         bundle = ManifestedZip(archive, "qc_report_bundle", manifest)
         bundle.writestr("bundle_manifest.json", _json(manifest))
-        bundle.writestr("request.json", _json(request_payload))
+        bundle.writestr("request.json", request_json)
         bundle.writestr("design_summary.json", _json(_design_summary(design)))
-        bundle.writestr("qc_report.json", _json(report))
+        bundle.writestr("qc_report.json", report_json)
         bundle.writestr("qc_report.md", export_qc_report(report, "markdown"))
         bundle.writestr("qc_report.html", export_qc_report(report, "html"))
         bundle.writestr("qc_report.pdf", export_qc_report(report, "pdf"))
@@ -76,7 +83,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         bundle.writestr("optimizer_reproducibility.json", _json(report.get("optimizer_reproducibility") or optimizer_reproducibility_manifest(design)))
         bundle.writestr("data_quality.json", _json(data_quality))
         bundle.writestr("optimizer_stress.json", _json(optimizer_stress))
-        bundle.writestr("candidate_ranking.csv", _candidate_csv(design.get("candidates") or []))
+        bundle.writestr("candidate_ranking.csv", candidate_csv)
         bundle.writestr("provenance/structured_manifest.json", _json(structured_manifest()))
         bundle.writestr("provenance/rag_status.json", _json(rag_status()))
         bundle.write_artifact_manifest()
@@ -113,7 +120,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             data_quality = _read_json_member(archive, "data_quality.json")
             optimizer_stress = _read_json_member(archive, "optimizer_stress.json")
             candidate_diagnostics = _read_json_member(archive, "candidate_diagnostics.json")
-            candidate_rows, candidate_headers = _read_candidate_csv(archive)
+            candidate_rows, candidate_headers, candidate_csv_text = _read_candidate_csv(archive)
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         semantic_errors.append(f"Invalid QC report bundle semantics: {exc}")
         return _qc_verification_result(
@@ -137,6 +144,9 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "run_id": run_id,
             "recommended_candidate_id": recommended_candidate_id,
             "optimizer_manifest_hash": optimizer_hash,
+            "request_hash": _hash_payload(request),
+            "qc_report_hash": _hash_payload(qc_report),
+            "candidate_ranking_hash": _hash_text(candidate_csv_text),
             "data_quality_status": data_quality.get("status"),
             "optimizer_stress_status": optimizer_stress.get("status"),
         }
@@ -233,6 +243,30 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     _record_check(semantic_checks, "request_payload", bool(request))
     if not request:
         semantic_errors.append("request.json must contain the source request payload.")
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "request_hash",
+        bundle_manifest.get("request_hash"),
+        _hash_payload(request),
+        "bundle_manifest.json request_hash does not match request.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "qc_report_hash",
+        bundle_manifest.get("qc_report_hash"),
+        _hash_payload(qc_report),
+        "bundle_manifest.json qc_report_hash does not match qc_report.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "candidate_ranking_hash",
+        bundle_manifest.get("candidate_ranking_hash"),
+        _hash_text(candidate_csv_text),
+        "bundle_manifest.json candidate_ranking_hash does not match candidate_ranking.csv.",
+    )
     for key in ["gene", "species", "brain_region", "cell_type", "modality"]:
         if key not in request or key not in target_definition:
             continue
@@ -462,10 +496,10 @@ def _read_json_member(archive: ZipFile, path: str) -> dict[str, Any]:
     return payload
 
 
-def _read_candidate_csv(archive: ZipFile) -> tuple[list[dict[str, str]], list[str]]:
+def _read_candidate_csv(archive: ZipFile) -> tuple[list[dict[str, str]], list[str], str]:
     text = archive.read("candidate_ranking.csv").decode("utf-8")
     reader = csv.DictReader(StringIO(text))
-    return list(reader), list(reader.fieldnames or [])
+    return list(reader), list(reader.fieldnames or []), text
 
 
 def _record_check(checks: dict[str, str], name: str, passed: bool) -> None:
@@ -474,6 +508,14 @@ def _record_check(checks: dict[str, str], name: str, passed: bool) -> None:
 
 def _normalized_request_value(value: Any) -> str:
     return " ".join(str(value or "").strip().lower().replace("_", " ").split())
+
+
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _hash_text(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()
 
 
 def _expect_equal(

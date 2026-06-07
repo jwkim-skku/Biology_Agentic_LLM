@@ -189,7 +189,7 @@ Invoke-RestMethod `
 - `POST /api/v1/report-from-gene/export-bundle/verify`: rebuild and verify the manifested gene-to-design QC bundle, including report/optimizer reproducibility, data-quality, and optimizer-stress cross-checks.
 - `POST /api/v1/report`: return a QC-report-shaped JSON payload.
 - `POST /api/v1/report/export/{markdown|html|json|pdf}`: export CDS-input QC report.
-- `POST /api/v1/report/export-bundle.zip`: export a manifested CDS-input QC bundle with all report formats, data-quality evidence, optimizer-stress evidence, and provenance.
+- `POST /api/v1/report/export-bundle.zip`: export a manifested CDS-input QC bundle with all report formats, request/report/candidate-ranking hashes, data-quality evidence, optimizer-stress evidence, and provenance.
 - `POST /api/v1/report/export-bundle/verify`: rebuild and verify the manifested CDS-input QC bundle, including report/optimizer reproducibility, data-quality, and optimizer-stress cross-checks.
 
 Design and report responses include per-candidate `selection_trace` and `constraint_risk` fields so operators can explain the recommended candidate, inspect fallback Pareto trade-offs, and see pass/warning/fail counts for payload, motif, splice, GC-window, hairpin, deterministic secondary-structure proxy, and complexity risks. Workflow runs carry role-level trace rows, and run audit bundles include `workflow_summary.json`. QC reports also summarize structured data quality and optimizer stress state; QC bundles preserve the full `data_quality.json` and `optimizer_stress.json` evidence files, carry candidate summaries in `candidate_ranking.csv`, and verify that the report, CSV, and evidence files remain consistent.

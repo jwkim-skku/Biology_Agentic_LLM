@@ -1215,8 +1215,12 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert optimizer_manifest["manifest_schema"] == "agentic-rag-optimizer-reproducibility-v1"
         assert optimizer_manifest["manifest_hash"]
         artifact_manifest = json.loads(archive.read("artifact_manifest.json"))
+        bundle_manifest = json.loads(archive.read("bundle_manifest.json"))
         assert artifact_manifest["artifact_type"] == "qc_report_bundle"
         assert any(item["path"] == "qc_report.pdf" and item["sha256"] for item in artifact_manifest["files"])
+        assert len(bundle_manifest["request_hash"]) == 64
+        assert len(bundle_manifest["qc_report_hash"]) == 64
+        assert len(bundle_manifest["candidate_ranking_hash"]) == 64
         candidate_csv = archive.read("candidate_ranking.csv").decode("utf-8")
         assert "constraint_risk_status" in candidate_csv
         assert "selection_trace" in candidate_csv
@@ -1224,6 +1228,12 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["status"] == "pass"
     assert verification["semantic_status"] == "pass"
     assert verification["optimizer_manifest_hash"] == optimizer_manifest["manifest_hash"]
+    assert verification["request_hash"] == bundle_manifest["request_hash"]
+    assert verification["qc_report_hash"] == bundle_manifest["qc_report_hash"]
+    assert verification["candidate_ranking_hash"] == bundle_manifest["candidate_ranking_hash"]
+    assert verification["semantic_checks"]["request_hash"] == "pass"
+    assert verification["semantic_checks"]["qc_report_hash"] == "pass"
+    assert verification["semantic_checks"]["candidate_ranking_hash"] == "pass"
     assert verification["semantic_checks"]["optimizer_hash_report"] == "pass"
     assert verification["semantic_checks"]["request_payload"] == "pass"
     assert verification["semantic_checks"]["request_target_brain_region"] == "pass"
@@ -1242,6 +1252,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     )
     assert archived["metadata"]["qc_bundle_semantic_verification"]["semantic_status"] == "pass"
     assert archived["metadata"]["qc_bundle_semantic_verification"]["optimizer_manifest_hash"] == optimizer_manifest["manifest_hash"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["qc_report_hash"] == verification["qc_report_hash"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["request_payload_status"] == "pass"
     assert archived["metadata"]["qc_bundle_semantic_verification"]["request_target_checks"]["brain_region"] == "pass"
     archived_verification = verify_archived_artifact(archived["artifact_id"])
