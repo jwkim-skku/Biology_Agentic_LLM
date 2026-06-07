@@ -343,6 +343,17 @@ def data_release_archive_summary(limit: int = 20, *, verify_files: bool = True) 
     )
 
 
+def data_refresh_plan_archive_summary(limit: int = 20, *, verify_files: bool = True) -> dict[str, Any]:
+    return _bundle_archive_semantic_summary(
+        limit=limit,
+        verify_files=verify_files,
+        artifact_type="data_refresh_plan_bundle",
+        metadata_key="data_refresh_plan_semantic_verification",
+        label="data refresh plan bundle",
+        extra_fields=("operation_count", "validation_status", "structured_manifest_hash", "release_lock_status", "dataset_id"),
+    )
+
+
 def _verify_export_bundle(content: bytes) -> dict[str, Any]:
     verification = verify_artifact_bundle(content)
     if verification.get("artifact_type") == "data_release_bundle":

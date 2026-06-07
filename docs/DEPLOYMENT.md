@@ -125,8 +125,10 @@ Operational endpoints:
 - `GET /api/v1/artifacts/summary`
 - `GET /api/v1/artifacts/qc-bundles/semantic-summary`
 - `GET /api/v1/artifacts/structured-imports/semantic-summary`
+- `GET /api/v1/artifacts/data-refresh-plans/semantic-summary`
 - `GET /api/v1/artifacts/data-releases/semantic-summary`
 - `GET /api/v1/artifacts/rag-evaluations/semantic-summary`
+- `GET /api/v1/artifacts/rag-regressions/semantic-summary`
 - `GET /api/v1/artifacts/optimizer-benchmarks/semantic-summary`
 - `GET /api/v1/artifacts`
 - `GET /api/v1/artifacts/retention/plan`
@@ -182,7 +184,7 @@ Deployment readiness:
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/deployment/readiness
 ```
 
-This returns pass/warning/fail gates for structured data, data provenance, structured promotion quality, data release bundle verification, RAG regression, RAG embedding backend, optimizer benchmark, RNA folding backend, workflow runtime, QC snapshot export, storage, security, artifact signing, governance attestation, artifact archive integrity, artifact object-store mirroring, archived QC bundle semantic verification, archived data-release semantic verification, and archived structured import audit semantic verification. The `data_provenance`, `structured_quality`, `data_release_bundle`, `data_release_archive_semantics`, `rag_embedding_backend`, and `rna_folding_backend` gates keep tRNA caveats, seed priors, live/source snapshot coverage, release pinning, release-bundle semantic checks, release archive record hashes, hash-BOW retrieval fallback, and deterministic structure-proxy fallback visible until replaced with release-pinned quantitative matrices, a pinned biomedical embedding model or configured OpenAI embedding backend, and a validated folding executable. `deployment_ready=true` means no blocking failures were found; `production_ready=true` additionally requires zero warnings.
+This returns pass/warning/fail gates for structured data, data provenance, structured promotion quality, data release bundle verification, RAG regression, RAG embedding backend, optimizer benchmark, RNA folding backend, workflow runtime, QC snapshot export, storage, security, artifact signing, governance attestation, artifact archive integrity, artifact object-store mirroring, archived QC bundle semantic verification, archived data-refresh plan semantic verification, archived data-release semantic verification, and archived structured import audit semantic verification. The `data_provenance`, `structured_quality`, `data_release_bundle`, `data_refresh_plan_archive_semantics`, `data_release_archive_semantics`, `rag_embedding_backend`, and `rna_folding_backend` gates keep tRNA caveats, seed priors, live/source snapshot coverage, release pinning, refresh-plan operation evidence, release-bundle semantic checks, release archive record hashes, hash-BOW retrieval fallback, and deterministic structure-proxy fallback visible until replaced with release-pinned quantitative matrices, a pinned biomedical embedding model or configured OpenAI embedding backend, and a validated folding executable. `deployment_ready=true` means no blocking failures were found; `production_ready=true` additionally requires zero warnings.
 
 The strict production gates expect:
 
@@ -213,7 +215,7 @@ Invoke-WebRequest http://127.0.0.1:8000/api/v1/deployment/audit/export.zip -OutF
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/deployment/audit/verify
 ```
 
-The production audit endpoint uses a short in-process TTL cache for dashboard and verification calls; use `refresh=true` when producing fresh deployment-promotion evidence. The production audit ZIP is a deployment-promotion artifact. It includes JSON and Markdown summaries plus evidence files for deployment readiness, security, storage, data provenance, structured data quality, external source coverage, RAG diagnostics, optimizer diagnostics, workflow runtime, agent memory, governance attestation verification, artifact ledger verification, artifact archive summary, archived QC bundle semantic verification, archived data-release semantic verification, archived structured import audit semantic verification, archived RAG evaluation/regression semantic verification, audit timing, and audit-log summary. The Markdown report includes the slowest audit evidence timings for quick operator triage. Exported bundles are archived into the immutable artifact archive and ledger.
+The production audit endpoint uses a short in-process TTL cache for dashboard and verification calls; use `refresh=true` when producing fresh deployment-promotion evidence. The production audit ZIP is a deployment-promotion artifact. It includes JSON and Markdown summaries plus evidence files for deployment readiness, security, storage, data provenance, structured data quality, external source coverage, RAG diagnostics, optimizer diagnostics, workflow runtime, agent memory, governance attestation verification, artifact ledger verification, artifact archive summary, archived QC bundle semantic verification, archived data-refresh plan semantic verification, archived data-release semantic verification, archived structured import audit semantic verification, archived RAG evaluation/regression semantic verification, audit timing, and audit-log summary. The Markdown report includes the slowest audit evidence timings for quick operator triage. Exported bundles are archived into the immutable artifact archive and ledger.
 
 Artifact retention:
 

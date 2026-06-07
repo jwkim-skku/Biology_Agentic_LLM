@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.services.agent_memory_service import agent_memory_summary
 from app.services.artifact_archive_service import (
     archive_summary,
+    data_refresh_plan_archive_summary,
     data_release_archive_summary,
     optimizer_benchmark_archive_summary,
     qc_bundle_archive_semantic_summary,
@@ -66,6 +67,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
     object_store = artifact_object_store_status()
     ledger = verify_artifact_ledger()
     qc_archive = qc_bundle_archive_semantic_summary(limit=3, verify_files=False)
+    data_refresh_plan_archive = data_refresh_plan_archive_summary(limit=3, verify_files=False)
     data_release_archive = data_release_archive_summary(limit=3, verify_files=False)
     import_archive = structured_import_archive_summary(limit=3, verify_files=False)
     rag_archive = rag_evaluation_archive_summary(limit=3, verify_files=False)
@@ -383,6 +385,23 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
             },
             fail_message="Archived data release semantic verification failed.",
             warn_message="Archived data release bundles have semantic warnings.",
+        ),
+        _gate(
+            "data_refresh_plan_archive_semantics",
+            data_refresh_plan_archive["status"] in {"pass", "warning"},
+            _warning=data_refresh_plan_archive["status"] == "pass",
+            details={
+                "status": data_refresh_plan_archive["status"],
+                "checked_count": data_refresh_plan_archive["checked_count"],
+                "semantic_pass_count": data_refresh_plan_archive["semantic_pass_count"],
+                "semantic_warning_count": data_refresh_plan_archive["semantic_warning_count"],
+                "semantic_fail_count": data_refresh_plan_archive["semantic_fail_count"],
+                "latest_operation_count": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("operation_count"),
+                "latest_validation_status": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("validation_status"),
+                "latest_dataset_id": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("dataset_id"),
+            },
+            fail_message="Archived data refresh plan semantic verification failed.",
+            warn_message="Archived data refresh plan bundles have semantic warnings.",
         ),
         _gate(
             "structured_import_archive_semantics",

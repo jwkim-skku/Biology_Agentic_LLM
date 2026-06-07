@@ -811,6 +811,22 @@ type ProductionAuditStatus = {
         structured_manifest_hash?: string | null;
       }>;
     };
+    data_refresh_plan_archive_semantics?: {
+      status: string;
+      checked_count: number;
+      semantic_pass_count: number;
+      semantic_warning_count: number;
+      semantic_fail_count: number;
+      latest_artifacts?: Array<{
+        artifact_id: string;
+        semantic_status?: string;
+        operation_count?: number | null;
+        validation_status?: string | null;
+        structured_manifest_hash?: string | null;
+        release_lock_status?: string | null;
+        dataset_id?: string | null;
+      }>;
+    };
     structured_import_archive_semantics?: {
       status: string;
       checked_count: number;
@@ -1039,6 +1055,23 @@ type DataReleaseArchiveSemanticSummary = {
     records_csv_hash?: string | null;
     structured_manifest_hash?: string | null;
     external_snapshot_reference_count?: number | null;
+  }>;
+};
+
+type DataRefreshPlanArchiveSemanticSummary = {
+  status: string;
+  checked_count: number;
+  semantic_pass_count: number;
+  semantic_warning_count: number;
+  semantic_fail_count: number;
+  latest_artifacts: Array<{
+    artifact_id: string;
+    semantic_status?: string;
+    operation_count?: number | null;
+    validation_status?: string | null;
+    structured_manifest_hash?: string | null;
+    release_lock_status?: string | null;
+    dataset_id?: string | null;
   }>;
 };
 
@@ -1555,6 +1588,7 @@ export default function Dashboard() {
   const [qcBundleSemantics, setQcBundleSemantics] = useState<QcBundleArchiveSemanticSummary | null>(null);
   const [structuredImportSemantics, setStructuredImportSemantics] = useState<StructuredImportArchiveSemanticSummary | null>(null);
   const [dataReleaseSemantics, setDataReleaseSemantics] = useState<DataReleaseArchiveSemanticSummary | null>(null);
+  const [dataRefreshPlanSemantics, setDataRefreshPlanSemantics] = useState<DataRefreshPlanArchiveSemanticSummary | null>(null);
   const [ragEvaluationSemantics, setRagEvaluationSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [ragRegressionSemantics, setRagRegressionSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [optimizerBenchmarkSemantics, setOptimizerBenchmarkSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
@@ -1889,6 +1923,7 @@ export default function Dashboard() {
         qcSemanticsResponse,
         importSemanticsResponse,
         dataReleaseSemanticsResponse,
+        dataRefreshPlanSemanticsResponse,
         ragSemanticsResponse,
         ragRegressionSemanticsResponse,
         optimizerSemanticsResponse
@@ -1899,6 +1934,7 @@ export default function Dashboard() {
         fetch(`${API_BASE}/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/data-releases/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
+        fetch(`${API_BASE}/artifacts/data-refresh-plans/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() })
@@ -1909,6 +1945,7 @@ export default function Dashboard() {
       const qcSemanticsPayload = await qcSemanticsResponse.json();
       const importSemanticsPayload = await importSemanticsResponse.json();
       const dataReleaseSemanticsPayload = await dataReleaseSemanticsResponse.json();
+      const dataRefreshPlanSemanticsPayload = await dataRefreshPlanSemanticsResponse.json();
       const ragSemanticsPayload = await ragSemanticsResponse.json();
       const ragRegressionSemanticsPayload = await ragRegressionSemanticsResponse.json();
       const optimizerSemanticsPayload = await optimizerSemanticsResponse.json();
@@ -1929,6 +1966,9 @@ export default function Dashboard() {
       }
       if (dataReleaseSemanticsResponse.ok) {
         setDataReleaseSemantics(dataReleaseSemanticsPayload.data);
+      }
+      if (dataRefreshPlanSemanticsResponse.ok) {
+        setDataRefreshPlanSemantics(dataRefreshPlanSemanticsPayload.data);
       }
       if (ragSemanticsResponse.ok) {
         setRagEvaluationSemantics(ragSemanticsPayload.data);
@@ -3783,6 +3823,7 @@ export default function Dashboard() {
               <span>Gates {deploymentReadiness?.gates?.length ?? "n/a"}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
+              <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>
@@ -3818,6 +3859,8 @@ export default function Dashboard() {
               <span>QC checked {productionAudit?.evidence?.qc_bundle_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Data release {productionAudit?.evidence?.data_release_archive_semantics?.status ?? "n/a"}</span>
               <span>Release checked {productionAudit?.evidence?.data_release_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Refresh plan {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.status ?? "n/a"}</span>
+              <span>Plan checked {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Import audit {productionAudit?.evidence?.structured_import_archive_semantics?.status ?? "n/a"}</span>
               <span>Import checked {productionAudit?.evidence?.structured_import_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Audit {formatSeconds(productionAudit?.evidence?.timings?.total_seconds)}</span>
@@ -3844,6 +3887,14 @@ export default function Dashboard() {
               <span>
                 Release hash {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} /
                 CSV {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Plan ops {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.operation_count ?? "n/a"} /
+                validation {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.validation_status ?? "n/a"}
+              </span>
+              <span>
+                Plan dataset {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.dataset_id ?? "n/a"} /
+                lock {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.release_lock_status ?? "n/a"}
               </span>
               <span>
                 Import semantic pass {productionAudit?.evidence?.structured_import_archive_semantics?.semantic_pass_count ?? "n/a"} /
@@ -4053,6 +4104,24 @@ export default function Dashboard() {
               <span>
                 Record hash {dataReleaseSemantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} / CSV{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+            </div>
+            <div className="data-quality" aria-label="Data refresh plan archive summary">
+              <span>
+                Refresh plan {dataRefreshPlanSemantics?.status ?? "n/a"} / checked {dataRefreshPlanSemantics?.checked_count ?? "n/a"}
+              </span>
+              <span>
+                Pass {dataRefreshPlanSemantics?.semantic_pass_count ?? "n/a"} / warn{" "}
+                {dataRefreshPlanSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
+                {dataRefreshPlanSemantics?.semantic_fail_count ?? "n/a"}
+              </span>
+              <span>
+                Ops {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.operation_count ?? "n/a"} / validation{" "}
+                {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.validation_status ?? "n/a"}
+              </span>
+              <span>
+                Dataset {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.dataset_id ?? "n/a"} / manifest{" "}
+                {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.structured_manifest_hash?.slice(0, 10) ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="RAG evaluation archive summary">

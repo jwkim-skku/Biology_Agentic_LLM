@@ -65,6 +65,7 @@ API_CHECKS = [
     {"name": "artifact_ledger_verify", "path": "/artifacts/ledger/verify"},
     {"name": "qc_bundle_archive_semantics", "path": "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false"},
     {"name": "structured_import_archive_semantics", "path": "/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false"},
+    {"name": "data_refresh_plan_archive_semantics", "path": "/artifacts/data-refresh-plans/semantic-summary?limit=6&verify_files=false"},
     {"name": "data_release_archive_semantics", "path": "/artifacts/data-releases/semantic-summary?limit=6&verify_files=false"},
     {"name": "rag_evaluation_archive_semantics", "path": "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false"},
     {"name": "rag_regression_archive_semantics", "path": "/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false"},

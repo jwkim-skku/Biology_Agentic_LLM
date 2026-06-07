@@ -25,6 +25,7 @@ from app.services.data_refresh_service import data_catalog, record_data_baseline
 from app.services.data_snapshot_service import build_data_snapshot_bundle
 from app.services.data_provenance_service import data_provenance_audit
 from app.services.data_lock_service import build_data_lockfile, verify_data_lockfile, write_data_lockfile
+from app.services.data_refresh_plan_bundle_service import build_data_refresh_plan_bundle, verify_data_refresh_plan_bundle
 from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
 from app.services.data_release_lock_service import build_data_release_lock, verify_data_release_lock, write_data_release_lock
 from app.services.external_data_service import backfill_external_source_snapshots, external_source_coverage, external_source_status
@@ -35,6 +36,7 @@ from app.services.artifact_archive_service import (
     artifact_ledger,
     archive_artifact_bundle,
     archive_summary,
+    data_refresh_plan_archive_summary,
     data_release_archive_summary,
     list_archived_artifacts,
     plan_artifact_retention,
@@ -357,6 +359,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "structured_import_archive_semantics" in audit["evidence"]
     assert "data_release_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "data_release_archive_semantics" in audit["evidence"]
+    assert "data_refresh_plan_archive_semantics" in {item["name"] for item in audit["checks"]}
+    assert "data_refresh_plan_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
     rag_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["results_hash"]) == 64
@@ -370,6 +374,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "production_audit.md" in names
         assert "evidence/promotion_summary.json" in names
         assert "evidence/timings.json" in names
+        assert "evidence/data_refresh_plan_archive_semantics.json" in names
         assert "evidence/data_release_archive_semantics.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
@@ -391,6 +396,9 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert data_release_gate["details"]["status"] in {"pass", "warning"}
     assert data_release_gate["details"]["latest_records_hash"] is None or len(data_release_gate["details"]["latest_records_hash"]) == 64
     assert data_release_gate["details"]["latest_records_csv_hash"] is None or len(data_release_gate["details"]["latest_records_csv_hash"]) == 64
+    refresh_plan_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_refresh_plan_archive_semantics")
+    assert refresh_plan_gate["details"]["status"] in {"pass", "warning"}
+    assert refresh_plan_gate["details"]["latest_operation_count"] is None or refresh_plan_gate["details"]["latest_operation_count"] >= 1
 
 
 def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
@@ -1253,6 +1261,27 @@ def test_data_catalog_and_refresh_plan() -> None:
     assert catalog["status"]["records"] >= 1
     assert plan["refresh_status"] == "planned"
     assert plan["operations"][0]["gene"] == "SNCA"
+    bundle = build_data_refresh_plan_bundle({"genes": ["SNCA"], "include_allen": False, "dataset_id": "gtex_v8"})
+    verification = verify_data_refresh_plan_bundle(bundle)
+    assert verification["status"] in {"pass", "warning"}
+    assert verification["semantic_checks"]["dry_run"] == "pass"
+    assert verification["semantic_checks"]["operation_count_csv"] == "pass"
+    archived = archive_artifact_bundle(
+        bundle,
+        action="unit_test_data_refresh_plan_bundle",
+        resource_type="data_refresh",
+        resource_id="gtex_v8",
+        filename="unit_test_data_refresh_plan_bundle.zip",
+    )
+    semantic = archived["metadata"]["data_refresh_plan_semantic_verification"]
+    assert semantic["operation_count"] >= 1
+    assert semantic["dataset_id"] == "gtex_v8"
+    summary = data_refresh_plan_archive_summary(limit=5, verify_files=False)
+    assert summary["verification_mode"] == "indexed"
+    assert any(
+        item["artifact_id"] == archived["artifact_id"] and item["operation_count"] >= 1 and item["dataset_id"] == "gtex_v8"
+        for item in summary["latest_artifacts"]
+    )
 
 
 def test_external_source_snapshot_backfill_reports_coverage() -> None:
