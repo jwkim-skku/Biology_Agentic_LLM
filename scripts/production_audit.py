@@ -67,6 +67,20 @@ API_CHECKS = [
     {"name": "optimizer_benchmark_archive_semantics", "path": "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false"},
 ]
 
+REQUIRED_PREFLIGHT_CHECKS = [
+    "backend_compile",
+    "production_env_template",
+    "compose_preflight",
+    "production_audit_template",
+    "api_contract",
+    "structured_import_cli_preview",
+    "data_refresh_cli_plan",
+    "data_refresh_cli_validate",
+    "golden_response",
+    "golden_value",
+    "manual_backend_tests",
+]
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Write a production audit report for the Agentic RAG platform.")
@@ -78,6 +92,17 @@ def main() -> int:
     parser.add_argument("--skip-api", action="store_true", help="Skip live API checks.")
     parser.add_argument("--require-api", action="store_true", help="Fail if live API checks cannot be completed.")
     parser.add_argument("--require-docker", action="store_true", help="Require docker compose config execution.")
+    parser.add_argument(
+        "--preflight-evidence",
+        type=Path,
+        help="Optional preflight JSON evidence file to validate as part of the audit.",
+    )
+    parser.add_argument(
+        "--max-preflight-age-hours",
+        type=float,
+        default=24.0,
+        help="Maximum allowed preflight evidence age when --preflight-evidence is provided.",
+    )
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR, help="Directory for JSON/Markdown reports.")
     parser.add_argument("--no-write", action="store_true", help="Print the audit JSON without writing files.")
     args = parser.parse_args()
@@ -86,6 +111,8 @@ def main() -> int:
     checks: list[dict[str, Any]] = []
     checks.append(run_local_check("production_env", env_command(args), cwd=ROOT))
     checks.append(run_local_check("compose_preflight", compose_command(args), cwd=ROOT))
+    if args.preflight_evidence:
+        checks.append(validate_preflight_evidence(args.preflight_evidence, max_age_hours=args.max_preflight_age_hours))
     if not args.skip_api:
         checks.extend(run_api_checks(args.api_base.rstrip("/"), args.api_key, require_api=args.require_api, timeout=args.api_timeout))
 
@@ -99,6 +126,8 @@ def main() -> int:
             "skip_api": args.skip_api,
             "require_api": args.require_api,
             "require_docker": args.require_docker,
+            "preflight_evidence": str(resolve_rooted_path(args.preflight_evidence)) if args.preflight_evidence else None,
+            "max_preflight_age_hours": args.max_preflight_age_hours if args.preflight_evidence else None,
         },
         "summary": summary,
         "checks": checks,
@@ -137,6 +166,10 @@ def compose_command(args: argparse.Namespace) -> list[str]:
     return command
 
 
+def resolve_rooted_path(path: Path) -> Path:
+    return path if path.is_absolute() else ROOT / path
+
+
 def run_local_check(name: str, command: list[str], *, cwd: Path) -> dict[str, Any]:
     started = time.perf_counter()
     completed = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
@@ -156,6 +189,103 @@ def run_local_check(name: str, command: list[str], *, cwd: Path) -> dict[str, An
         "details": parsed_stdout if parsed_stdout is not None else compact_text(completed.stdout),
         "stderr": compact_text(completed.stderr),
     }
+
+
+def validate_preflight_evidence(path: Path, *, max_age_hours: float) -> dict[str, Any]:
+    started = time.perf_counter()
+    evidence_path = resolve_rooted_path(path)
+    failures: list[str] = []
+    warnings: list[str] = []
+    details: dict[str, Any] = {
+        "path": str(evidence_path),
+        "max_age_hours": max_age_hours,
+    }
+    try:
+        payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        failures.append("preflight evidence file was not found")
+        payload = {}
+    except json.JSONDecodeError as exc:
+        failures.append(f"preflight evidence file is not valid JSON: {exc}")
+        payload = {}
+
+    if isinstance(payload, dict):
+        details.update(extract_preflight_summary(payload, evidence_path, max_age_hours=max_age_hours, failures=failures, warnings=warnings))
+    else:
+        failures.append("preflight evidence root must be a JSON object")
+
+    return {
+        "name": "preflight_evidence",
+        "kind": "evidence",
+        "status": "fail" if failures else "pass",
+        "duration_seconds": round(time.perf_counter() - started, 3),
+        "path": str(evidence_path),
+        "failures": failures,
+        "warnings": warnings,
+        "details": details,
+    }
+
+
+def extract_preflight_summary(
+    payload: dict[str, Any],
+    evidence_path: Path,
+    *,
+    max_age_hours: float,
+    failures: list[str],
+    warnings: list[str],
+) -> dict[str, Any]:
+    checks = payload.get("checks")
+    if not isinstance(checks, list):
+        failures.append("preflight evidence is missing checks[]")
+        checks = []
+
+    status = payload.get("status")
+    failed = payload.get("failed")
+    skipped = payload.get("skipped")
+    generated_at = str(payload.get("generated_at") or "")
+    check_names = [str(check.get("name")) for check in checks if isinstance(check, dict) and check.get("name")]
+    missing_checks = sorted(set(REQUIRED_PREFLIGHT_CHECKS) - set(check_names))
+
+    if status != "pass":
+        failures.append(f"preflight status is {status!r}, expected 'pass'")
+    if failed:
+        failures.append(f"preflight failed checks are present: {', '.join(stringify_list(failed))}")
+    if missing_checks:
+        failures.append(f"preflight evidence is missing required checks: {', '.join(missing_checks)}")
+    if not any(isinstance(check, dict) and "details" in check for check in checks):
+        warnings.append("preflight evidence does not include parsed details fields")
+    if skipped:
+        warnings.append(f"preflight skipped checks: {', '.join(stringify_list(skipped))}")
+
+    age_hours = preflight_age_hours(generated_at)
+    if age_hours is None:
+        warnings.append("preflight generated_at could not be parsed")
+    elif age_hours > max_age_hours:
+        failures.append(f"preflight evidence is stale: {age_hours:.2f}h old exceeds {max_age_hours:.2f}h")
+
+    return {
+        "status": status,
+        "generated_at": generated_at,
+        "age_hours": round(age_hours, 3) if age_hours is not None else None,
+        "checks": len(checks),
+        "required_checks": REQUIRED_PREFLIGHT_CHECKS,
+        "missing_required_checks": missing_checks,
+        "failed": failed if isinstance(failed, list) else stringify_list(failed),
+        "skipped": skipped if isinstance(skipped, list) else stringify_list(skipped),
+        "path_mtime": datetime.fromtimestamp(evidence_path.stat().st_mtime, tz=timezone.utc).isoformat() if evidence_path.exists() else None,
+    }
+
+
+def preflight_age_hours(generated_at: str) -> float | None:
+    if not generated_at:
+        return None
+    try:
+        parsed = datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - parsed).total_seconds() / 3600
 
 
 def run_api_checks(api_base: str, api_key: str, *, require_api: bool, timeout: float) -> list[dict[str, Any]]:

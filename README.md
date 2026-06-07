@@ -139,9 +139,10 @@ For a deployment audit artifact, run:
 
 ```powershell
 python scripts/production_audit.py --path .env.production --require-api
+python scripts/production_audit.py --path .env.production --require-api --preflight-evidence backend/app/data/runtime/preflight_latest.json
 ```
 
-This writes JSON and Markdown reports under `backend/app/data/runtime/production_audits`, combining production env validation, Compose checks, and live operational API status when the backend is reachable.
+This writes JSON and Markdown reports under `backend/app/data/runtime/production_audits`, combining production env validation, Compose checks, optional preflight evidence validation, and live operational API status when the backend is reachable. When `--preflight-evidence` is provided, the audit requires a passing, recent preflight payload with the expected backend, contract, data-refresh, golden, and regression checks.
 
 Individual checks are still available when narrowing a failure:
 

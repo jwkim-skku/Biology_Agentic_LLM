@@ -30,6 +30,7 @@ Create a deployment audit artifact before promotion:
 
 ```powershell
 python scripts/production_audit.py --path .env.production --require-api
+python scripts/production_audit.py --path .env.production --require-api --preflight-evidence backend/app/data/runtime/preflight_latest.json
 ```
 
 For CI or a workstation without a live backend, use the template/static profile:
@@ -38,7 +39,7 @@ For CI or a workstation without a live backend, use the template/static profile:
 python scripts/production_audit.py --template --skip-api
 ```
 
-The audit writes paired JSON and Markdown reports to `backend/app/data/runtime/production_audits`. The full profile combines production env validation, Docker Compose deployment-shape checks, and live API checks for health readiness, deployment readiness, security, storage, data provenance, data-release bundle verification, external source coverage, RAG diagnostics, RAG evaluation/regression bundle verification, optimizer diagnostics, optimizer benchmark bundle verification, QC report bundle request-provenance verification, governance attestation verification, artifact-ledger verification, and archived QC/RAG/optimizer semantic summaries.
+The audit writes paired JSON and Markdown reports to `backend/app/data/runtime/production_audits`. The full profile combines production env validation, Docker Compose deployment-shape checks, optional recent preflight evidence validation, and live API checks for health readiness, deployment readiness, security, storage, data provenance, data-release bundle verification, external source coverage, RAG diagnostics, RAG evaluation/regression bundle verification, optimizer diagnostics, optimizer benchmark bundle verification, QC report bundle request-provenance verification, governance attestation verification, artifact-ledger verification, and archived QC/RAG/optimizer semantic summaries. When `--preflight-evidence` is supplied, stale, failing, or incomplete preflight JSON is treated as a production audit failure.
 
 Useful runtime variables:
 
