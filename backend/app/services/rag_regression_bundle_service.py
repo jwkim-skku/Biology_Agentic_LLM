@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from datetime import datetime, timezone
+from hashlib import sha256
 from io import BytesIO, StringIO
 from typing import Any
 from zipfile import BadZipFile, ZIP_DEFLATED, ZipFile
@@ -20,6 +21,7 @@ REQUIRED_RAG_REGRESSION_FILES = {
     "cases.json",
     "case_metrics.csv",
     "weak_cases.json",
+    "quality_summary.json",
     "diagnostics.json",
     "ranking_policy.json",
     "rag_status.json",
@@ -39,6 +41,8 @@ def build_rag_regression_bundle() -> bytes:
         "case_count": regression.get("case_count"),
         "cases_hash": regression.get("cases_hash"),
         "results_hash": regression.get("results_hash"),
+        "quality_summary_hash": regression.get("quality_summary_hash"),
+        "quality_status": (regression.get("quality_summary") or {}).get("status"),
         "retrieval_model": regression.get("retrieval_model"),
         "structured_manifest_hash": rag.get("structured_manifest_hash"),
     }
@@ -50,6 +54,7 @@ def build_rag_regression_bundle() -> bytes:
         bundle.writestr("cases.json", _json(cases))
         bundle.writestr("case_metrics.csv", _case_metrics_csv(regression.get("results") or []))
         bundle.writestr("weak_cases.json", _json(_weak_cases(regression.get("results") or [])))
+        bundle.writestr("quality_summary.json", _json(regression.get("quality_summary") or {}))
         bundle.writestr("diagnostics.json", _json(diagnostics))
         bundle.writestr("ranking_policy.json", _json(RANKING_POLICY))
         bundle.writestr("rag_status.json", _json(rag))
@@ -88,6 +93,7 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
                     "regression": _read_json(archive, "regression.json"),
                     "cases": _read_json(archive, "cases.json"),
                     "weak_cases": _read_json(archive, "weak_cases.json"),
+                    "quality_summary": _read_json(archive, "quality_summary.json"),
                     "diagnostics": _read_json(archive, "diagnostics.json"),
                     "ranking_policy": _read_json(archive, "ranking_policy.json"),
                     "rag_status": _read_json(archive, "rag_status.json"),
@@ -107,6 +113,7 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
     rag = payloads.get("rag_status") or {}
     structured = payloads.get("structured_manifest") or {}
     weak_cases = payloads.get("weak_cases") or {}
+    quality_summary = payloads.get("quality_summary") or {}
     metadata = base.get("bundle_metadata") or {}
 
     _expect_equal(
@@ -156,6 +163,36 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["results_hash"] = "fail"
     else:
         semantic_checks["results_hash"] = "pass"
+
+    quality_hashes = {
+        str(value)
+        for value in [manifest.get("quality_summary_hash"), metadata.get("quality_summary_hash"), regression.get("quality_summary_hash")]
+        if value
+    }
+    if len(quality_hashes) != 1:
+        semantic_errors.append("RAG regression quality summary hashes are missing or disagree.")
+        semantic_checks["quality_summary_hash"] = "fail"
+    elif next(iter(quality_hashes)) != _hash_payload(quality_summary):
+        semantic_errors.append("RAG regression quality_summary_hash does not match quality_summary.json.")
+        semantic_checks["quality_summary_hash"] = "fail"
+    else:
+        semantic_checks["quality_summary_hash"] = "pass"
+
+    if quality_summary.get("quality_summary_schema") != "agentic-rag-regression-quality-summary-v1":
+        semantic_errors.append("quality_summary.json schema is invalid.")
+        semantic_checks["quality_summary_schema"] = "fail"
+    else:
+        semantic_checks["quality_summary_schema"] = "pass"
+    if quality_summary.get("case_count") != case_count:
+        semantic_errors.append("quality_summary.json case_count does not match regression.json.")
+        semantic_checks["quality_summary_case_count"] = "fail"
+    else:
+        semantic_checks["quality_summary_case_count"] = "pass"
+    if quality_summary.get("status") not in {"pass", "warning", "fail"}:
+        semantic_errors.append("quality_summary.json status is invalid.")
+        semantic_checks["quality_summary_status"] = "fail"
+    else:
+        semantic_checks["quality_summary_status"] = "pass"
 
     _expect_equal(
         semantic_checks,
@@ -219,6 +256,10 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
         "case_count": case_count,
         "cases_hash": next(iter(case_hashes), None),
         "results_hash": next(iter(result_hashes), None),
+        "quality_summary_hash": next(iter(quality_hashes), None),
+        "quality_status": quality_summary.get("status"),
+        "top_source_count": quality_summary.get("top_source_count"),
+        "missing_term_case_count": quality_summary.get("missing_term_case_count"),
         "weak_case_count": weak_cases.get("weak_case_count"),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }
@@ -304,3 +345,7 @@ def _read_json(archive: ZipFile, name: str) -> dict[str, Any]:
 
 def _json(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()

@@ -681,7 +681,21 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     ) == []
     assert module.api_failures(
         "rag_regression_bundle_verify",
-        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"results_hash": "pass"}, "results_hash": valid_hash}},
+        {
+            "data": {
+                "status": "pass",
+                "semantic_status": "pass",
+                "semantic_checks": {
+                    "results_hash": "pass",
+                    "quality_summary_hash": "pass",
+                    "quality_summary_schema": "pass",
+                    "quality_summary_case_count": "pass",
+                    "quality_summary_status": "pass",
+                },
+                "results_hash": valid_hash,
+                "quality_summary_hash": valid_hash,
+            }
+        },
     ) == []
     assert module.api_failures(
         "optimizer_benchmark_bundle_verify",
@@ -743,6 +757,12 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "results_hash" in " ".join(
         module.api_failures("rag_regression_bundle_verify", {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {}}})
     )
+    rag_regression_failures = module.api_failures(
+        "rag_regression_bundle_verify",
+        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"results_hash": "pass"}, "results_hash": valid_hash}},
+    )
+    assert "quality_summary_hash" in " ".join(rag_regression_failures)
+    assert "quality_summary_schema" in " ".join(rag_regression_failures)
     rag_eval_failures = module.api_failures(
         "rag_evaluation_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"evidence_sufficiency_schema": "pass"}}},
@@ -902,6 +922,35 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             }
         },
     ) == []
+    assert module.api_failures(
+        "rag_regression_archive_semantics",
+        {
+            "data": {
+                "status": "pass",
+                "checked_count": 1,
+                "latest_artifacts": [
+                    {
+                        "case_count": 5,
+                        "cases_hash": valid_hash,
+                        "results_hash": valid_hash,
+                        "quality_summary_hash": valid_hash,
+                        "quality_status": "pass",
+                        "top_source_count": 4,
+                        "missing_term_case_count": 0,
+                        "structured_manifest_hash": valid_hash,
+                    }
+                ],
+            }
+        },
+    ) == []
+    rag_regression_archive_failures = module.api_failures(
+        "rag_regression_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"case_count": 5}]}},
+    )
+    assert "cases_hash" in " ".join(rag_regression_archive_failures)
+    assert "results_hash" in " ".join(rag_regression_archive_failures)
+    assert "quality_summary_hash" in " ".join(rag_regression_archive_failures)
+    assert "top_source_count" in " ".join(rag_regression_archive_failures)
     vector_index_failures = module.api_failures(
         "rag_vector_index_archive_semantics",
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"chunk_count": 8}]}},
@@ -1598,11 +1647,23 @@ def test_rag_regression_bundle_verifies_result_hash() -> None:
     verification = verify_rag_regression_bundle(bundle)
     assert verification["status"] in {"pass", "warning"}
     assert verification["semantic_checks"]["results_hash"] == "pass"
+    assert verification["semantic_checks"]["quality_summary_hash"] == "pass"
+    assert verification["semantic_checks"]["quality_summary_schema"] == "pass"
+    assert verification["semantic_checks"]["quality_summary_case_count"] == "pass"
+    assert verification["semantic_checks"]["quality_summary_status"] == "pass"
     assert len(verification["results_hash"]) == 64
+    assert len(verification["quality_summary_hash"]) == 64
+    assert verification["quality_status"] == "pass"
+    assert verification["top_source_count"] >= 1
+    assert verification["missing_term_case_count"] == 0
     with ZipFile(BytesIO(bundle)) as archive:
         manifest = json.loads(archive.read("bundle_manifest.json"))
         regression = json.loads(archive.read("regression.json"))
+        quality = json.loads(archive.read("quality_summary.json"))
         assert manifest["results_hash"] == regression["results_hash"] == verification["results_hash"]
+        assert manifest["quality_summary_hash"] == regression["quality_summary_hash"] == verification["quality_summary_hash"]
+        assert quality["quality_summary_schema"] == "agentic-rag-regression-quality-summary-v1"
+        assert quality == regression["quality_summary"]
 
 
 def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:

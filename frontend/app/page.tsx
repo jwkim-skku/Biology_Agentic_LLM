@@ -1195,6 +1195,10 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     case_count?: number | null;
     cases_hash?: string | null;
     results_hash?: string | null;
+    quality_summary_hash?: string | null;
+    quality_status?: string | null;
+    top_source_count?: number | null;
+    missing_term_case_count?: number | null;
     benchmark_hash?: string | null;
     diagnostics_hash?: string | null;
     case_metrics_hash?: string | null;
@@ -1290,6 +1294,12 @@ type RagRegressionStatus = {
   fail_count: number;
   cases_hash?: string;
   results_hash?: string;
+  quality_summary_hash?: string;
+  quality_summary?: {
+    status: string;
+    top_source_count: number;
+    missing_term_case_count: number;
+  };
   macro: {
     recall_at_k: number;
     ndcg_at_k: number;
@@ -4443,6 +4453,15 @@ export default function Dashboard() {
               <span>Freshness {formatArchiveFreshness(ragRegressionSemantics)}</span>
               <span>
                 Latest cases {ragRegressionSemantics?.latest_artifacts?.[0]?.cases_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Results {ragRegressionSemantics?.latest_artifacts?.[0]?.results_hash?.slice(0, 10) ?? "n/a"} / quality{" "}
+                {ragRegressionSemantics?.latest_artifacts?.[0]?.quality_summary_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Quality {ragRegressionSemantics?.latest_artifacts?.[0]?.quality_status ?? "n/a"} / top src{" "}
+                {ragRegressionSemantics?.latest_artifacts?.[0]?.top_source_count ?? "n/a"} / term gaps{" "}
+                {ragRegressionSemantics?.latest_artifacts?.[0]?.missing_term_case_count ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="RAG vector index archive summary">

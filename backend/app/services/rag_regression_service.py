@@ -29,6 +29,7 @@ def evaluate_rag_regression() -> dict[str, Any]:
     failed = [result for result in results if result["status"] == "fail"]
     warnings = [result for result in results if result["status"] == "warning"]
     macro = _macro_metrics(results)
+    quality = _quality_summary(results, macro)
     return {
         "status": "fail" if failed else "warning" if warnings else "pass",
         "retrieval_model": RETRIEVAL_MODEL,
@@ -39,7 +40,9 @@ def evaluate_rag_regression() -> dict[str, Any]:
         "fail_count": len(failed),
         "cases_hash": _hash_payload(cases),
         "results_hash": _hash_payload(_semantic_results(results)),
+        "quality_summary_hash": _hash_payload(quality),
         "macro": macro,
+        "quality_summary": quality,
         "results": results,
     }
 
@@ -126,6 +129,49 @@ def _macro_metrics(results: list[dict[str, Any]]) -> dict[str, float]:
         "ndcg_at_k": round(sum(result["ndcg_at_k"] for result in results) / len(results), 4),
         "source_coverage": round(sum(result["source_coverage"] for result in results) / len(results), 4),
         "collection_coverage": round(sum(result["collection_coverage"] for result in results) / len(results), 4),
+    }
+
+
+def _quality_summary(results: list[dict[str, Any]], macro: dict[str, float]) -> dict[str, Any]:
+    top_sources = sorted(
+        {
+            str((result.get("top_results") or [{}])[0].get("source"))
+            for result in results
+            if (result.get("top_results") or [{}])[0].get("source")
+        }
+    )
+    missing_term_cases = [
+        {
+            "case_id": result.get("case_id"),
+            "missing_terms": (result.get("missing") or {}).get("terms") or [],
+        }
+        for result in results
+        if (result.get("missing") or {}).get("terms")
+    ]
+    threshold_checks = [
+        {"metric": "recall_at_k", "minimum": 0.9, "actual": macro.get("recall_at_k", 0.0), "status": "pass" if macro.get("recall_at_k", 0.0) >= 0.9 else "fail"},
+        {
+            "metric": "source_coverage",
+            "minimum": 0.9,
+            "actual": macro.get("source_coverage", 0.0),
+            "status": "pass" if macro.get("source_coverage", 0.0) >= 0.9 else "fail",
+        },
+        {
+            "metric": "collection_coverage",
+            "minimum": 0.9,
+            "actual": macro.get("collection_coverage", 0.0),
+            "status": "pass" if macro.get("collection_coverage", 0.0) >= 0.9 else "fail",
+        },
+    ]
+    return {
+        "quality_summary_schema": "agentic-rag-regression-quality-summary-v1",
+        "status": "fail" if any(item["status"] == "fail" for item in threshold_checks) else "warning" if missing_term_cases else "pass",
+        "case_count": len(results),
+        "top_source_count": len(top_sources),
+        "top_sources": top_sources,
+        "missing_term_case_count": len(missing_term_cases),
+        "missing_term_cases": missing_term_cases,
+        "threshold_checks": threshold_checks,
     }
 
 

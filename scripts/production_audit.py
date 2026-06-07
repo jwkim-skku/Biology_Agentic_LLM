@@ -490,6 +490,11 @@ def api_failures(name: str, details: Any) -> list[str]:
         checks = payload.get("semantic_checks") or {}
         if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
             failures.append("RAG regression bundle does not verify results_hash.")
+        for check in ["quality_summary_hash", "quality_summary_schema", "quality_summary_case_count", "quality_summary_status"]:
+            if checks.get(check) != "pass":
+                failures.append(f"RAG regression bundle does not verify {check}.")
+        if not payload.get("quality_summary_hash"):
+            failures.append("RAG regression bundle is missing quality_summary_hash.")
     if name == "optimizer_benchmark_bundle_verify":
         checks = payload.get("semantic_checks") or {}
         required_optimizer_checks = [
@@ -614,6 +619,20 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_field in ["results_hash", "benchmark_hash", "diagnostics_hash", "case_metrics_hash", "candidate_diagnostics_hash"]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest optimizer benchmark archive is missing {hash_field}")
+    if name == "rag_regression_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and int(latest.get("case_count") or 0) < 1:
+            failures.append("latest RAG regression archive is missing case_count")
+        for hash_field in ["cases_hash", "results_hash", "quality_summary_hash", "structured_manifest_hash"]:
+            if checked_count and not latest.get(hash_field):
+                failures.append(f"latest RAG regression archive is missing {hash_field}")
+        if checked_count and latest.get("quality_status") not in {"pass", "warning", "fail"}:
+            failures.append("latest RAG regression archive is missing quality_status")
+        if checked_count and latest.get("top_source_count") is None:
+            failures.append("latest RAG regression archive is missing top_source_count")
+        if checked_count and latest.get("missing_term_case_count") is None:
+            failures.append("latest RAG regression archive is missing missing_term_case_count")
     if name == "workflow_trace_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)
