@@ -52,6 +52,7 @@ from app.services.governance_service import (
 from app.services.job_export_service import build_job_export_bundle
 from app.services.rag_service import evaluate_rag_query, rag_search, rag_status, rebuild_rag_index
 from app.services.rag_diagnostics_service import rag_diagnostics
+from app.services.rag_evaluation_bundle_service import build_rag_evaluation_bundle, verify_rag_evaluation_bundle
 from app.services.rag_regression_service import evaluate_rag_regression, rag_regression_cases
 from app.services.report_service import export_qc_report, generate_qc_report, synthesize_evidence
 from app.services.run_export_service import build_run_export_bundle
@@ -771,9 +772,31 @@ def test_rag_evaluation_explains_coverage() -> None:
     assert evaluation["retrieval_trace"]["score_weights"]["rerank_score"] == 0.40
     assert evaluation["index"]["retrieval_model"] == "hybrid-hash-bm25-facet-rerank-v2"
     assert evaluation["query_analysis"]["aliases_added"]
+    assert evaluation["evidence_sufficiency"]["sufficiency_schema"] == "agentic-rag-evidence-sufficiency-v1"
+    assert evaluation["evidence_sufficiency"]["status"] in {"pass", "warning", "fail"}
+    assert evaluation["evidence_sufficiency"]["checks"]
     assert all("facet_score" in item for item in evaluation["score_breakdown"])
     assert all(item["rationale"] for item in evaluation["score_breakdown"])
     assert any(item["matched_facets"] for item in evaluation["score_breakdown"])
+
+
+def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
+    request = {
+        "query": "SNCA substantia nigra dopaminergic neuron AAV",
+        "filters": {"species": "human", "brain_region": "substantia nigra", "cell_type": "dopaminergic neuron", "modality": "AAV"},
+        "limit": 8,
+    }
+    bundle = build_rag_evaluation_bundle(request)
+    verification = verify_rag_evaluation_bundle(bundle)
+    assert verification["status"] == "pass"
+    assert verification["semantic_checks"]["evidence_sufficiency_schema"] == "pass"
+    with ZipFile(BytesIO(bundle)) as archive:
+        assert "evidence_sufficiency.json" in set(archive.namelist())
+        sufficiency = json.loads(archive.read("evidence_sufficiency.json"))
+        evaluation = json.loads(archive.read("evaluation.json"))
+        assert sufficiency["sufficiency_schema"] == "agentic-rag-evidence-sufficiency-v1"
+        assert sufficiency["status"] == evaluation["evidence_sufficiency"]["status"]
+        assert sufficiency["source_count"] >= 1
 
 
 def test_rag_facet_reranker_prioritizes_cell_type_context() -> None:

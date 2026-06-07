@@ -17,6 +17,7 @@ REQUIRED_RAG_EVALUATION_FILES = {
     "request.json",
     "evaluation.json",
     "retrieval_trace.json",
+    "evidence_sufficiency.json",
     "score_breakdown.csv",
     "chunks.jsonl",
     "rag_status.json",
@@ -47,6 +48,7 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         bundle.writestr("request.json", _json(_request_summary(request_payload)))
         bundle.writestr("evaluation.json", _json(evaluation))
         bundle.writestr("retrieval_trace.json", _json(evaluation.get("retrieval_trace") or {}))
+        bundle.writestr("evidence_sufficiency.json", _json(evaluation.get("evidence_sufficiency") or {}))
         bundle.writestr("score_breakdown.csv", _score_breakdown_csv(evaluation.get("score_breakdown") or []))
         bundle.writestr("chunks.jsonl", _chunks_jsonl(search.get("chunks") or []))
         bundle.writestr("rag_status.json", _json(rag_status()))
@@ -86,6 +88,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                     "request": _read_json(archive, "request.json"),
                     "evaluation": _read_json(archive, "evaluation.json"),
                     "retrieval_trace": _read_json(archive, "retrieval_trace.json"),
+                    "evidence_sufficiency": _read_json(archive, "evidence_sufficiency.json"),
                     "rag_status": _read_json(archive, "rag_status.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
                 }
@@ -100,6 +103,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     manifest = payloads.get("bundle_manifest") or {}
     evaluation = payloads.get("evaluation") or {}
     trace = payloads.get("retrieval_trace") or {}
+    sufficiency = payloads.get("evidence_sufficiency") or {}
     request = payloads.get("request") or {}
     rag = payloads.get("rag_status") or {}
     structured = payloads.get("structured_manifest") or {}
@@ -131,6 +135,14 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["retrieval_trace_schema"] = "fail"
     else:
         semantic_checks["retrieval_trace_schema"] = "pass"
+    if sufficiency.get("sufficiency_schema") != "agentic-rag-evidence-sufficiency-v1":
+        semantic_errors.append("evidence_sufficiency.json sufficiency_schema is invalid.")
+        semantic_checks["evidence_sufficiency_schema"] = "fail"
+    elif (evaluation.get("evidence_sufficiency") or {}).get("status") != sufficiency.get("status"):
+        semantic_errors.append("evidence_sufficiency.json status does not match evaluation.json.")
+        semantic_checks["evidence_sufficiency_schema"] = "fail"
+    else:
+        semantic_checks["evidence_sufficiency_schema"] = "pass"
     facet_gap = evaluation.get("facet_gap_analysis") or {}
     if facet_gap.get("analysis_schema") != "agentic-rag-facet-gap-analysis-v1":
         semantic_errors.append("evaluation.json facet_gap_analysis schema is invalid.")

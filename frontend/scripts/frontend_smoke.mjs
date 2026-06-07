@@ -112,6 +112,7 @@ async function main() {
     assert(/Trace\s+([a-f0-9]{10}|n\/a)/.test(evaluatedRagText), `RAG query fingerprint was not rendered: ${evaluatedRagText}`);
     assert(/Policy\s+(hybrid-score-policy-v2|lexical-window-v2|n\/a)/.test(evaluatedRagText), `RAG ranking policy was not rendered: ${evaluatedRagText}`);
     assert(/Query terms\s+(0\.\d+|1\.00|n\/a)\s+\/\s+missing/.test(evaluatedRagText), `RAG query term coverage was not rendered: ${evaluatedRagText}`);
+    assert(/Suff\s+(pass|warning|fail|n\/a)\s+\/\s+src\s+(\d+|n\/a)\s+\/\s+high\s+(\d+|n\/a)/.test(evaluatedRagText), `RAG evidence sufficiency was not rendered: ${evaluatedRagText}`);
     assert(/Facet gaps\s+/.test(evaluatedRagText), `RAG facet gap analysis was not rendered: ${evaluatedRagText}`);
     assert(/hybrid score/.test(evaluatedRagText), `RAG result rationale was not rendered: ${evaluatedRagText}`);
     const ragBundleVerifyReady = waitForApi(page, "/rag/evaluate/export/verify");
@@ -120,6 +121,7 @@ async function main() {
     const verifiedRagText = await sectionText(page, "RAG inspector");
     assert(/Bundle\s+(pass|warning|fail)/.test(verifiedRagText), `RAG evaluation bundle semantic status was not rendered: ${verifiedRagText}`);
     assert(/Bundle hash\s+([a-f0-9]{10}|n\/a)/.test(verifiedRagText), `RAG evaluation bundle fingerprint was not rendered: ${verifiedRagText}`);
+    assert(/Suff check\s+pass/.test(verifiedRagText), `RAG evidence sufficiency semantic check was not rendered: ${verifiedRagText}`);
     const designControls = page.locator('aside[aria-label="Design controls"]');
     await designControls.getByTitle("Use CDS input mode").click();
     await page.getByLabel("Population size").fill("8");

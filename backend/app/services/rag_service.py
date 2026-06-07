@@ -218,6 +218,7 @@ def evaluate_rag_query(query: str, filters: dict[str, Any] | None = None, limit:
     index = load_rag_index()
     facet_gaps = _facet_gap_analysis(chunks, index.get("chunks", []), filters)
     query_term_coverage = _query_term_coverage(search["query_analysis"], chunks)
+    evidence_sufficiency = _evidence_sufficiency(chunks, filters, facet_gaps, query_term_coverage)
     trace = _retrieval_trace(search, chunks, filters, limit, facet_gaps=facet_gaps, query_term_coverage=query_term_coverage)
     return {
         "query": query,
@@ -231,6 +232,7 @@ def evaluate_rag_query(query: str, filters: dict[str, Any] | None = None, limit:
         "missing_facets": _missing_facets(coverage, filters),
         "facet_gap_analysis": facet_gaps,
         "query_term_coverage": query_term_coverage,
+        "evidence_sufficiency": evidence_sufficiency,
         "retrieval_trace": trace,
         "top_sources": _top_sources(chunks),
         "score_breakdown": [
@@ -422,6 +424,77 @@ def _query_term_coverage(query_analysis: dict[str, Any], chunks: list[dict[str, 
         "missing_query_tokens": missing_tokens,
         "matched_expanded_tokens": matched_expanded[:24],
         "coverage_fraction": round(len(matched_tokens) / max(len(tokens), 1), 4),
+    }
+
+
+def _evidence_sufficiency(
+    chunks: list[dict[str, Any]],
+    filters: dict[str, Any],
+    facet_gaps: dict[str, Any],
+    query_term_coverage: dict[str, Any],
+) -> dict[str, Any]:
+    requested_facets = [key for key in ["species", "brain_region", "cell_type", "modality"] if filters.get(key)]
+    facet_statuses = (facet_gaps.get("facets") or {}) if isinstance(facet_gaps, dict) else {}
+    matched_facets = [
+        key
+        for key in requested_facets
+        if (facet_statuses.get(key) or {}).get("status") == "matched"
+    ]
+    source_count = len({chunk.get("metadata", {}).get("source") for chunk in chunks if chunk.get("metadata", {}).get("source")})
+    collection_count = len({chunk.get("metadata", {}).get("collection") for chunk in chunks if chunk.get("metadata", {}).get("collection")})
+    high_confidence_count = sum(1 for chunk in chunks if chunk.get("metadata", {}).get("confidence") == "high")
+    coverage_fraction = float(query_term_coverage.get("coverage_fraction") or 0.0)
+    corpus_gaps = list(facet_gaps.get("missing_from_corpus") or []) if isinstance(facet_gaps, dict) else []
+    result_gaps = list(facet_gaps.get("missing_from_results") or []) if isinstance(facet_gaps, dict) else []
+    checks = [
+        _sufficiency_check("result_count", len(chunks) >= 3, len(chunks) > 0, f"{len(chunks)} retrieved chunks"),
+        _sufficiency_check("independent_sources", source_count >= 2, source_count >= 1, f"{source_count} sources"),
+        _sufficiency_check("collection_diversity", collection_count >= 2, collection_count >= 1, f"{collection_count} collections"),
+        _sufficiency_check("high_confidence_evidence", high_confidence_count >= 1, bool(chunks), f"{high_confidence_count} high-confidence chunks"),
+        _sufficiency_check(
+            "requested_facets",
+            len(matched_facets) == len(requested_facets),
+            not corpus_gaps and len(matched_facets) >= max(1, len(requested_facets) - 1) if requested_facets else True,
+            f"{len(matched_facets)}/{len(requested_facets)} requested facets matched",
+        ),
+        _sufficiency_check("query_term_coverage", coverage_fraction >= 0.6, coverage_fraction >= 0.35, f"{coverage_fraction:.2f} query-token coverage"),
+    ]
+    status = "fail" if any(check["status"] == "fail" for check in checks) else "warning" if any(check["status"] == "warning" for check in checks) else "pass"
+    recommendations = []
+    if len(chunks) < 3:
+        recommendations.append("Increase retrieval limit or broaden the query before using this evidence set for production interpretation.")
+    if source_count < 2:
+        recommendations.append("Add at least one independent source or indexed dataset for corroboration.")
+    if corpus_gaps:
+        recommendations.append("Import release-pinned evidence for missing target facets: " + ", ".join(corpus_gaps) + ".")
+    elif result_gaps:
+        recommendations.append("Raise the retrieval limit or add facet terms so available target evidence is selected.")
+    if coverage_fraction < 0.6:
+        recommendations.append("Rewrite the query with missing biological terms before freezing the evidence bundle.")
+    if not recommendations:
+        recommendations.append("Retrieved evidence is sufficient for design-support review under the local RAG gate.")
+    return {
+        "sufficiency_schema": "agentic-rag-evidence-sufficiency-v1",
+        "status": status,
+        "result_count": len(chunks),
+        "source_count": source_count,
+        "collection_count": collection_count,
+        "high_confidence_count": high_confidence_count,
+        "requested_facets": requested_facets,
+        "matched_facets": matched_facets,
+        "missing_from_results": result_gaps,
+        "missing_from_corpus": corpus_gaps,
+        "query_term_coverage_fraction": coverage_fraction,
+        "checks": checks,
+        "recommendations": recommendations,
+    }
+
+
+def _sufficiency_check(name: str, pass_condition: bool, warning_condition: bool, detail: str) -> dict[str, Any]:
+    return {
+        "name": name,
+        "status": "pass" if pass_condition else "warning" if warning_condition else "fail",
+        "detail": detail,
     }
 
 

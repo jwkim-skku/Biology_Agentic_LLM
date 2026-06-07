@@ -1310,6 +1310,20 @@ type RagInspectionResult = {
     matched_expanded_tokens: string[];
     coverage_fraction: number;
   };
+  evidence_sufficiency?: {
+    sufficiency_schema: string;
+    status: string;
+    result_count: number;
+    source_count: number;
+    collection_count: number;
+    high_confidence_count: number;
+    requested_facets: string[];
+    matched_facets: string[];
+    missing_from_results: string[];
+    missing_from_corpus: string[];
+    query_term_coverage_fraction: number;
+    recommendations?: string[];
+  };
   retrieval_trace?: {
     trace_schema: string;
     ranking_policy: string;
@@ -1345,6 +1359,7 @@ type RagEvaluationBundleVerification = {
   bundle_fingerprint?: string;
   result_count?: number;
   structured_manifest_hash?: string;
+  semantic_checks?: Record<string, string>;
   errors?: string[];
   warnings?: string[];
 };
@@ -3425,10 +3440,16 @@ export default function Dashboard() {
                     Query terms {formatMetric(ragInspection.query_term_coverage?.coverage_fraction, 2)} / missing{" "}
                     {ragInspection.query_term_coverage?.missing_query_tokens.slice(0, 4).join(", ") || "none"}
                   </span>
+                  <span>
+                    Suff {ragInspection.evidence_sufficiency?.status ?? "n/a"} / src{" "}
+                    {ragInspection.evidence_sufficiency?.source_count ?? "n/a"} / high{" "}
+                    {ragInspection.evidence_sufficiency?.high_confidence_count ?? "n/a"}
+                  </span>
                 </div>
                 <div className="data-quality" aria-label="RAG facet gap analysis">
                   <span>Facet gaps {(ragInspection.facet_gap_analysis?.missing_from_results ?? []).join(", ") || "none"}</span>
                   <span>Corpus gaps {(ragInspection.facet_gap_analysis?.missing_from_corpus ?? []).join(", ") || "none"}</span>
+                  <span>Suff check {ragBundleVerification?.semantic_checks?.evidence_sufficiency_schema ?? "n/a"}</span>
                   <span>{ragFacetGapSummary(ragInspection.facet_gap_analysis)}</span>
                 </div>
                 <div className="history-list">
