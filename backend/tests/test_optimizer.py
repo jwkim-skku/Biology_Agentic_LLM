@@ -420,6 +420,14 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     optimizer_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark_archive_semantics")
     assert optimizer_archive_gate["details"]["status"] in {"pass", "warning"}
     assert optimizer_archive_gate["details"]["latest_stress_status"] in {None, "pass", "warning"}
+    for field in [
+        "latest_results_hash",
+        "latest_benchmark_hash",
+        "latest_diagnostics_hash",
+        "latest_case_metrics_hash",
+        "latest_candidate_diagnostics_hash",
+    ]:
+        assert optimizer_archive_gate["details"][field] is None or len(optimizer_archive_gate["details"][field]) == 64
     assert optimizer_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
 
 
@@ -820,6 +828,11 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "stress_status": "warning",
                         "case_count": 3,
                         "cases_hash": valid_hash,
+                        "results_hash": valid_hash,
+                        "benchmark_hash": valid_hash,
+                        "diagnostics_hash": valid_hash,
+                        "case_metrics_hash": valid_hash,
+                        "candidate_diagnostics_hash": valid_hash,
                     }
                 ],
             }
@@ -833,6 +846,11 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "stress_status" in " ".join(optimizer_archive_failures)
     assert "case_count" in " ".join(optimizer_archive_failures)
     assert "cases_hash" in " ".join(optimizer_archive_failures)
+    assert "results_hash" in " ".join(optimizer_archive_failures)
+    assert "benchmark_hash" in " ".join(optimizer_archive_failures)
+    assert "diagnostics_hash" in " ".join(optimizer_archive_failures)
+    assert "case_metrics_hash" in " ".join(optimizer_archive_failures)
+    assert "candidate_diagnostics_hash" in " ".join(optimizer_archive_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:

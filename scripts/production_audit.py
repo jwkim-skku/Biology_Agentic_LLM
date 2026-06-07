@@ -588,6 +588,9 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest optimizer benchmark archive is missing case_count")
         if checked_count and not latest.get("cases_hash"):
             failures.append("latest optimizer benchmark archive is missing cases_hash")
+        for hash_field in ["results_hash", "benchmark_hash", "diagnostics_hash", "case_metrics_hash", "candidate_diagnostics_hash"]:
+            if checked_count and not latest.get(hash_field):
+                failures.append(f"latest optimizer benchmark archive is missing {hash_field}")
     return failures
 
 
