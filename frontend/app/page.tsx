@@ -1008,6 +1008,24 @@ type StructuredImportArchiveSemanticSummary = {
   }>;
 };
 
+type DataReleaseArchiveSemanticSummary = {
+  status: string;
+  checked_count: number;
+  semantic_pass_count: number;
+  semantic_warning_count: number;
+  semantic_fail_count: number;
+  latest_artifacts: Array<{
+    artifact_id: string;
+    semantic_status?: string;
+    promotion_status?: string | null;
+    record_count?: number | null;
+    records_hash?: string | null;
+    records_csv_hash?: string | null;
+    structured_manifest_hash?: string | null;
+    external_snapshot_reference_count?: number | null;
+  }>;
+};
+
 type AuditBundleArchiveSemanticSummary = {
   status: string;
   checked_count: number;
@@ -1520,6 +1538,7 @@ export default function Dashboard() {
   const [artifactVerification, setArtifactVerification] = useState<ArchivedArtifactVerification | null>(null);
   const [qcBundleSemantics, setQcBundleSemantics] = useState<QcBundleArchiveSemanticSummary | null>(null);
   const [structuredImportSemantics, setStructuredImportSemantics] = useState<StructuredImportArchiveSemanticSummary | null>(null);
+  const [dataReleaseSemantics, setDataReleaseSemantics] = useState<DataReleaseArchiveSemanticSummary | null>(null);
   const [ragEvaluationSemantics, setRagEvaluationSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [ragRegressionSemantics, setRagRegressionSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [optimizerBenchmarkSemantics, setOptimizerBenchmarkSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
@@ -1853,6 +1872,7 @@ export default function Dashboard() {
         objectStoreResponse,
         qcSemanticsResponse,
         importSemanticsResponse,
+        dataReleaseSemanticsResponse,
         ragSemanticsResponse,
         ragRegressionSemanticsResponse,
         optimizerSemanticsResponse
@@ -1862,6 +1882,7 @@ export default function Dashboard() {
         fetch(`${API_BASE}/artifacts/object-store/mirror/plan?limit=6`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
+        fetch(`${API_BASE}/artifacts/data-releases/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() })
@@ -1871,6 +1892,7 @@ export default function Dashboard() {
       const objectStorePayload = await objectStoreResponse.json();
       const qcSemanticsPayload = await qcSemanticsResponse.json();
       const importSemanticsPayload = await importSemanticsResponse.json();
+      const dataReleaseSemanticsPayload = await dataReleaseSemanticsResponse.json();
       const ragSemanticsPayload = await ragSemanticsResponse.json();
       const ragRegressionSemanticsPayload = await ragRegressionSemanticsResponse.json();
       const optimizerSemanticsPayload = await optimizerSemanticsResponse.json();
@@ -1888,6 +1910,9 @@ export default function Dashboard() {
       }
       if (importSemanticsResponse.ok) {
         setStructuredImportSemantics(importSemanticsPayload.data);
+      }
+      if (dataReleaseSemanticsResponse.ok) {
+        setDataReleaseSemantics(dataReleaseSemanticsPayload.data);
       }
       if (ragSemanticsResponse.ok) {
         setRagEvaluationSemantics(ragSemanticsPayload.data);
@@ -3983,6 +4008,24 @@ export default function Dashboard() {
               </span>
               <span>
                 Latest manifest {structuredImportSemantics?.latest_artifacts?.[0]?.structured_manifest_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+            </div>
+            <div className="data-quality" aria-label="Data release archive summary">
+              <span>
+                Data release {dataReleaseSemantics?.status ?? "n/a"} / checked {dataReleaseSemantics?.checked_count ?? "n/a"}
+              </span>
+              <span>
+                Pass {dataReleaseSemantics?.semantic_pass_count ?? "n/a"} / warn{" "}
+                {dataReleaseSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
+                {dataReleaseSemantics?.semantic_fail_count ?? "n/a"}
+              </span>
+              <span>
+                Records {dataReleaseSemantics?.latest_artifacts?.[0]?.record_count ?? "n/a"} / promotion{" "}
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.promotion_status ?? "n/a"}
+              </span>
+              <span>
+                Record hash {dataReleaseSemantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} / CSV{" "}
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="RAG evaluation archive summary">
