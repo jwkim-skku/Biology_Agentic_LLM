@@ -131,6 +131,7 @@ async function main() {
     assert(/Structure proxy\s*(\d+\.\d+|n\/a)/.test(designText), `Secondary-structure proxy score was not rendered: ${designText}`);
     assert(/rank\s+\d+\s+with composite|selection trace unavailable/.test(designText), `Candidate selection trace was not rendered: ${designText}`);
     assert(/QC Report/.test(designText), `QC report was not rendered after CDS design: ${designText}`);
+    assert(/Target data\s+(pass|warning|missing|n\/a)/.test(designText), `Target structured evidence was not rendered: ${designText}`);
     assert(/Best objectives\s*\d+/.test(designText), `Recommendation audit best-objective count was not rendered: ${designText}`);
     assert(/Max regret\s*(\d+\.\d+|n\/a)/.test(designText), `Recommendation audit regret was not rendered: ${designText}`);
     await expectSection(page, "Security controls", /Security/);

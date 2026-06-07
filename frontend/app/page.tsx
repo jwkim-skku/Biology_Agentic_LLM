@@ -216,6 +216,37 @@ type QcReport = {
     warning_count?: number;
     operator_actions?: string[];
   };
+  target_structured_evidence?: {
+    status?: string;
+    coverage?: Record<string, string>;
+    matched_record_count?: number;
+    live_record_count?: number;
+    seed_record_count?: number;
+    release_pinned_record_count?: number;
+    snapshot_record_count?: number;
+    datasets?: string[];
+    genes?: string[];
+    brain_regions?: string[];
+    cell_types?: string[];
+    top_records?: Array<{
+      id?: string;
+      dataset?: string;
+      release?: string;
+      gene?: string | null;
+      brain_region?: string | null;
+      cell_type?: string | null;
+      confidence?: string;
+      match_score?: number;
+      source_file?: string;
+      source_payload_sha256?: string;
+      source_snapshot_path?: string;
+      is_live?: boolean;
+      is_seed?: boolean;
+      median_expression?: number;
+      unit?: string;
+      number_of_cells?: number;
+    }>;
+  };
   optimizer_stress?: {
     stress_schema?: string;
     status?: string;
@@ -4092,6 +4123,7 @@ function QcReportPanel({ report }: { report: QcReport }) {
   const diagnostics = report.candidate_diagnostics;
   const optimizerRepro = report.optimizer_reproducibility;
   const dataQuality = report.data_quality;
+  const targetStructured = report.target_structured_evidence;
   const optimizerStress = report.optimizer_stress;
   const bestByMetric = diagnostics?.best_by_metric ?? {};
   const recommendationAudit = report.recommendation_audit ?? diagnostics?.recommendation_audit;
@@ -4143,6 +4175,52 @@ function QcReportPanel({ report }: { report: QcReport }) {
           <strong>{optimizerStress?.status ?? "n/a"}</strong>
         </div>
       </div>
+      {targetStructured ? (
+        <>
+          <div className="policy-strip" aria-label="Target structured evidence">
+            <div>
+              <span>Target data</span>
+              <strong>{targetStructured.status ?? "n/a"}</strong>
+            </div>
+            <div>
+              <span>Matched records</span>
+              <strong>{targetStructured.matched_record_count ?? "n/a"}</strong>
+            </div>
+            <div>
+              <span>Live / seed</span>
+              <strong>
+                {targetStructured.live_record_count ?? "n/a"} / {targetStructured.seed_record_count ?? "n/a"}
+              </strong>
+            </div>
+            <div>
+              <span>Release / snapshots</span>
+              <strong>
+                {targetStructured.release_pinned_record_count ?? "n/a"} / {targetStructured.snapshot_record_count ?? "n/a"}
+              </strong>
+            </div>
+            <div>
+              <span>Datasets</span>
+              <strong>{targetStructured.datasets?.slice(0, 3).join(", ") || "n/a"}</strong>
+            </div>
+          </div>
+          <div className="structured-evidence-list" aria-label="Target matched structured records">
+            {(targetStructured.top_records ?? []).slice(0, 4).map((record) => (
+              <div key={record.id ?? `${record.dataset}-${record.source_file}`}>
+                <strong>{record.dataset ?? "Structured data"}</strong>
+                <span>
+                  {record.id ?? "n/a"} · {record.release ?? "n/a"} · {record.is_live ? "live" : record.is_seed ? "seed/local" : "release-pinned"}
+                </span>
+                <small>
+                  {[record.gene, record.brain_region, record.cell_type].filter(Boolean).join(" / ") || "target context"} · match{" "}
+                  {formatMetric(record.match_score, 2)}
+                  {typeof record.median_expression === "number" ? ` · ${record.median_expression} ${record.unit ?? ""}` : ""}
+                  {typeof record.number_of_cells === "number" ? ` · ${record.number_of_cells} cells` : ""}
+                </small>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
       {dataQuality || optimizerStress ? (
         <div className="policy-strip" aria-label="QC export evidence">
           <div>

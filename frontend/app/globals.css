@@ -976,6 +976,33 @@ textarea:focus {
   font-size: 14px;
 }
 
+.structured-evidence-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.structured-evidence-list div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfc;
+  padding: 11px;
+}
+
+.structured-evidence-list strong {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.structured-evidence-list span,
+.structured-evidence-list small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .qc-constraints strong {
   font-size: 14px;
 }
