@@ -17,17 +17,54 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "backend" / "app" / "data" / "runtime" / "production_audits"
 DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1"
 
+RAG_EVALUATION_AUDIT_PAYLOAD = {
+    "query": "SNCA substantia nigra dopaminergic neuron AAV",
+    "filters": {
+        "species": "human",
+        "brain_region": "substantia nigra",
+        "cell_type": "dopaminergic neuron",
+        "modality": "AAV",
+    },
+    "limit": 8,
+}
+QC_BUNDLE_AUDIT_PAYLOAD = {
+    "cds": "ATGGCTGCTGCTGCTTAA",
+    "target": {
+        "gene": "DEMO",
+        "species": "human",
+        "brain_region": "cortex",
+        "cell_type": "neuron",
+        "modality": "AAV",
+    },
+    "optimization_settings": {
+        "population_size": 16,
+        "generations": 2,
+        "mutation_rate": 0.04,
+        "crossover_rate": 0.8,
+        "seed": 42,
+        "max_candidates": 3,
+    },
+}
+
 API_CHECKS = [
-    ("health_ready", "/health/ready"),
-    ("deployment_readiness", "/deployment/readiness"),
-    ("security_status", "/security/status"),
-    ("storage_status", "/storage/status"),
-    ("data_provenance", "/data/provenance"),
-    ("external_sources", "/data/external-sources"),
-    ("rag_diagnostics", "/rag/diagnostics"),
-    ("optimizer_diagnostics", "/optimizer/diagnostics"),
-    ("governance_attestation_verify", "/governance/attestation/verify"),
-    ("artifact_ledger_verify", "/artifacts/ledger/verify"),
+    {"name": "health_ready", "path": "/health/ready"},
+    {"name": "deployment_readiness", "path": "/deployment/readiness"},
+    {"name": "security_status", "path": "/security/status"},
+    {"name": "storage_status", "path": "/storage/status"},
+    {"name": "data_provenance", "path": "/data/provenance"},
+    {"name": "data_release_bundle_verify", "path": "/data/release/export/verify"},
+    {"name": "external_sources", "path": "/data/external-sources"},
+    {"name": "rag_diagnostics", "path": "/rag/diagnostics"},
+    {"name": "rag_evaluation_bundle_verify", "path": "/rag/evaluate/export/verify", "method": "POST", "json": RAG_EVALUATION_AUDIT_PAYLOAD},
+    {"name": "rag_regression_bundle_verify", "path": "/rag/regression/export/verify"},
+    {"name": "optimizer_diagnostics", "path": "/optimizer/diagnostics"},
+    {"name": "optimizer_benchmark_bundle_verify", "path": "/optimizer/benchmark/export/verify"},
+    {"name": "qc_report_bundle_verify", "path": "/report/export-bundle/verify", "method": "POST", "json": QC_BUNDLE_AUDIT_PAYLOAD},
+    {"name": "governance_attestation_verify", "path": "/governance/attestation/verify"},
+    {"name": "artifact_ledger_verify", "path": "/artifacts/ledger/verify"},
+    {"name": "qc_bundle_archive_semantics", "path": "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false"},
+    {"name": "rag_evaluation_archive_semantics", "path": "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false"},
+    {"name": "optimizer_benchmark_archive_semantics", "path": "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false"},
 ]
 
 
@@ -123,14 +160,20 @@ def run_local_check(name: str, command: list[str], *, cwd: Path) -> dict[str, An
 
 def run_api_checks(api_base: str, api_key: str, *, require_api: bool, timeout: float) -> list[dict[str, Any]]:
     checks = []
-    for name, path in API_CHECKS:
-        checks.append(fetch_api_check(name, f"{api_base}{path}", api_key, require_api=require_api, timeout=timeout))
+    for check in API_CHECKS:
+        checks.append(fetch_api_check(check, f"{api_base}{check['path']}", api_key, require_api=require_api, timeout=timeout))
     return checks
 
 
-def fetch_api_check(name: str, url: str, api_key: str, *, require_api: bool, timeout: float) -> dict[str, Any]:
+def fetch_api_check(check: dict[str, Any], url: str, api_key: str, *, require_api: bool, timeout: float) -> dict[str, Any]:
+    name = str(check["name"])
     started = time.perf_counter()
-    request = urllib.request.Request(url)
+    body = None
+    headers: dict[str, str] = {}
+    if "json" in check:
+        body = json.dumps(check["json"], ensure_ascii=False).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+    request = urllib.request.Request(url, data=body, method=str(check.get("method") or ("POST" if body else "GET")), headers=headers)
     if api_key:
         request.add_header("X-API-Key", api_key)
     try:
@@ -201,6 +244,28 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("RAG diagnostics status is fail")
     if name == "optimizer_diagnostics" and payload.get("status") == "fail":
         failures.append("optimizer diagnostics status is fail")
+    if name in {
+        "data_release_bundle_verify",
+        "rag_evaluation_bundle_verify",
+        "rag_regression_bundle_verify",
+        "optimizer_benchmark_bundle_verify",
+        "qc_report_bundle_verify",
+    }:
+        if payload.get("status") == "fail":
+            failures.append(f"{name} status is fail")
+        if payload.get("semantic_status") == "fail":
+            failures.append(f"{name} semantic_status is fail")
+    if name == "rag_evaluation_bundle_verify" and (payload.get("semantic_checks") or {}).get("evidence_sufficiency_schema") != "pass":
+        failures.append("RAG evaluation bundle does not verify evidence_sufficiency_schema.")
+    if name == "optimizer_benchmark_bundle_verify" and (payload.get("semantic_checks") or {}).get("search_strategy_schema") != "pass":
+        failures.append("Optimizer benchmark bundle does not verify search_strategy_schema.")
+    if name == "qc_report_bundle_verify":
+        checks = payload.get("semantic_checks") or {}
+        if checks.get("request_payload") != "pass":
+            failures.append("QC report bundle does not verify request_payload.")
+        failed_targets = [key for key, value in checks.items() if key.startswith("request_target_") and value != "pass"]
+        if failed_targets:
+            failures.append(f"QC report bundle request target checks failed: {', '.join(failed_targets)}")
     if name == "governance_attestation_verify" and payload.get("status") not in {None, "pass"}:
         failures.append("governance attestation verification did not pass")
     if name == "artifact_ledger_verify" and payload.get("status") not in {None, "pass"}:
@@ -221,6 +286,26 @@ def api_warnings(name: str, details: Any) -> list[str]:
             warnings.extend(str(gate.get("message", gate.get("name"))) for gate in gates if isinstance(gate, dict) and gate.get("status") == "warning")
     if name in {"rag_diagnostics", "optimizer_diagnostics", "data_provenance"} and payload.get("status") == "warning":
         warnings.append(f"{name} status is warning")
+    if name in {
+        "data_release_bundle_verify",
+        "rag_evaluation_bundle_verify",
+        "rag_regression_bundle_verify",
+        "optimizer_benchmark_bundle_verify",
+        "qc_report_bundle_verify",
+    }:
+        if payload.get("status") == "warning":
+            warnings.append(f"{name} status is warning")
+        if payload.get("semantic_status") == "warning":
+            warnings.append(f"{name} semantic_status is warning")
+    if name.endswith("_archive_semantics"):
+        if payload.get("status") == "fail":
+            warnings.append(f"{name} archive semantic summary is fail")
+        if int(payload.get("checked_count") or 0) == 0:
+            warnings.append(f"{name} has no archived artifacts checked")
+    if name == "qc_bundle_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        if latest.get("request_payload_status") not in {None, "pass"}:
+            warnings.append("latest QC archive request_payload_status is not pass")
     if name == "security_status":
         if not payload.get("auth_enabled"):
             warnings.append("API authentication is not enabled")

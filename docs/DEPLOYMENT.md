@@ -38,7 +38,7 @@ For CI or a workstation without a live backend, use the template/static profile:
 python scripts/production_audit.py --template --skip-api
 ```
 
-The audit writes paired JSON and Markdown reports to `backend/app/data/runtime/production_audits`. The full profile combines production env validation, Docker Compose deployment-shape checks, and live API checks for health readiness, deployment readiness, security, storage, data provenance, external source coverage, RAG diagnostics, optimizer diagnostics, governance attestation verification, artifact-ledger verification, and archived QC bundle semantic verification.
+The audit writes paired JSON and Markdown reports to `backend/app/data/runtime/production_audits`. The full profile combines production env validation, Docker Compose deployment-shape checks, and live API checks for health readiness, deployment readiness, security, storage, data provenance, data-release bundle verification, external source coverage, RAG diagnostics, RAG evaluation/regression bundle verification, optimizer diagnostics, optimizer benchmark bundle verification, QC report bundle request-provenance verification, governance attestation verification, artifact-ledger verification, and archived QC/RAG/optimizer semantic summaries.
 
 Useful runtime variables:
 
