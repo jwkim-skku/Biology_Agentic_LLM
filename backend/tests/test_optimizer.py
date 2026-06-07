@@ -890,6 +890,13 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "archive semantic summary is fail" in " ".join(
         module.api_failures("data_release_archive_semantics", {"data": {"status": "fail", "checked_count": 1, "latest_artifacts": []}})
     )
+    qc_archive_failures = module.api_failures(
+        "qc_bundle_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"request_payload_status": "pass"}]}},
+    )
+    assert "request_hash" in " ".join(qc_archive_failures)
+    assert "retrieval_quality_status" in " ".join(qc_archive_failures)
+    assert "objective_count" in " ".join(qc_archive_failures)
     archive_hash_failures = module.api_failures(
         "data_release_archive_semantics",
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"records_hash": valid_hash}]}},
@@ -2275,6 +2282,11 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert archived["metadata"]["qc_bundle_semantic_verification"]["qc_report_hash"] == verification["qc_report_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_status"] in {"pass", "warning"}
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_source_count"] >= 1
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["objective_count"] >= 1
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["data_quality_status"] in {"pass", "warning"}
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["optimizer_stress_status"] in {"pass", "warning"}
     assert archived["metadata"]["qc_bundle_semantic_verification"]["request_payload_status"] == "pass"
     assert archived["metadata"]["qc_bundle_semantic_verification"]["request_target_checks"]["brain_region"] == "pass"
     archived_verification = verify_archived_artifact(archived["artifact_id"])
@@ -2294,6 +2306,13 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         item["artifact_id"] == archived["artifact_id"]
         and item["metadata_indexed"] is True
         and item["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
+        and item["request_hash"] == verification["request_hash"]
+        and item["qc_report_hash"] == verification["qc_report_hash"]
+        and item["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
+        and item["retrieval_quality_source_count"] >= 1
+        and item["objective_count"] >= 1
+        and item["data_quality_status"] in {"pass", "warning"}
+        and item["optimizer_stress_status"] in {"pass", "warning"}
         and item["request_payload_status"] == "pass"
         and item["request_target_checks"]["modality"] == "pass"
         for item in indexed_semantics["latest_artifacts"]

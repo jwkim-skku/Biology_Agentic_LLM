@@ -831,7 +831,20 @@ type ProductionAuditStatus = {
         artifact_id: string;
         semantic_status?: string;
         optimizer_manifest_hash?: string | null;
+        request_hash?: string | null;
+        qc_report_hash?: string | null;
+        candidate_ranking_hash?: string | null;
         recommendation_audit_hash?: string | null;
+        data_quality_status?: string | null;
+        optimizer_stress_status?: string | null;
+        objective_count?: number | null;
+        retrieval_quality_status?: string | null;
+        retrieval_quality_record_count?: number | null;
+        retrieval_quality_source_count?: number | null;
+        retrieval_quality_collection_count?: number | null;
+        retrieval_quality_high_confidence_count?: number | null;
+        retrieval_model?: string | null;
+        embedding_model?: string | null;
         checked_files?: number;
         file_count?: number;
       }>;
@@ -1136,7 +1149,20 @@ type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     artifact_id: string;
     semantic_status?: string;
     optimizer_manifest_hash?: string | null;
+    request_hash?: string | null;
+    qc_report_hash?: string | null;
+    candidate_ranking_hash?: string | null;
     recommendation_audit_hash?: string | null;
+    data_quality_status?: string | null;
+    optimizer_stress_status?: string | null;
+    objective_count?: number | null;
+    retrieval_quality_status?: string | null;
+    retrieval_quality_record_count?: number | null;
+    retrieval_quality_source_count?: number | null;
+    retrieval_quality_collection_count?: number | null;
+    retrieval_quality_high_confidence_count?: number | null;
+    retrieval_model?: string | null;
+    embedding_model?: string | null;
     request_payload_status?: string | null;
     request_target_checks?: Record<string, string>;
     checked_files?: number;
@@ -4178,6 +4204,15 @@ export default function Dashboard() {
                 QC recommend {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_audit_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                QC retrieval {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_status ?? "n/a"} /
+                sources {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_source_count ?? "n/a"}
+              </span>
+              <span>
+                QC data {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.data_quality_status ?? "n/a"} /
+                stress {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.optimizer_stress_status ?? "n/a"} /
+                objectives {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.objective_count ?? "n/a"}
+              </span>
+              <span>
                 Release records {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.record_count ?? "n/a"} /
                 promotion {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.promotion_status ?? "n/a"}
               </span>
@@ -4433,6 +4468,16 @@ export default function Dashboard() {
               <span>
                 Request {qcBundleSemantics?.latest_artifacts?.[0]?.request_payload_status ?? "n/a"} / target{" "}
                 {qcRequestTargetSummary(qcBundleSemantics?.latest_artifacts?.[0]?.request_target_checks)}
+              </span>
+              <span>
+                Retrieval {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_status ?? "n/a"} / sources{" "}
+                {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_source_count ?? "n/a"} / high{" "}
+                {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_high_confidence_count ?? "n/a"}
+              </span>
+              <span>
+                Data {qcBundleSemantics?.latest_artifacts?.[0]?.data_quality_status ?? "n/a"} / stress{" "}
+                {qcBundleSemantics?.latest_artifacts?.[0]?.optimizer_stress_status ?? "n/a"} / objectives{" "}
+                {qcBundleSemantics?.latest_artifacts?.[0]?.objective_count ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="Structured import audit archive summary">

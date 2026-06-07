@@ -589,6 +589,24 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("artifact ledger verification did not pass")
     if name.endswith("_archive_semantics") and payload.get("status") == "fail":
         failures.append(f"{name} archive semantic summary is fail")
+    if name == "qc_bundle_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and latest.get("request_payload_status") != "pass":
+            failures.append("latest QC archive request_payload_status is not pass")
+        for hash_field in ["request_hash", "qc_report_hash", "candidate_ranking_hash", "recommendation_audit_hash", "optimizer_manifest_hash"]:
+            if checked_count and not latest.get(hash_field):
+                failures.append(f"latest QC archive is missing {hash_field}")
+        if checked_count and latest.get("retrieval_quality_status") not in {"pass", "warning"}:
+            failures.append("latest QC archive is missing pass/warning retrieval_quality_status")
+        if checked_count and int(latest.get("retrieval_quality_source_count") or 0) < 1:
+            failures.append("latest QC archive is missing retrieval_quality_source_count")
+        if checked_count and int(latest.get("objective_count") or 0) < 1:
+            failures.append("latest QC archive is missing objective_count")
+        if checked_count and latest.get("data_quality_status") not in {"pass", "warning"}:
+            failures.append("latest QC archive is missing pass/warning data_quality_status")
+        if checked_count and latest.get("optimizer_stress_status") not in {"pass", "warning"}:
+            failures.append("latest QC archive is missing pass/warning optimizer_stress_status")
     if name == "data_release_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)

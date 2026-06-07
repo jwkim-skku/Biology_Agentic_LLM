@@ -158,6 +158,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "recommendation_audit_hash": _hash_payload(recommendation_audit_file),
             "data_quality_status": data_quality.get("status"),
             "optimizer_stress_status": optimizer_stress.get("status"),
+            "objective_count": len(optimizer_manifest.get("objective_inventory") or []),
+            "retrieval_quality_status": retrieval_quality.get("status"),
+            "retrieval_quality_record_count": retrieval_quality.get("record_count"),
+            "retrieval_quality_source_count": retrieval_quality.get("source_count"),
+            "retrieval_quality_collection_count": retrieval_quality.get("collection_count"),
+            "retrieval_quality_high_confidence_count": retrieval_quality.get("high_confidence_count"),
+            "retrieval_model": retrieval_quality.get("retrieval_model"),
+            "embedding_model": retrieval_quality.get("embedding_model"),
         }
     )
 
