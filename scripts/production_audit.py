@@ -64,7 +64,10 @@ API_CHECKS = [
     {"name": "governance_attestation_verify", "path": "/governance/attestation/verify"},
     {"name": "artifact_ledger_verify", "path": "/artifacts/ledger/verify"},
     {"name": "qc_bundle_archive_semantics", "path": "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false"},
+    {"name": "structured_import_archive_semantics", "path": "/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false"},
+    {"name": "data_release_archive_semantics", "path": "/artifacts/data-releases/semantic-summary?limit=6&verify_files=false"},
     {"name": "rag_evaluation_archive_semantics", "path": "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false"},
+    {"name": "rag_regression_archive_semantics", "path": "/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false"},
     {"name": "optimizer_benchmark_archive_semantics", "path": "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false"},
 ]
 
@@ -420,6 +423,15 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("governance attestation verification did not pass")
     if name == "artifact_ledger_verify" and payload.get("status") not in {None, "pass"}:
         failures.append("artifact ledger verification did not pass")
+    if name.endswith("_archive_semantics") and payload.get("status") == "fail":
+        failures.append(f"{name} archive semantic summary is fail")
+    if name == "data_release_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and not latest.get("records_hash"):
+            failures.append("latest data release archive is missing records_hash")
+        if checked_count and not latest.get("records_csv_hash"):
+            failures.append("latest data release archive is missing records_csv_hash")
     return failures
 
 
@@ -448,8 +460,6 @@ def api_warnings(name: str, details: Any) -> list[str]:
         if payload.get("semantic_status") == "warning":
             warnings.append(f"{name} semantic_status is warning")
     if name.endswith("_archive_semantics"):
-        if payload.get("status") == "fail":
-            warnings.append(f"{name} archive semantic summary is fail")
         if int(payload.get("checked_count") or 0) == 0:
             warnings.append(f"{name} has no archived artifacts checked")
     if name == "qc_bundle_archive_semantics":

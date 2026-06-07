@@ -448,6 +448,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     spec.loader.exec_module(module)
 
     valid_hash = "a" * 64
+    api_check_names = {check["name"] for check in module.API_CHECKS}
+    assert "structured_import_archive_semantics" in api_check_names
+    assert "data_release_archive_semantics" in api_check_names
+    assert "rag_regression_archive_semantics" in api_check_names
     assert module.api_failures(
         "data_release_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"records_hash": "pass", "records_csv_hash": "pass"}, "records_hash": valid_hash, "records_csv_hash": valid_hash}},
@@ -501,6 +505,14 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "request_hash" in " ".join(qc_failures)
     assert "qc_report_hash" in " ".join(qc_failures)
     assert "candidate_ranking_hash" in " ".join(qc_failures)
+    assert "archive semantic summary is fail" in " ".join(
+        module.api_failures("data_release_archive_semantics", {"data": {"status": "fail", "checked_count": 1, "latest_artifacts": []}})
+    )
+    archive_hash_failures = module.api_failures(
+        "data_release_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"records_hash": valid_hash}]}},
+    )
+    assert "records_csv_hash" in " ".join(archive_hash_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
