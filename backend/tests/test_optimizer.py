@@ -1307,6 +1307,12 @@ def test_design_service_returns_report_shape() -> None:
     assert "constraint_risk_summary" in design["candidate_diagnostics"]
     assert design["candidate_diagnostics"]["pareto_front"]["size"] >= 1
     assert "mean_pairwise_codon_distance" in design["candidate_diagnostics"]["diversity"]
+    sequence_policy = design["candidate_diagnostics"]["sequence_policy_audit"]
+    assert sequence_policy["audit_schema"] == "agentic-rag-candidate-sequence-policy-audit-v1"
+    assert len(sequence_policy["audit_hash"]) == 64
+    assert sequence_policy["candidate_count"] == len(design["candidates"])
+    assert sequence_policy["candidate_summaries"][0]["candidate_id"]
+    assert design["recommendation_audit"]["sequence_policy_audit_hash"] == sequence_policy["audit_hash"]
     assert design["validation"]["native"]["status"] in {"pass", "warning"}
     assert design["qc_gate"]["status"] in {"pass", "warning", "fail"}
     assert "provenance" in design
@@ -1900,6 +1906,7 @@ def test_qc_report_contains_rationale() -> None:
     assert report["candidate_diagnostics"]["candidate_count"] == len(design["candidates"])
     assert "constraint_risk_summary" in report["candidate_diagnostics"]
     assert report["candidate_diagnostics"]["best_by_metric"]["composite_quality"]["candidate_id"]
+    assert report["candidate_diagnostics"]["sequence_policy_audit"]["audit_schema"] == "agentic-rag-candidate-sequence-policy-audit-v1"
     assert "polyadenylation_signal_count" in report["recommended_candidate"]["constraint_status"]
     assert "qc_gate" in report
     assert report["optimizer_reproducibility"]["manifest_schema"] == "agentic-rag-optimizer-reproducibility-v1"
@@ -1916,6 +1923,7 @@ def test_qc_report_contains_rationale() -> None:
     assert "# Gene Therapy Design QC Report" in markdown
     assert "## QC Gate" in markdown
     assert "## Candidate Diagnostics" in markdown
+    assert "Sequence-policy audit" in markdown
     assert "## Target Structured Evidence" in markdown
     assert "## Retrieval Evidence Quality" in markdown
     assert "## Optimizer Reproducibility" in markdown

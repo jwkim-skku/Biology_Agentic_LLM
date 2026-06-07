@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from hashlib import sha256
@@ -7,6 +8,7 @@ from hashlib import sha256
 from app.optimizer.codon_table import normalize_dna, split_codons, translate
 from app.optimizer.nsga2 import OptimizationConfig, optimize_cds
 from app.optimizer.scoring import ScoreConfig, score_sequence
+from app.services.sequence_policy_service import audit_sequence_policy
 from app.services.structured_data_service import codon_availability_weights, codon_weight_multipliers, structured_manifest_hash
 from app.services.validation_service import qc_gate_for_design, validate_cds
 
@@ -43,7 +45,7 @@ def optimize_design(
     candidate_payloads = [candidate.to_dict() for candidate in candidates]
     recommended = _recommend_candidate(candidate_payloads)
     _annotate_candidate_selection(candidate_payloads, recommended)
-    candidate_diagnostics = _candidate_diagnostics(candidate_payloads, recommended)
+    candidate_diagnostics = _candidate_diagnostics(candidate_payloads, recommended, optimization_config.score_config)
     recommendation_audit = _recommendation_audit(candidate_payloads, recommended, candidate_diagnostics)
     run_id = build_run_id(normalized, optimization_config.seed)
     design = {
@@ -192,7 +194,7 @@ def _candidate_constraint_risk(scores: dict) -> dict:
     }
 
 
-def _candidate_diagnostics(candidates: list[dict], recommended: dict | None) -> dict:
+def _candidate_diagnostics(candidates: list[dict], recommended: dict | None, score_config: ScoreConfig | None = None) -> dict:
     feasible = [candidate for candidate in candidates if _is_feasible_candidate(candidate)]
     pareto_ids = _pareto_front_candidate_ids(candidates)
     score_metrics = [
@@ -240,9 +242,77 @@ def _candidate_diagnostics(candidates: list[dict], recommended: dict | None) -> 
             "secondary_structure_proxy_score": _best_candidate_by_metric(candidates, "secondary_structure_proxy_score", maximize=False),
             "low_complexity_penalty": _best_candidate_by_metric(candidates, "low_complexity_penalty", maximize=False),
         },
+        "sequence_policy_audit": _candidate_sequence_policy_audit(candidates, score_config),
     }
     diagnostics["recommendation_audit"] = _recommendation_audit(candidates, recommended, diagnostics)
     return diagnostics
+
+
+def _candidate_sequence_policy_audit(candidates: list[dict], score_config: ScoreConfig | None = None) -> dict:
+    status_counts = {"pass": 0, "warning": 0, "fail": 0}
+    aggregate_summary: dict[str, int | float] = {
+        "errors": 0,
+        "warnings": 0,
+        "policy_violation_score": 0.0,
+        "forbidden_motif": 0,
+        "polyadenylation_signal": 0,
+        "restriction_site": 0,
+        "splice_donor_proxy": 0,
+        "splice_acceptor_proxy": 0,
+        "cryptic_splice_proxy": 0,
+    }
+    motif_counts: dict[str, int] = {}
+    candidate_summaries: list[dict] = []
+    for candidate in candidates:
+        audit = audit_sequence_policy(candidate.get("cds", ""), score_config)
+        status = str(audit.get("status") or "warning")
+        if status in status_counts:
+            status_counts[status] += 1
+        summary = audit.get("summary") or {}
+        for key in aggregate_summary:
+            value = summary.get(key, 0)
+            if isinstance(value, (int, float)):
+                aggregate_summary[key] = round(float(aggregate_summary[key]) + float(value), 6)
+        top_findings = []
+        for finding in audit.get("findings") or []:
+            motif = str(finding.get("motif") or "unknown")
+            count = int(finding.get("count") or 0)
+            motif_counts[motif] = motif_counts.get(motif, 0) + count
+            top_findings.append(
+                {
+                    "category": finding.get("category"),
+                    "severity": finding.get("severity"),
+                    "motif": motif,
+                    "count": count,
+                    "positions_1based": finding.get("positions_1based") or [],
+                    "truncated_positions": bool(finding.get("truncated_positions")),
+                    "recommended_action": finding.get("recommended_action"),
+                }
+            )
+        candidate_summaries.append(
+            {
+                "candidate_id": candidate.get("candidate_id"),
+                "rank": candidate.get("rank"),
+                "status": status,
+                "error_count": summary.get("errors", 0),
+                "warning_count": summary.get("warnings", 0),
+                "policy_violation_score": summary.get("policy_violation_score", 0.0),
+                "finding_count": len(audit.get("findings") or []),
+                "top_findings": top_findings[:6],
+            }
+        )
+    payload = {
+        "audit_schema": "agentic-rag-candidate-sequence-policy-audit-v1",
+        "candidate_count": len(candidates),
+        "status_counts": status_counts,
+        "aggregate_summary": aggregate_summary,
+        "top_motifs": [
+            {"motif": motif, "count": count}
+            for motif, count in sorted(motif_counts.items(), key=lambda item: item[1], reverse=True)[:10]
+        ],
+        "candidate_summaries": candidate_summaries,
+    }
+    return {**payload, "audit_hash": _hash_payload(payload)}
 
 
 def _recommendation_audit(candidates: list[dict], recommended: dict | None, diagnostics: dict | None = None) -> dict:
@@ -285,6 +355,15 @@ def _recommendation_audit(candidates: list[dict], recommended: dict | None, diag
     hard_constraint_status = (recommended or {}).get("constraint_risk", {}).get("status") or (
         "pass" if recommended and _is_feasible_candidate(recommended) else "fail" if recommended else "missing"
     )
+    sequence_policy = diagnostics.get("sequence_policy_audit") or {}
+    recommended_sequence_policy = next(
+        (
+            item
+            for item in sequence_policy.get("candidate_summaries") or []
+            if item.get("candidate_id") == (recommended or {}).get("candidate_id")
+        ),
+        {},
+    )
     return {
         "audit_schema": "agentic-rag-recommendation-audit-v1",
         "recommended_candidate_id": (recommended or {}).get("candidate_id"),
@@ -292,6 +371,9 @@ def _recommendation_audit(candidates: list[dict], recommended: dict | None, diag
         "selection_policy": diagnostics.get("selection_policy") or "highest composite_quality among feasible candidates; fallback to full Pareto-ranked pool",
         "hard_constraint_status": hard_constraint_status,
         "is_feasible": bool(recommended and _is_feasible_candidate(recommended)),
+        "recommended_sequence_policy_status": recommended_sequence_policy.get("status"),
+        "recommended_sequence_policy_findings": recommended_sequence_policy.get("finding_count"),
+        "sequence_policy_audit_hash": sequence_policy.get("audit_hash"),
         "pareto_front_member": (recommended or {}).get("candidate_id") in set((diagnostics.get("pareto_front") or {}).get("candidate_ids") or []),
         "best_metric_count": sum(1 for item in tradeoffs if item["is_metric_best"]),
         "tradeoff_count": len(nonzero_regrets),
@@ -355,6 +437,11 @@ def _safe_float(value: object) -> float | None:
         return float(value)  # type: ignore[arg-type]
     except (TypeError, ValueError):
         return None
+
+
+def _hash_payload(payload: object) -> str:
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _pareto_front_candidate_ids(candidates: list[dict]) -> list[str]:

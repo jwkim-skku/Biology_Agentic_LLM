@@ -692,6 +692,8 @@ def _candidate_diagnostic_lines(diagnostics: dict[str, Any]) -> list[str]:
     pareto = diagnostics.get("pareto_front") or {}
     diversity = diagnostics.get("diversity") or {}
     best_by_metric = diagnostics.get("best_by_metric") or {}
+    sequence_policy = diagnostics.get("sequence_policy_audit") or {}
+    sequence_summary = sequence_policy.get("aggregate_summary") or {}
     lines = [
         f"- Candidate count: {diagnostics.get('candidate_count', 'n/a')}",
         f"- Feasible candidates: {diagnostics.get('feasible_count', 'n/a')}",
@@ -699,6 +701,7 @@ def _candidate_diagnostic_lines(diagnostics: dict[str, Any]) -> list[str]:
         f"- Pareto front size: {pareto.get('size', 'n/a')} ({', '.join(pareto.get('candidate_ids', [])) or 'n/a'})",
         f"- Unique CDS count: {diversity.get('unique_cds_count', 'n/a')}",
         f"- Mean pairwise codon distance: {_format_score(diversity.get('mean_pairwise_codon_distance'))}",
+        f"- Sequence-policy audit: {sequence_policy.get('audit_schema', 'n/a')} / hash {str(sequence_policy.get('audit_hash', 'n/a'))[:12]} / findings {sequence_summary.get('errors', 0)} errors, {sequence_summary.get('warnings', 0)} warnings",
     ]
     if best_by_metric:
         lines.append("- Best metric representatives:")
