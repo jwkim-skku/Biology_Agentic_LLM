@@ -776,6 +776,7 @@ type DeploymentReadinessStatus = {
     fail: number;
   };
   attention_gates?: string[];
+  attention_gates_hash?: string;
   required_actions?: Array<{
     gate: string;
     status: string;
@@ -783,6 +784,7 @@ type DeploymentReadinessStatus = {
     message: string;
     action: string;
   }>;
+  required_actions_hash?: string;
   gates: Array<{
     name: string;
     status: string;
@@ -3944,6 +3946,7 @@ export default function Dashboard() {
               <span>Warn {deploymentReadiness?.summary?.warning ?? "n/a"}</span>
               <span>Fail {deploymentReadiness?.summary?.fail ?? "n/a"}</span>
               <span>Actions {deploymentReadiness?.required_actions?.length ?? "n/a"}</span>
+              <span>Action hash {deploymentReadiness?.required_actions_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from hashlib import sha256
 from typing import Any
 
 from app.config import get_settings
@@ -522,7 +524,9 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
         "production_ready": counts["fail"] == 0 and counts["warning"] == 0,
         "summary": counts,
         "attention_gates": [gate["name"] for gate in gates if gate["status"] != "pass"],
+        "attention_gates_hash": _hash_payload([gate["name"] for gate in gates if gate["status"] != "pass"]),
         "required_actions": required_actions,
+        "required_actions_hash": _hash_payload(required_actions),
         "gates": gates,
     }
 
@@ -616,3 +620,7 @@ def _signing_ready(signing: dict[str, Any]) -> bool:
         or ed25519.get("signing_enabled")
         or ed25519.get("verification_enabled")
     )
+
+
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()

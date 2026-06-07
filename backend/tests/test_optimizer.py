@@ -403,6 +403,8 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert set(readiness["attention_gates"]) == {gate["name"] for gate in readiness["gates"] if gate["status"] != "pass"}
     assert all(action["gate"] in readiness["attention_gates"] for action in readiness["required_actions"])
     assert all(action["priority"] in {"blocking", "promotion"} for action in readiness["required_actions"])
+    assert len(readiness["attention_gates_hash"]) == 64
+    assert len(readiness["required_actions_hash"]) == 64
     if readiness["required_actions"]:
         assert readiness["required_actions"][0]["action"]
     rag_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_regression")
