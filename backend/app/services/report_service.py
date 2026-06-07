@@ -105,10 +105,12 @@ def synthesize_evidence(evidence: dict[str, Any]) -> dict[str, Any]:
         )
     )
 
+    first_record_retrieval = (records[0].get("retrieval") or {}) if records else {}
     return {
         "supported_rules": _dedupe_rules(supported_rules),
         "uncertain_rules": _dedupe_rules(uncertain_rules),
         "rejected_rules": _dedupe_rules(rejected_rules),
+        "retrieval_quality": _retrieval_quality_summary(evidence),
         "citations": [
             {
                 "id": record.get("id"),
@@ -294,6 +296,9 @@ def export_qc_report_markdown(report: dict[str, Any]) -> str:
         "### Rejected",
         *_rule_lines(evidence.get("rejected_rules", [])),
         "",
+        "## Retrieval Evidence Quality",
+        *_retrieval_quality_lines(evidence.get("retrieval_quality", {})),
+        "",
         "## Recommended Candidate",
         f"- Candidate ID: {recommended.get('candidate_id', 'n/a')}",
         *_prefixed_lines(recommended.get("rationale", [])),
@@ -389,6 +394,64 @@ def _dedupe_rules(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(rule["statement"])
         output.append(rule)
     return output
+
+
+def _retrieval_quality_summary(evidence: dict[str, Any]) -> dict[str, Any]:
+    records = evidence.get("records") or []
+    retrieval = evidence.get("retrieval") or {}
+    sources: dict[str, int] = {}
+    collections: dict[str, int] = {}
+    high_confidence = 0
+    scores: list[float] = []
+    facet_scores: list[float] = []
+    for record in records:
+        source = str(record.get("source") or "unknown")
+        collection = str(record.get("collection") or "unknown")
+        sources[source] = sources.get(source, 0) + 1
+        collections[collection] = collections.get(collection, 0) + 1
+        if record.get("confidence") == "high":
+            high_confidence += 1
+        retrieval_meta = record.get("retrieval") or {}
+        if isinstance(retrieval_meta.get("score"), (int, float)):
+            scores.append(float(retrieval_meta["score"]))
+        if isinstance(retrieval_meta.get("facet_score"), (int, float)):
+            facet_scores.append(float(retrieval_meta["facet_score"]))
+    source_count = len([source for source in sources if source != "unknown"])
+    collection_count = len([collection for collection in collections if collection != "unknown"])
+    status = "pass" if len(records) >= 3 and source_count >= 2 else "warning" if records else "fail"
+    first_record_retrieval = (records[0].get("retrieval") or {}) if records else {}
+    return {
+        "quality_schema": "agentic-rag-qc-retrieval-quality-v1",
+        "status": status,
+        "record_count": len(records),
+        "source_count": source_count,
+        "collection_count": collection_count,
+        "high_confidence_count": high_confidence,
+        "retrieval_model": retrieval.get("retrieval_model") or first_record_retrieval.get("retrieval_model"),
+        "embedding_model": retrieval.get("embedding_model") or first_record_retrieval.get("embedding_model"),
+        "top_sources": [
+            {"source": source, "records": count}
+            for source, count in sorted(sources.items(), key=lambda item: (-item[1], item[0].lower()))[:6]
+            if source != "unknown"
+        ],
+        "top_collections": [
+            {"collection": collection, "records": count}
+            for collection, count in sorted(collections.items(), key=lambda item: (-item[1], item[0].lower()))[:6]
+            if collection != "unknown"
+        ],
+        "score_range": _range_summary(scores),
+        "facet_score_range": _range_summary(facet_scores),
+    }
+
+
+def _range_summary(values: list[float]) -> dict[str, Any]:
+    if not values:
+        return {"min": None, "max": None, "mean": None}
+    return {
+        "min": round(min(values), 6),
+        "max": round(max(values), 6),
+        "mean": round(sum(values) / len(values), 6),
+    }
 
 
 def _score_delta(native: dict[str, Any], recommended: dict[str, Any]) -> dict[str, Any]:
@@ -592,6 +655,26 @@ def _rule_lines(rules: list[dict[str, Any]]) -> list[str]:
 
 def _prefixed_lines(items: list[str]) -> list[str]:
     return [f"- {item}" for item in items] if items else ["- n/a"]
+
+
+def _retrieval_quality_lines(summary: dict[str, Any]) -> list[str]:
+    if not summary:
+        return ["- n/a"]
+    top_sources = ", ".join(f"{item.get('source')} ({item.get('records')})" for item in summary.get("top_sources") or [])
+    top_collections = ", ".join(f"{item.get('collection')} ({item.get('records')})" for item in summary.get("top_collections") or [])
+    score_range = summary.get("score_range") or {}
+    facet_range = summary.get("facet_score_range") or {}
+    return [
+        f"- Status: {summary.get('status', 'n/a')}",
+        f"- Records / sources / collections: {summary.get('record_count', 'n/a')} / {summary.get('source_count', 'n/a')} / {summary.get('collection_count', 'n/a')}",
+        f"- High-confidence records: {summary.get('high_confidence_count', 'n/a')}",
+        f"- Retrieval model: {summary.get('retrieval_model', 'n/a')}",
+        f"- Embedding model: {summary.get('embedding_model', 'n/a')}",
+        f"- Top sources: {top_sources or 'n/a'}",
+        f"- Top collections: {top_collections or 'n/a'}",
+        f"- Score range: {_format_score(score_range.get('min'))} to {_format_score(score_range.get('max'))}; mean {_format_score(score_range.get('mean'))}",
+        f"- Facet score range: {_format_score(facet_range.get('min'))} to {_format_score(facet_range.get('max'))}; mean {_format_score(facet_range.get('mean'))}",
+    ]
 
 
 def _gate_lines(gate: dict[str, Any]) -> list[str]:

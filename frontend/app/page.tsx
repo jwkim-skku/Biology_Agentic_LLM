@@ -171,6 +171,20 @@ type QcReport = {
     supported_rules: QcRule[];
     uncertain_rules: QcRule[];
     rejected_rules: QcRule[];
+    retrieval_quality?: {
+      quality_schema: string;
+      status: string;
+      record_count: number;
+      source_count: number;
+      collection_count: number;
+      high_confidence_count: number;
+      retrieval_model?: string | null;
+      embedding_model?: string | null;
+      top_sources?: Array<{ source: string; records: number }>;
+      top_collections?: Array<{ collection: string; records: number }>;
+      score_range?: { min?: number | null; max?: number | null; mean?: number | null };
+      facet_score_range?: { min?: number | null; max?: number | null; mean?: number | null };
+    };
   };
   score_summary: {
     native: Score;
@@ -4577,6 +4591,7 @@ function QcReportPanel({ report }: { report: QcReport }) {
   const dataQuality = report.data_quality;
   const targetStructured = report.target_structured_evidence;
   const optimizerStress = report.optimizer_stress;
+  const retrievalQuality = report.evidence_summary.retrieval_quality;
   const bestByMetric = diagnostics?.best_by_metric ?? {};
   const recommendationAudit = report.recommendation_audit ?? diagnostics?.recommendation_audit;
 
@@ -4627,6 +4642,32 @@ function QcReportPanel({ report }: { report: QcReport }) {
           <strong>{optimizerStress?.status ?? "n/a"}</strong>
         </div>
       </div>
+      {retrievalQuality ? (
+        <div className="policy-strip" aria-label="Retrieval evidence quality">
+          <div>
+            <span>Retrieval</span>
+            <strong>{retrievalQuality.status ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Records / sources</span>
+            <strong>
+              {retrievalQuality.record_count ?? "n/a"} / {retrievalQuality.source_count ?? "n/a"}
+            </strong>
+          </div>
+          <div>
+            <span>High confidence</span>
+            <strong>{retrievalQuality.high_confidence_count ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Top source</span>
+            <strong>{retrievalQuality.top_sources?.[0]?.source ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Model</span>
+            <strong>{retrievalQuality.retrieval_model ?? retrievalQuality.embedding_model ?? "n/a"}</strong>
+          </div>
+        </div>
+      ) : null}
       {targetStructured ? (
         <>
           <div className="policy-strip" aria-label="Target structured evidence">

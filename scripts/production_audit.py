@@ -518,6 +518,8 @@ def api_failures(name: str, details: Any) -> list[str]:
             "candidate_csv_explainability_columns",
             "recommended_constraint_risk_csv",
             "objective_inventory",
+            "evidence_retrieval_quality_schema",
+            "evidence_retrieval_quality_sources",
             "recommendation_audit",
         ]
         missing = [check for check in required_qc_explainability if checks.get(check) != "pass"]

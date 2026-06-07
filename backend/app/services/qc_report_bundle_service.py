@@ -142,6 +142,8 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     data_quality_summary = qc_report.get("data_quality") or {}
     optimizer_stress_summary = qc_report.get("optimizer_stress") or {}
     target_definition = qc_report.get("target_definition") or {}
+    evidence_summary = qc_report.get("evidence_summary") or {}
+    retrieval_quality = evidence_summary.get("retrieval_quality") or {}
     run_id = project_metadata.get("run_id")
     recommended_candidate_id = recommended.get("candidate_id")
     metadata.update(
@@ -230,6 +232,17 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         optimizer_stress.get("cases_hash"),
         "qc_report.json optimizer_stress.cases_hash does not match optimizer_stress.json.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "evidence_retrieval_quality_schema",
+        retrieval_quality.get("quality_schema"),
+        "agentic-rag-qc-retrieval-quality-v1",
+        "qc_report.json evidence_summary.retrieval_quality quality_schema is not recognized.",
+    )
+    _record_check(semantic_checks, "evidence_retrieval_quality_sources", int(retrieval_quality.get("source_count") or 0) >= 1)
+    if int(retrieval_quality.get("source_count") or 0) < 1:
+        semantic_errors.append("qc_report.json evidence_summary.retrieval_quality must include at least one source.")
     _expect_equal(
         semantic_checks,
         semantic_errors,

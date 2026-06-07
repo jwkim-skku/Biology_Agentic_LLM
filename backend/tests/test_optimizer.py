@@ -680,6 +680,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "candidate_csv_explainability_columns": "pass",
                     "recommended_constraint_risk_csv": "pass",
                     "objective_inventory": "pass",
+                    "evidence_retrieval_quality_schema": "pass",
+                    "evidence_retrieval_quality_sources": "pass",
                     "recommendation_audit": "pass",
                     "recommendation_audit_file_schema": "pass",
                     "recommendation_audit_file_report": "pass",
@@ -744,6 +746,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "optimizer_hash_report" in " ".join(qc_failures)
     assert "candidate_csv_explainability_columns" in " ".join(qc_failures)
     assert "recommended_constraint_risk_csv" in " ".join(qc_failures)
+    assert "evidence_retrieval_quality_schema" in " ".join(qc_failures)
+    assert "evidence_retrieval_quality_sources" in " ".join(qc_failures)
     assert "archive semantic summary is fail" in " ".join(
         module.api_failures("data_release_archive_semantics", {"data": {"status": "fail", "checked_count": 1, "latest_artifacts": []}})
     )
@@ -1768,6 +1772,9 @@ def test_qc_report_contains_rationale() -> None:
     design["evidence"] = build_design_evidence(design["target"], design["source_cds"])
     report = generate_qc_report(design)
     assert report["evidence_summary"]["supported_rules"]
+    assert report["evidence_summary"]["retrieval_quality"]["quality_schema"] == "agentic-rag-qc-retrieval-quality-v1"
+    assert report["evidence_summary"]["retrieval_quality"]["source_count"] >= 1
+    assert report["evidence_summary"]["retrieval_quality"]["top_sources"]
     assert report["recommended_candidate"]["rationale"]
     assert report["recommended_candidate"]["selection_trace"]
     assert report["recommended_candidate"]["constraint_risk"]["status"] in {"pass", "warning", "fail"}
@@ -1795,6 +1802,7 @@ def test_qc_report_contains_rationale() -> None:
     assert "## QC Gate" in markdown
     assert "## Candidate Diagnostics" in markdown
     assert "## Target Structured Evidence" in markdown
+    assert "## Retrieval Evidence Quality" in markdown
     assert "## Optimizer Reproducibility" in markdown
     assert "<html" in html
     assert '"project_metadata"' in json_report
@@ -1810,6 +1818,15 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         {"gene": "DEMO", "species": "human", "brain_region": "cortex", "cell_type": "neuron", "modality": "AAV"},
         evidence_used=True,
     )
+    source_cds = fetch_canonical_cds("demo", client=FakeEnsemblClient())
+    design["source_cds"] = {
+        "gene": source_cds["gene"],
+        "selected_transcript": source_cds["selected_transcript"],
+        "cds_length_nt": source_cds["cds_length_nt"],
+        "protein_length_aa": source_cds["protein_length_aa"],
+        "provenance": source_cds["provenance"],
+    }
+    design["evidence"] = build_design_evidence(design["target"], design["source_cds"])
     design["qc_report"] = generate_qc_report(design)
     request_payload = {
         "cds": "ATGGCTGCTGCTGCTTAA",
@@ -1862,6 +1879,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["semantic_checks"]["qc_report_hash"] == "pass"
     assert verification["semantic_checks"]["candidate_ranking_hash"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_hash"] == "pass"
+    assert verification["semantic_checks"]["evidence_retrieval_quality_schema"] == "pass"
+    assert verification["semantic_checks"]["evidence_retrieval_quality_sources"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_file_schema"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_file_report"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_candidate"] == "pass"
