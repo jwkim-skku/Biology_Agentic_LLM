@@ -471,6 +471,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             "evidence_sufficiency_schema",
             "facet_gap_analysis",
             "query_term_coverage",
+            "retrieval_trace_hash",
+            "evidence_sufficiency_hash",
+            "facet_gap_analysis_hash",
+            "query_term_coverage_hash",
             "top_sources_consistency",
             "evaluation_hash",
             "top_sources_hash",
@@ -480,7 +484,16 @@ def api_failures(name: str, details: Any) -> list[str]:
         missing = [check for check in required_rag_explainability if checks.get(check) != "pass"]
         if missing:
             failures.append(f"RAG evaluation bundle does not verify explainability checks: {', '.join(missing)}.")
-        for hash_check in ["evaluation_hash", "top_sources_hash", "score_breakdown_hash", "chunks_hash"]:
+        for hash_check in [
+            "evaluation_hash",
+            "retrieval_trace_hash",
+            "evidence_sufficiency_hash",
+            "facet_gap_analysis_hash",
+            "query_term_coverage_hash",
+            "top_sources_hash",
+            "score_breakdown_hash",
+            "chunks_hash",
+        ]:
             if not payload.get(hash_check):
                 failures.append(f"RAG evaluation bundle does not expose {hash_check}.")
     if name == "data_release_bundle_verify":

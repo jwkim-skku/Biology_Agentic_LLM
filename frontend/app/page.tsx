@@ -1204,6 +1204,10 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     semantic_status?: string;
     query_fingerprint?: string | null;
     evaluation_hash?: string | null;
+    retrieval_trace_hash?: string | null;
+    evidence_sufficiency_hash?: string | null;
+    facet_gap_analysis_hash?: string | null;
+    query_term_coverage_hash?: string | null;
     top_sources_hash?: string | null;
     score_breakdown_hash?: string | null;
     chunks_hash?: string | null;
@@ -4474,6 +4478,14 @@ export default function Dashboard() {
                 {ragEvaluationSemantics?.latest_artifacts?.[0]?.chunks_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>Top sources {ragEvaluationSemantics?.latest_artifacts?.[0]?.top_sources_hash?.slice(0, 10) ?? "n/a"}</span>
+              <span>
+                Trace {ragEvaluationSemantics?.latest_artifacts?.[0]?.retrieval_trace_hash?.slice(0, 10) ?? "n/a"} / suff{" "}
+                {ragEvaluationSemantics?.latest_artifacts?.[0]?.evidence_sufficiency_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Facets {ragEvaluationSemantics?.latest_artifacts?.[0]?.facet_gap_analysis_hash?.slice(0, 10) ?? "n/a"} / terms{" "}
+                {ragEvaluationSemantics?.latest_artifacts?.[0]?.query_term_coverage_hash?.slice(0, 10) ?? "n/a"}
+              </span>
             </div>
             <div className="data-quality" aria-label="RAG regression archive summary">
               <span>

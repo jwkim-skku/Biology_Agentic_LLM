@@ -19,6 +19,8 @@ REQUIRED_RAG_EVALUATION_FILES = {
     "evaluation.json",
     "retrieval_trace.json",
     "evidence_sufficiency.json",
+    "facet_gap_analysis.json",
+    "query_term_coverage.json",
     "top_sources.json",
     "score_breakdown.csv",
     "chunks.jsonl",
@@ -34,6 +36,10 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
     evaluation = evaluate_rag_query(query, filters, limit)
     search = rag_search(query, filters, limit)
     evaluation_json = _json(evaluation)
+    retrieval_trace_json = _json(evaluation.get("retrieval_trace") or {})
+    evidence_sufficiency_json = _json(evaluation.get("evidence_sufficiency") or {})
+    facet_gap_json = _json(evaluation.get("facet_gap_analysis") or {})
+    query_term_coverage_json = _json(evaluation.get("query_term_coverage") or {})
     top_sources_json = _json(evaluation.get("top_sources") or [])
     score_breakdown_csv = _score_breakdown_csv(evaluation.get("score_breakdown") or [])
     chunks_jsonl = _chunks_jsonl(search.get("chunks") or [])
@@ -45,6 +51,10 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         "ranking_policy": (evaluation.get("ranking_policy") or {}).get("version"),
         "result_count": evaluation.get("result_count"),
         "evaluation_hash": _hash_text(evaluation_json),
+        "retrieval_trace_hash": _hash_text(retrieval_trace_json),
+        "evidence_sufficiency_hash": _hash_text(evidence_sufficiency_json),
+        "facet_gap_analysis_hash": _hash_text(facet_gap_json),
+        "query_term_coverage_hash": _hash_text(query_term_coverage_json),
         "top_sources_hash": _hash_text(top_sources_json),
         "score_breakdown_hash": _hash_text(score_breakdown_csv),
         "chunks_hash": _hash_text(chunks_jsonl),
@@ -57,8 +67,10 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         bundle.writestr("bundle_manifest.json", _json(metadata))
         bundle.writestr("request.json", _json(_request_summary(request_payload)))
         bundle.writestr("evaluation.json", evaluation_json)
-        bundle.writestr("retrieval_trace.json", _json(evaluation.get("retrieval_trace") or {}))
-        bundle.writestr("evidence_sufficiency.json", _json(evaluation.get("evidence_sufficiency") or {}))
+        bundle.writestr("retrieval_trace.json", retrieval_trace_json)
+        bundle.writestr("evidence_sufficiency.json", evidence_sufficiency_json)
+        bundle.writestr("facet_gap_analysis.json", facet_gap_json)
+        bundle.writestr("query_term_coverage.json", query_term_coverage_json)
         bundle.writestr("top_sources.json", top_sources_json)
         bundle.writestr("score_breakdown.csv", score_breakdown_csv)
         bundle.writestr("chunks.jsonl", chunks_jsonl)
@@ -96,9 +108,17 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                 top_sources_text = ""
                 score_breakdown_text = ""
                 chunks_text = ""
+                retrieval_trace_text = ""
+                evidence_sufficiency_text = ""
+                facet_gap_text = ""
+                query_term_coverage_text = ""
             else:
                 semantic_checks["required_files"] = "pass"
                 evaluation_text = archive.read("evaluation.json").decode("utf-8")
+                retrieval_trace_text = archive.read("retrieval_trace.json").decode("utf-8")
+                evidence_sufficiency_text = archive.read("evidence_sufficiency.json").decode("utf-8")
+                facet_gap_text = archive.read("facet_gap_analysis.json").decode("utf-8")
+                query_term_coverage_text = archive.read("query_term_coverage.json").decode("utf-8")
                 top_sources_text = archive.read("top_sources.json").decode("utf-8")
                 score_breakdown_text = archive.read("score_breakdown.csv").decode("utf-8")
                 chunks_text = archive.read("chunks.jsonl").decode("utf-8")
@@ -106,8 +126,10 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                     "bundle_manifest": _read_json(archive, "bundle_manifest.json"),
                     "request": _read_json(archive, "request.json"),
                     "evaluation": _json_from_text(evaluation_text),
-                    "retrieval_trace": _read_json(archive, "retrieval_trace.json"),
-                    "evidence_sufficiency": _read_json(archive, "evidence_sufficiency.json"),
+                    "retrieval_trace": _json_from_text(retrieval_trace_text),
+                    "evidence_sufficiency": _json_from_text(evidence_sufficiency_text),
+                    "facet_gap_analysis": _json_from_text(facet_gap_text),
+                    "query_term_coverage": _json_from_text(query_term_coverage_text),
                     "top_sources": _json_value_from_text(top_sources_text),
                     "rag_status": _read_json(archive, "rag_status.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
@@ -123,11 +145,17 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         top_sources_text = ""
         score_breakdown_text = ""
         chunks_text = ""
+        retrieval_trace_text = ""
+        evidence_sufficiency_text = ""
+        facet_gap_text = ""
+        query_term_coverage_text = ""
 
     manifest = payloads.get("bundle_manifest") or {}
     evaluation = payloads.get("evaluation") or {}
     trace = payloads.get("retrieval_trace") or {}
     sufficiency = payloads.get("evidence_sufficiency") or {}
+    facet_gap_file = payloads.get("facet_gap_analysis") or {}
+    term_coverage_file = payloads.get("query_term_coverage") or {}
     top_sources = payloads.get("top_sources")
     request = payloads.get("request") or {}
     rag = payloads.get("rag_status") or {}
@@ -165,6 +193,38 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     _expect_equal(
         semantic_checks,
         semantic_errors,
+        "retrieval_trace_hash",
+        manifest.get("retrieval_trace_hash"),
+        _hash_text(retrieval_trace_text),
+        "bundle_manifest.json retrieval_trace_hash does not match retrieval_trace.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "evidence_sufficiency_hash",
+        manifest.get("evidence_sufficiency_hash"),
+        _hash_text(evidence_sufficiency_text),
+        "bundle_manifest.json evidence_sufficiency_hash does not match evidence_sufficiency.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "facet_gap_analysis_hash",
+        manifest.get("facet_gap_analysis_hash"),
+        _hash_text(facet_gap_text),
+        "bundle_manifest.json facet_gap_analysis_hash does not match facet_gap_analysis.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "query_term_coverage_hash",
+        manifest.get("query_term_coverage_hash"),
+        _hash_text(query_term_coverage_text),
+        "bundle_manifest.json query_term_coverage_hash does not match query_term_coverage.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
         "top_sources_hash",
         manifest.get("top_sources_hash"),
         _hash_text(top_sources_text),
@@ -190,6 +250,9 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     if trace.get("trace_schema") != "agentic-rag-retrieval-trace-v1":
         semantic_errors.append("retrieval_trace.json trace_schema is invalid.")
         semantic_checks["retrieval_trace_schema"] = "fail"
+    elif trace != (evaluation.get("retrieval_trace") or {}):
+        semantic_errors.append("retrieval_trace.json does not match evaluation.json.")
+        semantic_checks["retrieval_trace_schema"] = "fail"
     else:
         semantic_checks["retrieval_trace_schema"] = "pass"
     if sufficiency.get("sufficiency_schema") != "agentic-rag-evidence-sufficiency-v1":
@@ -212,11 +275,17 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     if facet_gap.get("analysis_schema") != "agentic-rag-facet-gap-analysis-v1":
         semantic_errors.append("evaluation.json facet_gap_analysis schema is invalid.")
         semantic_checks["facet_gap_analysis"] = "fail"
+    elif facet_gap_file != facet_gap:
+        semantic_errors.append("facet_gap_analysis.json does not match evaluation.json.")
+        semantic_checks["facet_gap_analysis"] = "fail"
     else:
         semantic_checks["facet_gap_analysis"] = "pass"
     term_coverage = evaluation.get("query_term_coverage") or {}
     if term_coverage.get("coverage_schema") != "agentic-rag-query-term-coverage-v1":
         semantic_errors.append("evaluation.json query_term_coverage schema is invalid.")
+        semantic_checks["query_term_coverage"] = "fail"
+    elif term_coverage_file != term_coverage:
+        semantic_errors.append("query_term_coverage.json does not match evaluation.json.")
         semantic_checks["query_term_coverage"] = "fail"
     else:
         semantic_checks["query_term_coverage"] = "pass"
@@ -277,6 +346,10 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         "semantic_checks": semantic_checks,
         "query_fingerprint": next(iter(expected_fingerprints), None),
         "evaluation_hash": manifest.get("evaluation_hash"),
+        "retrieval_trace_hash": manifest.get("retrieval_trace_hash"),
+        "evidence_sufficiency_hash": manifest.get("evidence_sufficiency_hash"),
+        "facet_gap_analysis_hash": manifest.get("facet_gap_analysis_hash"),
+        "query_term_coverage_hash": manifest.get("query_term_coverage_hash"),
         "top_sources_hash": manifest.get("top_sources_hash"),
         "score_breakdown_hash": manifest.get("score_breakdown_hash"),
         "chunks_hash": manifest.get("chunks_hash"),

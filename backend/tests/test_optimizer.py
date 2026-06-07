@@ -706,6 +706,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "evidence_sufficiency_schema": "pass",
                     "facet_gap_analysis": "pass",
                     "query_term_coverage": "pass",
+                    "retrieval_trace_hash": "pass",
+                    "evidence_sufficiency_hash": "pass",
+                    "facet_gap_analysis_hash": "pass",
+                    "query_term_coverage_hash": "pass",
                     "top_sources_consistency": "pass",
                     "evaluation_hash": "pass",
                     "top_sources_hash": "pass",
@@ -713,6 +717,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "chunks_hash": "pass",
                 },
                 "evaluation_hash": valid_hash,
+                "retrieval_trace_hash": valid_hash,
+                "evidence_sufficiency_hash": valid_hash,
+                "facet_gap_analysis_hash": valid_hash,
+                "query_term_coverage_hash": valid_hash,
                 "top_sources_hash": valid_hash,
                 "score_breakdown_hash": valid_hash,
                 "chunks_hash": valid_hash,
@@ -817,6 +825,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "retrieval_trace_schema" in " ".join(rag_eval_failures)
     assert "facet_gap_analysis" in " ".join(rag_eval_failures)
     assert "query_term_coverage" in " ".join(rag_eval_failures)
+    assert "retrieval_trace_hash" in " ".join(rag_eval_failures)
+    assert "evidence_sufficiency_hash" in " ".join(rag_eval_failures)
+    assert "facet_gap_analysis_hash" in " ".join(rag_eval_failures)
+    assert "query_term_coverage_hash" in " ".join(rag_eval_failures)
     assert "top_sources_hash" in " ".join(rag_eval_failures)
     data_release_failures = module.api_failures(
         "data_release_bundle_verify",
@@ -1638,28 +1650,48 @@ def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
     assert verification["status"] == "pass"
     assert verification["semantic_checks"]["evidence_sufficiency_schema"] == "pass"
     assert verification["semantic_checks"]["evaluation_hash"] == "pass"
+    assert verification["semantic_checks"]["retrieval_trace_hash"] == "pass"
+    assert verification["semantic_checks"]["evidence_sufficiency_hash"] == "pass"
+    assert verification["semantic_checks"]["facet_gap_analysis_hash"] == "pass"
+    assert verification["semantic_checks"]["query_term_coverage_hash"] == "pass"
     assert verification["semantic_checks"]["top_sources_hash"] == "pass"
     assert verification["semantic_checks"]["top_sources_consistency"] == "pass"
     assert verification["semantic_checks"]["score_breakdown_hash"] == "pass"
     assert verification["semantic_checks"]["chunks_hash"] == "pass"
     assert len(verification["evaluation_hash"]) == 64
+    assert len(verification["retrieval_trace_hash"]) == 64
+    assert len(verification["evidence_sufficiency_hash"]) == 64
+    assert len(verification["facet_gap_analysis_hash"]) == 64
+    assert len(verification["query_term_coverage_hash"]) == 64
     assert len(verification["top_sources_hash"]) == 64
     assert len(verification["score_breakdown_hash"]) == 64
     assert len(verification["chunks_hash"]) == 64
     with ZipFile(BytesIO(bundle)) as archive:
         assert "evidence_sufficiency.json" in set(archive.namelist())
+        assert "facet_gap_analysis.json" in set(archive.namelist())
+        assert "query_term_coverage.json" in set(archive.namelist())
         assert "top_sources.json" in set(archive.namelist())
         manifest = json.loads(archive.read("bundle_manifest.json"))
+        trace = json.loads(archive.read("retrieval_trace.json"))
         sufficiency = json.loads(archive.read("evidence_sufficiency.json"))
+        facet_gap = json.loads(archive.read("facet_gap_analysis.json"))
+        term_coverage = json.loads(archive.read("query_term_coverage.json"))
         top_sources = json.loads(archive.read("top_sources.json"))
         evaluation = json.loads(archive.read("evaluation.json"))
         assert manifest["evaluation_hash"] == verification["evaluation_hash"]
+        assert manifest["retrieval_trace_hash"] == verification["retrieval_trace_hash"]
+        assert manifest["evidence_sufficiency_hash"] == verification["evidence_sufficiency_hash"]
+        assert manifest["facet_gap_analysis_hash"] == verification["facet_gap_analysis_hash"]
+        assert manifest["query_term_coverage_hash"] == verification["query_term_coverage_hash"]
         assert manifest["top_sources_hash"] == verification["top_sources_hash"]
         assert manifest["score_breakdown_hash"] == verification["score_breakdown_hash"]
         assert manifest["chunks_hash"] == verification["chunks_hash"]
         assert sufficiency["sufficiency_schema"] == "agentic-rag-evidence-sufficiency-v1"
         assert sufficiency["status"] == evaluation["evidence_sufficiency"]["status"]
         assert sufficiency["source_count"] >= 1
+        assert trace == evaluation["retrieval_trace"]
+        assert facet_gap == evaluation["facet_gap_analysis"]
+        assert term_coverage == evaluation["query_term_coverage"]
         assert top_sources == evaluation["top_sources"]
 
 
