@@ -46,6 +46,7 @@ from app.services.artifact_archive_service import (
     structured_import_archive_summary,
     verify_archived_artifact,
     verify_artifact_ledger,
+    workflow_trace_archive_summary,
 )
 from app.services.artifact_object_store_service import (
     artifact_object_store_status,
@@ -601,6 +602,11 @@ def rag_vector_index_archive_semantic_summary_endpoint(limit: int = 20, verify_f
 @router.get("/artifacts/optimizer-benchmarks/semantic-summary", response_model=ApiResponse)
 def optimizer_benchmark_archive_semantic_summary_endpoint(limit: int = 20, verify_files: bool = True) -> ApiResponse:
     return ApiResponse(data=optimizer_benchmark_archive_summary(limit=limit, verify_files=verify_files))
+
+
+@router.get("/artifacts/workflow-traces/semantic-summary", response_model=ApiResponse)
+def workflow_trace_archive_semantic_summary_endpoint(limit: int = 20, verify_files: bool = True) -> ApiResponse:
+    return ApiResponse(data=workflow_trace_archive_summary(limit=limit, verify_files=verify_files))
 
 
 @router.get("/artifacts/retention/plan", response_model=ApiResponse)

@@ -61,7 +61,7 @@ Invoke-WebRequest `
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/runs/{run_id}/workflow/export/verify
 ```
 
-The bundle contains `workflow.json`, `task.json`, `plan.json`, `trace.json`, `agent_roles.json`, `run_summary.json`, and provenance snapshots. Verification checks required files, trace row shape, plan rows, workflow id consistency, trace/plan hash consistency, and structured-manifest hash consistency.
+The bundle contains `workflow.json`, `task.json`, `plan.json`, `trace.json`, `agent_roles.json`, `run_summary.json`, and provenance snapshots. Verification checks required files, trace row shape, plan rows, workflow id consistency, trace/plan hash consistency, and structured-manifest hash consistency. Archived workflow trace bundles are indexed by `/api/v1/artifacts/workflow-traces/semantic-summary`, surfaced in deployment readiness, and included in production audit bundles so reviewers can confirm that agent plans and execution traces are preserved as promotion evidence.
 
 ## Agent Memory
 

@@ -17,6 +17,7 @@ from app.services.artifact_archive_service import (
     rag_vector_index_archive_summary,
     structured_import_archive_summary,
     verify_artifact_ledger,
+    workflow_trace_archive_summary,
 )
 from app.services.artifact_object_store_service import artifact_object_store_status
 from app.services.data_provenance_service import data_provenance_audit
@@ -77,6 +78,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
     rag_regression_archive = rag_regression_archive_summary(limit=3, verify_files=False)
     rag_vector_index_archive = rag_vector_index_archive_summary(limit=3, verify_files=False)
     optimizer_archive = optimizer_benchmark_archive_summary(limit=3, verify_files=False)
+    workflow_trace_archive = workflow_trace_archive_summary(limit=3, verify_files=False)
     workflow_runtime = workflow_runtime_status()
 
     gates = [
@@ -252,6 +254,26 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
             },
             fail_message="Workflow runtime contract is not available.",
             warn_message="Workflow runtime has warnings.",
+        ),
+        _gate(
+            "workflow_trace_archive_semantics",
+            workflow_trace_archive["status"] in {"pass", "warning"},
+            _warning=workflow_trace_archive["status"] == "pass",
+            details={
+                "status": workflow_trace_archive["status"],
+                "checked_count": workflow_trace_archive["checked_count"],
+                "semantic_pass_count": workflow_trace_archive["semantic_pass_count"],
+                "semantic_warning_count": workflow_trace_archive["semantic_warning_count"],
+                "semantic_fail_count": workflow_trace_archive["semantic_fail_count"],
+                "latest_trace_step_count": (workflow_trace_archive.get("latest_artifacts") or [{}])[0].get("trace_step_count"),
+                "latest_trace_hash": (workflow_trace_archive.get("latest_artifacts") or [{}])[0].get("trace_hash"),
+                "latest_task_type": (workflow_trace_archive.get("latest_artifacts") or [{}])[0].get("task_type"),
+                "latest_workflow_id": (workflow_trace_archive.get("latest_artifacts") or [{}])[0].get("workflow_id"),
+                "latest_structured_manifest_hash": (workflow_trace_archive.get("latest_artifacts") or [{}])[0].get("structured_manifest_hash"),
+                **_archive_freshness_details(workflow_trace_archive),
+            },
+            fail_message="Archived workflow trace semantic verification failed.",
+            warn_message="Archived workflow trace bundles are missing, stale, or have semantic warnings.",
         ),
         _gate(
             "qc_snapshot_export",

@@ -23,6 +23,7 @@ from app.services.artifact_archive_service import (
     rag_vector_index_archive_summary,
     structured_import_archive_summary,
     verify_artifact_ledger,
+    workflow_trace_archive_summary,
 )
 from app.services.artifact_object_store_service import artifact_object_store_status
 from app.services.audit_log_service import audit_summary
@@ -140,6 +141,11 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         timings,
         lambda: optimizer_benchmark_archive_summary(limit=3, verify_files=False),
     )
+    workflow_trace_archive = _timed(
+        "workflow_trace_archive_semantics",
+        timings,
+        lambda: workflow_trace_archive_summary(limit=3, verify_files=False),
+    )
     security = _timed("security", timings, _security_summary)
     external_sources = _timed("external_sources", timings, external_source_status)
     audit_log = _timed("audit_log", timings, audit_summary)
@@ -230,6 +236,12 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             optimizer_archive.get("status") == "pass",
             optimizer_archive,
         ),
+        _check(
+            "workflow_trace_archive_semantics",
+            workflow_trace_archive.get("status") in {"pass", "warning"},
+            workflow_trace_archive.get("status") == "pass",
+            workflow_trace_archive,
+        ),
     ]
     summary = _summary(checks)
     promotion_summary = _promotion_summary(
@@ -294,6 +306,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
             "rag_regression_archive_semantics": rag_regression_archive,
             "rag_vector_index_archive_semantics": rag_vector_index_archive,
             "optimizer_benchmark_archive_semantics": optimizer_archive,
+            "workflow_trace_archive_semantics": workflow_trace_archive,
             "audit_log": audit_log,
             "timings": timings,
         },
@@ -353,6 +366,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
             "evidence/optimizer_benchmark_archive_semantics.json",
             _json(audit["evidence"]["optimizer_benchmark_archive_semantics"]),
         )
+        bundle.writestr("evidence/workflow_trace_archive_semantics.json", _json(audit["evidence"]["workflow_trace_archive_semantics"]))
         bundle.writestr("evidence/audit_log.json", _json(audit["evidence"]["audit_log"]))
         bundle.writestr("evidence/timings.json", _json(audit["evidence"]["timings"]))
         bundle.write_artifact_manifest()

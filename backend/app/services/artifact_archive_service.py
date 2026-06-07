@@ -20,6 +20,7 @@ from app.services.rag_evaluation_bundle_service import verify_rag_evaluation_bun
 from app.services.rag_regression_bundle_service import verify_rag_regression_bundle
 from app.services.rag_vector_index_bundle_service import verify_rag_vector_index_bundle
 from app.services.structured_import_audit_service import verify_structured_import_audit_bundle
+from app.services.workflow_trace_bundle_service import verify_workflow_trace_bundle
 
 
 DATA_DIR = get_settings().data_dir
@@ -416,6 +417,24 @@ def data_refresh_plan_archive_summary(limit: int = 20, *, verify_files: bool = T
     )
 
 
+def workflow_trace_archive_summary(limit: int = 20, *, verify_files: bool = True) -> dict[str, Any]:
+    return _bundle_archive_semantic_summary(
+        limit=limit,
+        verify_files=verify_files,
+        artifact_type="workflow_trace_bundle",
+        metadata_key="workflow_trace_semantic_verification",
+        label="workflow trace bundle",
+        extra_fields=(
+            "workflow_id",
+            "run_id",
+            "task_type",
+            "trace_hash",
+            "trace_step_count",
+            "structured_manifest_hash",
+        ),
+    )
+
+
 def _verify_export_bundle(content: bytes) -> dict[str, Any]:
     verification = verify_artifact_bundle(content)
     if verification.get("artifact_type") == "data_release_bundle":
@@ -434,6 +453,8 @@ def _verify_export_bundle(content: bytes) -> dict[str, Any]:
         return verify_rag_vector_index_bundle(content)
     if verification.get("artifact_type") == "optimizer_benchmark_bundle":
         return verify_optimizer_benchmark_bundle(content)
+    if verification.get("artifact_type") == "workflow_trace_bundle":
+        return verify_workflow_trace_bundle(content)
     return verification
 
 
@@ -455,6 +476,8 @@ def _archive_metadata(metadata: dict[str, Any] | None, verification: dict[str, A
         enriched["rag_vector_index_semantic_verification"] = _rag_vector_index_semantic_metadata(verification)
     if verification.get("artifact_type") == "optimizer_benchmark_bundle":
         enriched["optimizer_benchmark_semantic_verification"] = _optimizer_benchmark_semantic_metadata(verification)
+    if verification.get("artifact_type") == "workflow_trace_bundle":
+        enriched["workflow_trace_semantic_verification"] = _workflow_trace_semantic_metadata(verification)
     return enriched
 
 
@@ -521,6 +544,26 @@ def _data_refresh_plan_semantic_metadata(verification: dict[str, Any]) -> dict[s
         "semantic_warnings": verification.get("semantic_warnings") or [],
         "indexed_at": _utc_now(),
         "index_schema": "agentic-rag-data-refresh-plan-semantic-index-v1",
+    }
+
+
+def _workflow_trace_semantic_metadata(verification: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": verification.get("status"),
+        "semantic_status": verification.get("semantic_status"),
+        "workflow_id": verification.get("workflow_id"),
+        "run_id": verification.get("run_id"),
+        "task_type": verification.get("task_type"),
+        "trace_hash": verification.get("trace_hash"),
+        "trace_step_count": verification.get("trace_step_count"),
+        "structured_manifest_hash": verification.get("structured_manifest_hash"),
+        "checked_files": verification.get("checked_files"),
+        "file_count": verification.get("file_count"),
+        "manifest_hash": verification.get("manifest_hash"),
+        "semantic_errors": verification.get("semantic_errors") or [],
+        "semantic_warnings": verification.get("semantic_warnings") or [],
+        "indexed_at": _utc_now(),
+        "index_schema": "agentic-rag-workflow-trace-semantic-index-v1",
     }
 
 

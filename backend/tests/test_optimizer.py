@@ -46,6 +46,7 @@ from app.services.artifact_archive_service import (
     structured_import_archive_summary,
     verify_archived_artifact,
     verify_artifact_ledger,
+    workflow_trace_archive_summary,
 )
 from app.services.batch_design_service import run_batch_gene_design
 from app.services.design_service import optimize_design
@@ -94,6 +95,7 @@ from app.services.structured_import_audit_service import build_structured_import
 from app.services.structured_data_service import preview_structured_import, structured_manifest, validate_structured_records
 from app.services.validation_service import qc_gate_for_design, validate_cds
 from app.services.workflow_service import plan_gene_design_task, run_cds_design_workflow, run_gene_design_workflow
+from app.services.workflow_trace_bundle_service import build_workflow_trace_bundle, verify_workflow_trace_bundle
 
 
 class FakeEnsemblClient:
@@ -374,6 +376,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "data_refresh_plan_archive_semantics" in audit["evidence"]
     assert "rag_vector_index_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "rag_vector_index_archive_semantics" in audit["evidence"]
+    assert "workflow_trace_archive_semantics" in {item["name"] for item in audit["checks"]}
+    assert "workflow_trace_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
     rag_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["results_hash"]) == 64
@@ -394,6 +398,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/data_release_archive_semantics.json" in names
         assert "evidence/rag_vector_index_archive_semantics.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
+        assert "evidence/workflow_trace_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
         assert "## Timing" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
@@ -603,6 +608,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "data_release_archive_semantics" in api_check_names
     assert "rag_regression_archive_semantics" in api_check_names
     assert "rag_vector_index_archive_semantics" in api_check_names
+    assert "workflow_trace_archive_semantics" in api_check_names
     assert module.api_failures(
         "data_release_bundle_verify",
         {
@@ -811,6 +817,23 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             }
         },
     ) == []
+    assert module.api_failures(
+        "workflow_trace_archive_semantics",
+        {
+            "data": {
+                "status": "pass",
+                "checked_count": 1,
+                "latest_artifacts": [
+                    {
+                        "trace_step_count": 3,
+                        "trace_hash": valid_hash,
+                        "task_type": "cds_optimize",
+                        "structured_manifest_hash": valid_hash,
+                    }
+                ],
+            }
+        },
+    ) == []
     refresh_plan_failures = module.api_failures(
         "data_refresh_plan_archive_semantics",
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"validation_status": "pass"}]}},
@@ -822,6 +845,13 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "external_sources_hash" in " ".join(refresh_plan_failures)
     assert "dataset_id" in " ".join(refresh_plan_failures)
     assert "structured_manifest_hash" in " ".join(refresh_plan_failures)
+    workflow_trace_failures = module.api_failures(
+        "workflow_trace_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"task_type": "cds_optimize"}]}},
+    )
+    assert "trace_step_count" in " ".join(workflow_trace_failures)
+    assert "trace_hash" in " ".join(workflow_trace_failures)
+    assert "structured_manifest_hash" in " ".join(workflow_trace_failures)
     assert module.api_failures(
         "rag_vector_index_archive_semantics",
         {
@@ -1316,6 +1346,46 @@ def test_workflow_runs_cds_design() -> None:
     assert design["workflow"]["task"]["task_type"] == "cds_optimize"
     assert design["qc_report"]
     assert any(step["name"] == "synonymous_optimizer" for step in design["trace"])
+
+
+def test_workflow_trace_bundle_archive_semantics() -> None:
+    design = run_cds_design_workflow(
+        "ATGGCTGCTTAA",
+        {"gene": "DEMO", "species": "human", "modality": "AAV"},
+        OptimizationConfig(population_size=16, generations=2, max_candidates=2, seed=7),
+    )
+    run = {
+        "run_id": design["run_id"],
+        "run_type": "cds_optimize",
+        "design": design,
+        "trace": design["trace"],
+    }
+    bundle = build_workflow_trace_bundle(run)
+    verification = verify_workflow_trace_bundle(bundle)
+    assert verification["status"] == "pass"
+    assert verification["semantic_checks"]["trace_hash"] == "pass"
+    assert verification["semantic_checks"]["plan_hash"] == "pass"
+    assert verification["trace_step_count"] >= 3
+    assert len(verification["trace_hash"]) == 64
+    archived = archive_artifact_bundle(
+        bundle,
+        action="unit_test_workflow_trace_bundle",
+        resource_type="workflow_trace",
+        resource_id=design["run_id"],
+        filename="unit_test_workflow_trace_bundle.zip",
+    )
+    semantic = archived["metadata"]["workflow_trace_semantic_verification"]
+    assert semantic["trace_hash"] == verification["trace_hash"]
+    assert semantic["trace_step_count"] == verification["trace_step_count"]
+    summary = workflow_trace_archive_summary(limit=5, verify_files=False)
+    assert summary["verification_mode"] == "indexed"
+    assert summary["freshness_status"] == "fresh"
+    assert any(
+        item["artifact_id"] == archived["artifact_id"]
+        and item["trace_hash"] == verification["trace_hash"]
+        and item["trace_step_count"] == verification["trace_step_count"]
+        for item in summary["latest_artifacts"]
+    )
 
 
 def test_batch_gene_design_persists_per_gene_results() -> None:

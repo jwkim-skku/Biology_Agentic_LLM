@@ -71,6 +71,7 @@ API_CHECKS = [
     {"name": "rag_regression_archive_semantics", "path": "/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false"},
     {"name": "rag_vector_index_archive_semantics", "path": "/artifacts/rag-vector-indexes/semantic-summary?limit=6&verify_files=false"},
     {"name": "optimizer_benchmark_archive_semantics", "path": "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false"},
+    {"name": "workflow_trace_archive_semantics", "path": "/artifacts/workflow-traces/semantic-summary?limit=6&verify_files=false"},
 ]
 
 REQUIRED_PREFLIGHT_CHECKS = [
@@ -599,6 +600,17 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_field in ["results_hash", "benchmark_hash", "diagnostics_hash", "case_metrics_hash", "candidate_diagnostics_hash"]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest optimizer benchmark archive is missing {hash_field}")
+    if name == "workflow_trace_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and int(latest.get("trace_step_count") or 0) < 1:
+            failures.append("latest workflow trace archive is missing trace_step_count")
+        if checked_count and not latest.get("trace_hash"):
+            failures.append("latest workflow trace archive is missing trace_hash")
+        if checked_count and not latest.get("task_type"):
+            failures.append("latest workflow trace archive is missing task_type")
+        if checked_count and not latest.get("structured_manifest_hash"):
+            failures.append("latest workflow trace archive is missing structured_manifest_hash")
     return failures
 
 

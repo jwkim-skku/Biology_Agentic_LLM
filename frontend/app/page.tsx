@@ -1173,6 +1173,11 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     case_metrics_hash?: string | null;
     candidate_diagnostics_hash?: string | null;
     structured_manifest_hash?: string | null;
+    workflow_id?: string | null;
+    run_id?: string | null;
+    task_type?: string | null;
+    trace_hash?: string | null;
+    trace_step_count?: number | null;
   }>;
 };
 
@@ -1710,6 +1715,7 @@ export default function Dashboard() {
   const [ragRegressionSemantics, setRagRegressionSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [ragVectorIndexSemantics, setRagVectorIndexSemantics] = useState<RagVectorIndexArchiveSemanticSummary | null>(null);
   const [optimizerBenchmarkSemantics, setOptimizerBenchmarkSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
+  const [workflowTraceSemantics, setWorkflowTraceSemantics] = useState<AuditBundleArchiveSemanticSummary | null>(null);
   const [retentionPlan, setRetentionPlan] = useState<ArtifactRetentionPlan | null>(null);
   const [objectStorePlan, setObjectStorePlan] = useState<ArtifactObjectStoreMirrorPlan | null>(null);
   const [retentionLoading, setRetentionLoading] = useState(false);
@@ -2045,7 +2051,8 @@ export default function Dashboard() {
         ragSemanticsResponse,
         ragRegressionSemanticsResponse,
         ragVectorIndexSemanticsResponse,
-        optimizerSemanticsResponse
+        optimizerSemanticsResponse,
+        workflowTraceSemanticsResponse
       ] = await Promise.all([
         fetch(`${API_BASE}/artifacts?limit=6`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/summary`, { headers: apiHeaders() }),
@@ -2057,7 +2064,8 @@ export default function Dashboard() {
         fetch(`${API_BASE}/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
         fetch(`${API_BASE}/artifacts/rag-vector-indexes/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
-        fetch(`${API_BASE}/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() })
+        fetch(`${API_BASE}/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() }),
+        fetch(`${API_BASE}/artifacts/workflow-traces/semantic-summary?limit=6&verify_files=false`, { headers: apiHeaders() })
       ]);
       const artifactsPayload = await artifactsResponse.json();
       const summaryPayload = await summaryResponse.json();
@@ -2070,6 +2078,7 @@ export default function Dashboard() {
       const ragRegressionSemanticsPayload = await ragRegressionSemanticsResponse.json();
       const ragVectorIndexSemanticsPayload = await ragVectorIndexSemanticsResponse.json();
       const optimizerSemanticsPayload = await optimizerSemanticsResponse.json();
+      const workflowTraceSemanticsPayload = await workflowTraceSemanticsResponse.json();
       if (artifactsResponse.ok) {
         setArtifacts(artifactsPayload.data.artifacts ?? []);
       }
@@ -2102,6 +2111,9 @@ export default function Dashboard() {
       }
       if (optimizerSemanticsResponse.ok) {
         setOptimizerBenchmarkSemantics(optimizerSemanticsPayload.data);
+      }
+      if (workflowTraceSemanticsResponse.ok) {
+        setWorkflowTraceSemantics(workflowTraceSemanticsPayload.data);
       }
     } catch {
       // Archive status is auxiliary to the design workflow.
@@ -4404,6 +4416,21 @@ export default function Dashboard() {
                 Stress {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.stress_status ?? "n/a"} / cases{" "}
                 {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.case_count ?? "n/a"}
               </span>
+            </div>
+            <div className="data-quality" aria-label="Workflow trace archive summary">
+              <span>
+                Workflow trace {workflowTraceSemantics?.status ?? "n/a"} / checked {workflowTraceSemantics?.checked_count ?? "n/a"}
+              </span>
+              <span>
+                Pass {workflowTraceSemantics?.semantic_pass_count ?? "n/a"} / warn{" "}
+                {workflowTraceSemantics?.semantic_warning_count ?? "n/a"} / fail {workflowTraceSemantics?.semantic_fail_count ?? "n/a"}
+              </span>
+              <span>Freshness {formatArchiveFreshness(workflowTraceSemantics)}</span>
+              <span>
+                Steps {workflowTraceSemantics?.latest_artifacts?.[0]?.trace_step_count ?? "n/a"} / task{" "}
+                {workflowTraceSemantics?.latest_artifacts?.[0]?.task_type ?? "n/a"}
+              </span>
+              <span>Trace hash {workflowTraceSemantics?.latest_artifacts?.[0]?.trace_hash?.slice(0, 10) ?? "n/a"}</span>
             </div>
             <div className="data-actions retention-actions">
               <button type="button" onClick={planArtifactRetention} disabled={retentionLoading} title="Preview artifact retention cleanup">
