@@ -304,6 +304,53 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
 
 
+def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "production_audit.py"
+    spec = importlib.util.spec_from_file_location("cli_production_audit", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    evidence_path = root / "backend" / "app" / "data" / "runtime" / f"preflight_unit_{uuid.uuid4().hex}.json"
+    evidence_path.parent.mkdir(parents=True, exist_ok=True)
+    evidence = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pass",
+        "checks": [
+            {"name": name, "returncode": 0, "status": "pass", "details": {"status": "pass"}}
+            for name in module.REQUIRED_PREFLIGHT_CHECKS
+        ],
+        "failed": [],
+        "skipped": ["frontend_build"],
+    }
+    try:
+        evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
+        preflight_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        report = {
+            "audit_schema": "agentic-rag-cli-production-audit-v1",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "purpose": "deployment promotion evidence for the Agentic RAG codon optimization platform",
+            "duration_seconds": 0.1,
+            "mode": {"env": "template", "skip_api": True},
+            "summary": {"status": "pass", "checks": 1, "failures": [], "warnings": ["preflight_evidence"]},
+            "checks": [preflight_check],
+        }
+        report["audit_hash"] = module.audit_hash(report)
+        markdown = module.render_markdown(report)
+
+        assert preflight_check["status"] == "pass"
+        assert preflight_check["details"]["missing_required_checks"] == []
+        assert len(preflight_check["details"]["required_checks"]) == len(module.REQUIRED_PREFLIGHT_CHECKS)
+        assert module.audit_hash(report) == report["audit_hash"]
+        assert report["audit_hash"] in markdown
+        assert "## Preflight Evidence" in markdown
+        assert "Missing required checks: `0`" in markdown
+        assert "Skipped checks: `1`" in markdown
+    finally:
+        evidence_path.unlink(missing_ok=True)
+
+
 def test_audit_log_records_filters_and_summarizes_events() -> None:
     marker = f"test_audit_{random.randint(1, 10_000_000)}"
     event = record_audit_event(
