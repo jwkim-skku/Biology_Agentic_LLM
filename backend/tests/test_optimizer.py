@@ -471,6 +471,20 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     rag_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["cases_hash"]) == 64
     assert len(rag_gate["details"]["results_hash"]) == 64
+    qc_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "qc_bundle_archive_semantics")
+    assert qc_archive_gate["details"]["status"] in {"pass", "warning"}
+    for field in [
+        "latest_optimizer_manifest_hash",
+        "latest_request_hash",
+        "latest_qc_report_hash",
+        "latest_candidate_ranking_hash",
+        "latest_recommendation_audit_hash",
+    ]:
+        assert qc_archive_gate["details"][field] is None or len(qc_archive_gate["details"][field]) == 64
+    assert qc_archive_gate["details"]["latest_retrieval_quality_status"] in {None, "pass", "warning"}
+    assert qc_archive_gate["details"]["latest_data_quality_status"] in {None, "pass", "warning"}
+    assert qc_archive_gate["details"]["latest_optimizer_stress_status"] in {None, "pass", "warning"}
+    assert qc_archive_gate["details"]["latest_objective_count"] is None or qc_archive_gate["details"]["latest_objective_count"] >= 1
     optimizer_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark")
     assert len(optimizer_gate["details"]["cases_hash"]) == 64
     assert len(optimizer_gate["details"]["results_hash"]) == 64
