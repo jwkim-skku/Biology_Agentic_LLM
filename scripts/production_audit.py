@@ -253,6 +253,8 @@ def extract_preflight_summary(
     failed = payload.get("failed")
     skipped = payload.get("skipped")
     generated_at = str(payload.get("generated_at") or "")
+    checks_hash = payload.get("checks_hash")
+    preflight_hash = payload.get("preflight_hash")
     check_names = [str(check.get("name")) for check in checks if isinstance(check, dict) and check.get("name")]
     missing_checks = sorted(set(REQUIRED_PREFLIGHT_CHECKS) - set(check_names))
 
@@ -264,6 +266,12 @@ def extract_preflight_summary(
         failures.append(f"preflight evidence is missing required checks: {', '.join(missing_checks)}")
     if not any(isinstance(check, dict) and "details" in check for check in checks):
         warnings.append("preflight evidence does not include parsed details fields")
+    expected_checks_hash = hash_payload(checks)
+    if checks_hash != expected_checks_hash:
+        failures.append("preflight checks_hash is missing or does not match checks[].")
+    expected_preflight_hash = hash_payload({key: value for key, value in payload.items() if key != "preflight_hash"})
+    if preflight_hash != expected_preflight_hash:
+        failures.append("preflight_hash is missing or does not match the evidence payload.")
     validate_preflight_data_evidence(checks, failures)
     if skipped:
         warnings.append(f"preflight skipped checks: {', '.join(stringify_list(skipped))}")
@@ -279,6 +287,8 @@ def extract_preflight_summary(
         "generated_at": generated_at,
         "age_hours": round(age_hours, 3) if age_hours is not None else None,
         "checks": len(checks),
+        "checks_hash": checks_hash,
+        "preflight_hash": preflight_hash,
         "required_checks": REQUIRED_PREFLIGHT_CHECKS,
         "missing_required_checks": missing_checks,
         "failed": failed if isinstance(failed, list) else stringify_list(failed),
@@ -306,15 +316,16 @@ def validate_preflight_data_evidence(checks: list[Any], failures: list[str]) -> 
 
     plan_details = check_details(by_name.get("data_refresh_cli_plan"))
     plan = plan_details.get("plan") if isinstance(plan_details.get("plan"), dict) else {}
+    plan_release_lock = plan_details.get("release_lock") if isinstance(plan_details.get("release_lock"), dict) else {}
     plan_summary = plan.get("summary") if isinstance(plan.get("summary"), dict) else {}
     if plan_details.get("status") != "pass":
         failures.append("data_refresh_cli_plan status is not pass.")
-    if plan.get("dry_run") is not True:
+    if plan.get("dry_run") is not True and plan.get("refresh_status") != "planned":
         failures.append("data_refresh_cli_plan did not run as a dry run.")
     if int_value(plan_summary.get("planned")) <= 0:
         failures.append("data_refresh_cli_plan did not plan any operations.")
-    if not plan.get("manifest_hash"):
-        failures.append("data_refresh_cli_plan did not include a manifest hash.")
+    if not (plan.get("manifest_hash") or plan_release_lock.get("current_hash")):
+        failures.append("data_refresh_cli_plan did not include a manifest or release-lock hash.")
 
     validation_details = check_details(by_name.get("data_refresh_cli_validate"))
     validation = validation_details.get("validation") if isinstance(validation_details.get("validation"), dict) else {}
@@ -728,6 +739,10 @@ def audit_hash(report: dict[str, Any]) -> str:
     return sha256(canonical).hexdigest()
 
 
+def hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
 def summarize(checks: list[dict[str, Any]]) -> dict[str, Any]:
     failures = [check["name"] for check in checks if check.get("status") == "fail"]
     warnings = [check["name"] for check in checks if check.get("warnings") or check.get("status") == "warning"]
@@ -780,6 +795,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Evidence path: `{details.get('path', preflight.get('path', 'n/a'))}`",
                 f"- Generated at: `{details.get('generated_at', 'n/a')}`",
                 f"- Age hours: `{details.get('age_hours', 'n/a')}`",
+                f"- Checks hash: `{details.get('checks_hash', 'n/a')}`",
+                f"- Preflight hash: `{details.get('preflight_hash', 'n/a')}`",
                 f"- Required checks: `{len(details.get('required_checks') or [])}`",
                 f"- Missing required checks: `{len(details.get('missing_required_checks') or [])}`",
                 f"- Failed checks: `{len(details.get('failed') or [])}`",

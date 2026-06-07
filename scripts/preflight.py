@@ -9,6 +9,7 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -166,6 +167,7 @@ def main() -> int:
         output_path = args.output_json if args.output_json.is_absolute() else ROOT / args.output_json
         output_path.parent.mkdir(parents=True, exist_ok=True)
         report["output_json"] = str(output_path)
+        stamp_report_hashes(report)
         output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2, sort_keys=True))
     return 1 if report["failed"] else 0
@@ -203,7 +205,7 @@ def build_report(args: argparse.Namespace, checks: list[dict[str, object]], *, s
         }.items()
         if enabled
     ]
-    return {
+    report = {
         "generated_at": started_at.isoformat(),
         "duration_seconds": duration_seconds,
         "root": str(ROOT),
@@ -218,6 +220,8 @@ def build_report(args: argparse.Namespace, checks: list[dict[str, object]], *, s
         "failed": [str(check["name"]) for check in failed],
         "skipped": skipped,
     }
+    stamp_report_hashes(report)
+    return report
 
 
 def backend_ready(url: str = READY_URL) -> bool:
@@ -299,6 +303,15 @@ def compact_text(text: str, limit: int = 4000) -> str:
     if len(stripped) <= limit:
         return stripped
     return stripped[:limit] + "...<truncated>"
+
+
+def hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def stamp_report_hashes(report: dict[str, Any]) -> None:
+    report["checks_hash"] = hash_payload(report["checks"])
+    report["preflight_hash"] = hash_payload({key: value for key, value in report.items() if key != "preflight_hash"})
 
 
 if __name__ == "__main__":

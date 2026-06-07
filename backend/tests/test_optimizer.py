@@ -499,6 +499,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         "failed": [],
         "skipped": ["frontend_build"],
     }
+    evidence["checks_hash"] = module.hash_payload(evidence["checks"])
+    evidence["preflight_hash"] = module.hash_payload({key: value for key, value in evidence.items() if key != "preflight_hash"})
     try:
         evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
         preflight_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
@@ -516,12 +518,19 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
 
         assert preflight_check["status"] == "pass"
         assert preflight_check["details"]["missing_required_checks"] == []
+        assert preflight_check["details"]["checks_hash"] == evidence["checks_hash"]
+        assert preflight_check["details"]["preflight_hash"] == evidence["preflight_hash"]
         assert len(preflight_check["details"]["required_checks"]) == len(module.REQUIRED_PREFLIGHT_CHECKS)
         assert module.audit_hash(report) == report["audit_hash"]
         assert report["audit_hash"] in markdown
         assert "## Preflight Evidence" in markdown
         assert "Missing required checks: `0`" in markdown
         assert "Skipped checks: `1`" in markdown
+        tampered = {**evidence, "preflight_hash": "0" * 64}
+        evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
+        tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        assert tampered_check["status"] == "fail"
+        assert "preflight_hash" in " ".join(tampered_check["failures"])
     finally:
         evidence_path.unlink(missing_ok=True)
 
@@ -578,6 +587,8 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         "failed": [],
         "skipped": [],
     }
+    evidence["checks_hash"] = module.hash_payload(evidence["checks"])
+    evidence["preflight_hash"] = module.hash_payload({key: value for key, value in evidence.items() if key != "preflight_hash"})
     try:
         evidence_path.write_text(json.dumps(evidence), encoding="utf-8")
         preflight_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
@@ -586,6 +597,7 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         assert "structured_import_cli_preview did not record source sha256" in failures
         assert "data_refresh_cli_plan did not run as a dry run" in failures
         assert "data_refresh_cli_validate did not include the expected validation schema" in failures
+        assert "preflight_hash" not in failures
     finally:
         evidence_path.unlink(missing_ok=True)
 
