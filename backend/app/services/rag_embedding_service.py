@@ -8,6 +8,7 @@ import re
 import urllib.error
 import urllib.request
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from app.config import get_settings
@@ -16,6 +17,7 @@ from app.config import get_settings
 RAG_EMBEDDING_SCHEMA = "agentic-rag-embedding-backend-v1"
 HASH_BOW_MODEL = "hash-bow-v1"
 DEFAULT_EMBEDDING_DIMENSIONS = 128
+OPENAI_CACHE_SCHEMA = "agentic-rag-openai-embedding-cache-v1"
 
 
 def rag_embedding_status() -> dict[str, Any]:
@@ -58,6 +60,7 @@ def rag_embedding_status() -> dict[str, Any]:
             "base_url": settings.openai_embedding_base_url,
             "configured_model": settings.rag_embedding_model,
             "configured_dimensions": settings.rag_embedding_dimensions,
+            "cache": _openai_cache_status(settings),
         },
         "production_ready": active in {"sentence_transformers", "openai"} and not fallback_active,
         "warnings": warnings,
@@ -76,6 +79,7 @@ def embed_text(text: str, aliases: dict[str, list[str]] | None = None) -> dict[s
                 "embedding_model": embedded["embedding_model"],
                 "embedding_dimensions": len(embedded["embedding"]),
                 "embedding": embedded["embedding"],
+                "cache_status": embedded.get("cache_status", "unknown"),
                 "warnings": status["warnings"],
             }
         warnings = list(status["warnings"]) + [embedded.get("error") or "sentence-transformers embedding failed; falling back to hash-bow-v1."]
@@ -95,6 +99,7 @@ def embed_text(text: str, aliases: dict[str, list[str]] | None = None) -> dict[s
                 "embedding_model": embedded["embedding_model"],
                 "embedding_dimensions": len(embedded["embedding"]),
                 "embedding": embedded["embedding"],
+                "cache_status": embedded.get("cache_status", "unknown"),
                 "warnings": status["warnings"],
             }
         warnings = list(status["warnings"]) + [embedded.get("error") or "OpenAI embedding failed; falling back to hash-bow-v1."]
@@ -154,6 +159,15 @@ def _sentence_transformer_embedding(text: str) -> dict[str, Any]:
 
 def _openai_embedding(text: str) -> dict[str, Any]:
     settings = get_settings()
+    cache_key = _openai_cache_key(text, model=settings.rag_embedding_model, dimensions=settings.rag_embedding_dimensions)
+    cached = _read_openai_cache_entry(cache_key)
+    if cached is not None:
+        return {
+            "status": "pass",
+            "embedding_model": settings.rag_embedding_model,
+            "embedding": cached,
+            "cache_status": "hit",
+        }
     payload: dict[str, Any] = {
         "model": settings.rag_embedding_model,
         "input": text,
@@ -180,11 +194,80 @@ def _openai_embedding(text: str) -> dict[str, Any]:
         return {"status": "fail", "error": f"Invalid OpenAI embedding response: {exc}"}
     if settings.rag_embedding_dimensions and len(values) != settings.rag_embedding_dimensions:
         values = _resize_embedding(values, settings.rag_embedding_dimensions)
+    _write_openai_cache_entry(cache_key, values, model=settings.rag_embedding_model, dimensions=settings.rag_embedding_dimensions)
     return {
         "status": "pass",
         "embedding_model": settings.rag_embedding_model,
         "embedding": values,
+        "cache_status": "miss",
     }
+
+
+def _openai_cache_status(settings: Any | None = None) -> dict[str, Any]:
+    settings = settings or get_settings()
+    path = _openai_cache_path(settings)
+    entries = 0
+    if path.exists():
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            entries = len(payload.get("entries") or {}) if isinstance(payload, dict) else 0
+        except json.JSONDecodeError:
+            entries = 0
+    return {
+        "cache_schema": OPENAI_CACHE_SCHEMA,
+        "path": str(path),
+        "entries": entries,
+        "enabled": True,
+    }
+
+
+def _read_openai_cache_entry(cache_key: str) -> list[float] | None:
+    path = _openai_cache_path()
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    entry = (payload.get("entries") or {}).get(cache_key) if isinstance(payload, dict) else None
+    values = entry.get("embedding") if isinstance(entry, dict) else None
+    if not isinstance(values, list):
+        return None
+    try:
+        return [round(float(value), 8) for value in values]
+    except (TypeError, ValueError):
+        return None
+
+
+def _write_openai_cache_entry(cache_key: str, embedding: list[float], *, model: str, dimensions: int) -> None:
+    path = _openai_cache_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, Any] = {"cache_schema": OPENAI_CACHE_SCHEMA, "entries": {}}
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+            if isinstance(existing, dict) and isinstance(existing.get("entries"), dict):
+                payload = existing
+        except json.JSONDecodeError:
+            payload = {"cache_schema": OPENAI_CACHE_SCHEMA, "entries": {}}
+    payload["cache_schema"] = OPENAI_CACHE_SCHEMA
+    payload.setdefault("entries", {})[cache_key] = {
+        "model": model,
+        "dimensions": dimensions,
+        "embedding": embedding,
+    }
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _openai_cache_key(text: str, *, model: str, dimensions: int) -> str:
+    payload = {"model": model, "dimensions": dimensions, "text": text}
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _openai_cache_path(settings: Any | None = None) -> Path:
+    settings = settings or get_settings()
+    return settings.data_dir / "runtime" / "openai_embedding_cache.json"
 
 
 @lru_cache(maxsize=2)

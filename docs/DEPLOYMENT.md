@@ -51,7 +51,7 @@ Useful runtime variables:
 - `RAG_PGVECTOR_TABLE`: pgvector table used when `RAG_VECTOR_BACKEND=pgvector`.
 - `QDRANT_URL` and `QDRANT_COLLECTION`: Qdrant endpoint and collection used when `RAG_VECTOR_BACKEND=qdrant`.
 - `RAG_EMBEDDING_BACKEND`: `hash_bow`, `sentence_transformers`, or `openai`. Production promotion expects `sentence_transformers` with a pinned local model or `openai` with an API key and regression evidence.
-- `OPENAI_API_KEY` and `OPENAI_EMBEDDING_BASE_URL`: optional managed embedding backend credentials used only when `RAG_EMBEDDING_BACKEND=openai`.
+- `OPENAI_API_KEY` and `OPENAI_EMBEDDING_BASE_URL`: optional managed embedding backend credentials used only when `RAG_EMBEDDING_BACKEND=openai`. Repeated OpenAI embedding calls are cached under `APP_DATA_DIR/runtime/openai_embedding_cache.json`.
 - `API_KEYS`: comma-separated API keys. Empty means local-development mode.
 - `API_KEY_ROLES`: optional API key role mapping. Use `key=admin;other=viewer,operator` or JSON such as `{"key":["admin"]}`. Without this mapping, configured keys default to `admin`.
 - `NEXT_PUBLIC_API_KEY`: browser demo key when API auth is enabled. It must map to a configured `viewer` or `operator` role, never `admin`.

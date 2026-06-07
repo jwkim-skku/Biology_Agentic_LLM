@@ -184,6 +184,7 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         key: os.environ.get(key)
         for key in ["RAG_EMBEDDING_BACKEND", "RAG_EMBEDDING_MODEL", "RAG_EMBEDDING_DIMENSIONS", "OPENAI_API_KEY"]
     }
+    cache_path: Path | None = None
 
     class FakeResponse:
         status = 200
@@ -211,13 +212,21 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         configured = embeddings.rag_embedding_status()
         assert configured["active_backend"] == "openai"
         assert configured["production_ready"] is True
+        cache_path = embeddings._openai_cache_path()
+        cache_path.unlink(missing_ok=True)
         with patch("urllib.request.urlopen", return_value=FakeResponse()) as mocked:
             embedded = embeddings.embed_text("SNCA substantia nigra dopaminergic neuron")
-        assert mocked.called
+            cached = embeddings.embed_text("SNCA substantia nigra dopaminergic neuron")
+        assert mocked.call_count == 1
         assert embedded["active_backend"] == "openai"
+        assert embedded["cache_status"] == "miss"
+        assert cached["cache_status"] == "hit"
         assert embedded["embedding_model"] == "text-embedding-3-small"
         assert len(embedded["embedding"]) == 16
+        assert configured["openai"]["cache"]["cache_schema"] == "agentic-rag-openai-embedding-cache-v1"
     finally:
+        if cache_path is not None:
+            cache_path.unlink(missing_ok=True)
         for key, value in previous.items():
             if value is None:
                 os.environ.pop(key, None)
