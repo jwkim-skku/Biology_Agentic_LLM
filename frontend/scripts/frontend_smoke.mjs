@@ -190,6 +190,7 @@ async function main() {
     assert(/Total\s+\d+/.test(archiveText), `Artifact archive total was not rendered: ${archiveText}`);
     assert(/Ledger\s+(pass|warning|fail|n\/a)/.test(archiveText), `Artifact archive ledger status was not rendered: ${archiveText}`);
     assert(/QC semantic\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `QC bundle archive semantic summary was not rendered: ${archiveText}`);
+    assert(/Request\s+(pass|fail|n\/a)\s+\/\s+target\s+(\d+\s+pass\s+\/\s+\d+\s+fail|n\/a)/.test(archiveText), `QC request provenance summary was not rendered: ${archiveText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `Structured import audit summary was not rendered: ${archiveText}`);
     assert(/RAG eval archive\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `RAG evaluation archive summary was not rendered: ${archiveText}`);
     assert(/OPT bench archive\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `Optimizer benchmark archive summary was not rendered: ${archiveText}`);

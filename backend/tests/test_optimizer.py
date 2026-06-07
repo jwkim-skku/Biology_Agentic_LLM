@@ -1093,6 +1093,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     )
     assert archived["metadata"]["qc_bundle_semantic_verification"]["semantic_status"] == "pass"
     assert archived["metadata"]["qc_bundle_semantic_verification"]["optimizer_manifest_hash"] == optimizer_manifest["manifest_hash"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["request_payload_status"] == "pass"
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["request_target_checks"]["brain_region"] == "pass"
     archived_verification = verify_archived_artifact(archived["artifact_id"])
     assert archived_verification["status"] == "pass"
     assert archived_verification["bundle_verification"]["semantic_status"] == "pass"
@@ -1105,7 +1107,10 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     indexed_semantics = qc_bundle_archive_semantic_summary(limit=5, verify_files=False)
     assert indexed_semantics["verification_mode"] == "indexed"
     assert any(
-        item["artifact_id"] == archived["artifact_id"] and item["metadata_indexed"] is True
+        item["artifact_id"] == archived["artifact_id"]
+        and item["metadata_indexed"] is True
+        and item["request_payload_status"] == "pass"
+        and item["request_target_checks"]["modality"] == "pass"
         for item in indexed_semantics["latest_artifacts"]
     )
 

@@ -363,10 +363,17 @@ def _archive_metadata(metadata: dict[str, Any] | None, verification: dict[str, A
 
 
 def _semantic_metadata(verification: dict[str, Any]) -> dict[str, Any]:
+    semantic_checks = verification.get("semantic_checks") or {}
     return {
         "status": verification.get("status"),
         "semantic_status": verification.get("semantic_status"),
         "optimizer_manifest_hash": verification.get("optimizer_manifest_hash"),
+        "request_payload_status": semantic_checks.get("request_payload"),
+        "request_target_checks": {
+            key.removeprefix("request_target_"): value
+            for key, value in semantic_checks.items()
+            if key.startswith("request_target_")
+        },
         "checked_files": verification.get("checked_files"),
         "file_count": verification.get("file_count"),
         "manifest_hash": verification.get("manifest_hash"),
@@ -501,6 +508,8 @@ def _semantic_summary_item_from_metadata(artifact: dict[str, Any]) -> dict[str, 
         "status": semantic.get("status") or artifact.get("verification_status"),
         "semantic_status": semantic.get("semantic_status") or "not_indexed",
         "optimizer_manifest_hash": semantic.get("optimizer_manifest_hash"),
+        "request_payload_status": semantic.get("request_payload_status"),
+        "request_target_checks": semantic.get("request_target_checks") or {},
         "checked_files": semantic.get("checked_files"),
         "file_count": semantic.get("file_count"),
         "manifest_hash": semantic.get("manifest_hash") or artifact.get("manifest_hash"),
@@ -538,6 +547,12 @@ def _semantic_summary_item_from_verification(artifact: dict[str, Any], verificat
         "status": verification.get("status"),
         "semantic_status": bundle_verification.get("semantic_status") or "not_applicable",
         "optimizer_manifest_hash": bundle_verification.get("optimizer_manifest_hash"),
+        "request_payload_status": (bundle_verification.get("semantic_checks") or {}).get("request_payload"),
+        "request_target_checks": {
+            key.removeprefix("request_target_"): value
+            for key, value in (bundle_verification.get("semantic_checks") or {}).items()
+            if key.startswith("request_target_")
+        },
         "checked_files": bundle_verification.get("checked_files"),
         "file_count": bundle_verification.get("file_count"),
         "manifest_hash": verification.get("manifest_hash"),

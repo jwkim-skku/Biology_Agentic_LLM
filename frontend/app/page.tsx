@@ -986,6 +986,8 @@ type QcBundleArchiveSemanticSummary = {
     artifact_id: string;
     semantic_status?: string;
     optimizer_manifest_hash?: string | null;
+    request_payload_status?: string | null;
+    request_target_checks?: Record<string, string>;
     checked_files?: number;
     file_count?: number;
   }>;
@@ -3917,6 +3919,10 @@ export default function Dashboard() {
               <span>
                 Latest optimizer {qcBundleSemantics?.latest_artifacts?.[0]?.optimizer_manifest_hash?.slice(0, 10) ?? "n/a"}
               </span>
+              <span>
+                Request {qcBundleSemantics?.latest_artifacts?.[0]?.request_payload_status ?? "n/a"} / target{" "}
+                {qcRequestTargetSummary(qcBundleSemantics?.latest_artifacts?.[0]?.request_target_checks)}
+              </span>
             </div>
             <div className="data-quality" aria-label="Structured import audit archive summary">
               <span>
@@ -4724,6 +4730,14 @@ function ragFacetGapSummary(analysis?: RagInspectionResult["facet_gap_analysis"]
   const top = value.top_available_values[0];
   const topText = top ? ` / corpus top ${top.value} ${top.count}` : "";
   return `${name.replace("_", " ")} ${value.status.replaceAll("_", " ")}${topText}`;
+}
+
+function qcRequestTargetSummary(checks?: Record<string, string>) {
+  const values = Object.values(checks ?? {});
+  if (!values.length) return "n/a";
+  const pass = values.filter((value) => value === "pass").length;
+  const fail = values.filter((value) => value === "fail").length;
+  return `${pass} pass / ${fail} fail`;
 }
 
 function totalRequestCount(metrics?: MetricsSnapshot | null) {
