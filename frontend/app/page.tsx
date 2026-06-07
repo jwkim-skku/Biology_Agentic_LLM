@@ -781,7 +781,7 @@ type ProductionAuditStatus = {
       total_seconds?: number;
       slowest?: Array<{ name: string; duration_seconds: number }>;
     };
-    qc_bundle_archive_semantics?: {
+    qc_bundle_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
       semantic_pass_count: number;
@@ -795,7 +795,7 @@ type ProductionAuditStatus = {
         file_count?: number;
       }>;
     };
-    data_release_archive_semantics?: {
+    data_release_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
       semantic_pass_count: number;
@@ -814,7 +814,7 @@ type ProductionAuditStatus = {
         external_snapshot_missing_count?: number | null;
       }>;
     };
-    data_refresh_plan_archive_semantics?: {
+    data_refresh_plan_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
       semantic_pass_count: number;
@@ -830,7 +830,7 @@ type ProductionAuditStatus = {
         dataset_id?: string | null;
       }>;
     };
-    structured_import_archive_semantics?: {
+    structured_import_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
       semantic_pass_count: number;
@@ -844,7 +844,7 @@ type ProductionAuditStatus = {
         validation_warning_count?: number | null;
       }>;
     };
-    rag_vector_index_archive_semantics?: {
+    rag_vector_index_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
       semantic_pass_count: number;
@@ -1028,7 +1028,16 @@ type ArchivedArtifactVerification = {
   };
 };
 
-type QcBundleArchiveSemanticSummary = {
+type ArchiveSemanticFreshness = {
+  freshness_status?: string;
+  latest_created_at?: string | null;
+  latest_age_hours?: number | null;
+  freshness_policy?: {
+    warning_hours?: number;
+  };
+};
+
+type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
   status: string;
   checked_count: number;
   semantic_pass_count: number;
@@ -1045,7 +1054,7 @@ type QcBundleArchiveSemanticSummary = {
   }>;
 };
 
-type StructuredImportArchiveSemanticSummary = {
+type StructuredImportArchiveSemanticSummary = ArchiveSemanticFreshness & {
   status: string;
   checked_count: number;
   semantic_pass_count: number;
@@ -1060,7 +1069,7 @@ type StructuredImportArchiveSemanticSummary = {
   }>;
 };
 
-type DataReleaseArchiveSemanticSummary = {
+type DataReleaseArchiveSemanticSummary = ArchiveSemanticFreshness & {
   status: string;
   checked_count: number;
   semantic_pass_count: number;
@@ -1081,7 +1090,7 @@ type DataReleaseArchiveSemanticSummary = {
   }>;
 };
 
-type DataRefreshPlanArchiveSemanticSummary = {
+type DataRefreshPlanArchiveSemanticSummary = ArchiveSemanticFreshness & {
   status: string;
   checked_count: number;
   semantic_pass_count: number;
@@ -1098,7 +1107,7 @@ type DataRefreshPlanArchiveSemanticSummary = {
   }>;
 };
 
-type AuditBundleArchiveSemanticSummary = {
+type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
   status: string;
   checked_count: number;
   semantic_pass_count: number;
@@ -1117,7 +1126,7 @@ type AuditBundleArchiveSemanticSummary = {
   }>;
 };
 
-type RagVectorIndexArchiveSemanticSummary = {
+type RagVectorIndexArchiveSemanticSummary = ArchiveSemanticFreshness & {
   status: string;
   checked_count: number;
   semantic_pass_count: number;
@@ -3912,10 +3921,13 @@ export default function Dashboard() {
               <span>QC checked {productionAudit?.evidence?.qc_bundle_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Data release {productionAudit?.evidence?.data_release_archive_semantics?.status ?? "n/a"}</span>
               <span>Release checked {productionAudit?.evidence?.data_release_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Release fresh {formatArchiveFreshness(productionAudit?.evidence?.data_release_archive_semantics)}</span>
               <span>Refresh plan {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.status ?? "n/a"}</span>
               <span>Plan checked {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Plan fresh {formatArchiveFreshness(productionAudit?.evidence?.data_refresh_plan_archive_semantics)}</span>
               <span>Vector index {productionAudit?.evidence?.rag_vector_index_archive_semantics?.status ?? "n/a"}</span>
               <span>Vector checked {productionAudit?.evidence?.rag_vector_index_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Vector fresh {formatArchiveFreshness(productionAudit?.evidence?.rag_vector_index_archive_semantics)}</span>
               <span>Import audit {productionAudit?.evidence?.structured_import_archive_semantics?.status ?? "n/a"}</span>
               <span>Import checked {productionAudit?.evidence?.structured_import_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Audit {formatSeconds(productionAudit?.evidence?.timings?.total_seconds)}</span>
@@ -4135,6 +4147,7 @@ export default function Dashboard() {
                 Pass {qcBundleSemantics?.semantic_pass_count ?? "n/a"} / warn {qcBundleSemantics?.semantic_warning_count ?? "n/a"} /
                 fail {qcBundleSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(qcBundleSemantics)}</span>
               <span>
                 Latest optimizer {qcBundleSemantics?.latest_artifacts?.[0]?.optimizer_manifest_hash?.slice(0, 10) ?? "n/a"}
               </span>
@@ -4152,6 +4165,7 @@ export default function Dashboard() {
                 {structuredImportSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
                 {structuredImportSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(structuredImportSemantics)}</span>
               <span>
                 Latest manifest {structuredImportSemantics?.latest_artifacts?.[0]?.structured_manifest_hash?.slice(0, 10) ?? "n/a"}
               </span>
@@ -4165,6 +4179,7 @@ export default function Dashboard() {
                 {dataReleaseSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
                 {dataReleaseSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(dataReleaseSemantics)}</span>
               <span>
                 Records {dataReleaseSemantics?.latest_artifacts?.[0]?.record_count ?? "n/a"} / promotion{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.promotion_status ?? "n/a"}
@@ -4188,6 +4203,7 @@ export default function Dashboard() {
                 {dataRefreshPlanSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
                 {dataRefreshPlanSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(dataRefreshPlanSemantics)}</span>
               <span>
                 Ops {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.operation_count ?? "n/a"} / validation{" "}
                 {dataRefreshPlanSemantics?.latest_artifacts?.[0]?.validation_status ?? "n/a"}
@@ -4206,6 +4222,7 @@ export default function Dashboard() {
                 {ragEvaluationSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
                 {ragEvaluationSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(ragEvaluationSemantics)}</span>
               <span>
                 Latest trace {ragEvaluationSemantics?.latest_artifacts?.[0]?.query_fingerprint?.slice(0, 10) ?? "n/a"}
               </span>
@@ -4219,6 +4236,7 @@ export default function Dashboard() {
                 {ragRegressionSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
                 {ragRegressionSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(ragRegressionSemantics)}</span>
               <span>
                 Latest cases {ragRegressionSemantics?.latest_artifacts?.[0]?.cases_hash?.slice(0, 10) ?? "n/a"}
               </span>
@@ -4232,6 +4250,7 @@ export default function Dashboard() {
                 {ragVectorIndexSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
                 {ragVectorIndexSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(ragVectorIndexSemantics)}</span>
               <span>
                 Chunks {ragVectorIndexSemantics?.latest_artifacts?.[0]?.chunk_count ?? "n/a"} / dim{" "}
                 {ragVectorIndexSemantics?.latest_artifacts?.[0]?.embedding_dimensions ?? "n/a"}
@@ -4251,6 +4270,7 @@ export default function Dashboard() {
                 {optimizerBenchmarkSemantics?.semantic_warning_count ?? "n/a"} / fail{" "}
                 {optimizerBenchmarkSemantics?.semantic_fail_count ?? "n/a"}
               </span>
+              <span>Freshness {formatArchiveFreshness(optimizerBenchmarkSemantics)}</span>
               <span>
                 Latest cases {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.cases_hash?.slice(0, 10) ?? "n/a"}
               </span>
@@ -5058,6 +5078,15 @@ function formatDuration(seconds?: number) {
 function formatSeconds(seconds?: number) {
   if (typeof seconds !== "number" || !Number.isFinite(seconds)) return "n/a";
   return seconds < 10 ? `${seconds.toFixed(2)}s` : `${seconds.toFixed(1)}s`;
+}
+
+function formatArchiveFreshness(summary?: ArchiveSemanticFreshness | null) {
+  if (!summary) return "n/a";
+  const status = summary.freshness_status ?? "n/a";
+  const age = typeof summary.latest_age_hours === "number" && Number.isFinite(summary.latest_age_hours)
+    ? `${summary.latest_age_hours.toFixed(summary.latest_age_hours < 10 ? 1 : 0)}h`
+    : "age n/a";
+  return `${status} / ${age}`;
 }
 
 function formatJobStatusCounts(counts?: Record<string, number>) {

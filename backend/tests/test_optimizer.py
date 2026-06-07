@@ -1448,6 +1448,9 @@ def test_structured_manifest_validates_sources() -> None:
     summary = structured_import_archive_summary(limit=5, verify_files=False)
     assert summary["verification_mode"] == "indexed"
     assert summary["checked_count"] >= 1
+    assert summary["freshness_status"] == "fresh"
+    assert summary["latest_age_hours"] is not None
+    assert summary["freshness_policy"]["warning_hours"] > 0
     assert any(
         item["artifact_id"] == archived["artifact_id"] and item["metadata_indexed"] is True
         for item in summary["latest_artifacts"]
@@ -1479,6 +1482,8 @@ def test_data_catalog_and_refresh_plan() -> None:
     assert semantic["dataset_id"] == "gtex_v8"
     summary = data_refresh_plan_archive_summary(limit=5, verify_files=False)
     assert summary["verification_mode"] == "indexed"
+    assert summary["freshness_status"] == "fresh"
+    assert summary["latest_age_hours"] is not None
     assert any(
         item["artifact_id"] == archived["artifact_id"] and item["operation_count"] >= 1 and item["dataset_id"] == "gtex_v8"
         for item in summary["latest_artifacts"]
@@ -1737,6 +1742,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert archive_semantics["status"] in {"pass", "warning"}
     assert archive_semantics["checked_count"] >= 1
     assert archive_semantics["semantic_pass_count"] >= 1
+    assert archive_semantics["freshness_status"] == "fresh"
+    assert archive_semantics["latest_age_hours"] is not None
     assert any(item["artifact_id"] == archived["artifact_id"] for item in archive_semantics["latest_artifacts"])
     indexed_semantics = qc_bundle_archive_semantic_summary(limit=5, verify_files=False)
     assert indexed_semantics["verification_mode"] == "indexed"

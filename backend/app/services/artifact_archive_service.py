@@ -26,6 +26,7 @@ DATA_DIR = get_settings().data_dir
 ARCHIVE_DB_PATH = DATA_DIR / "runtime" / "artifact_archive.sqlite3"
 ARCHIVE_DIR = DATA_DIR / "runtime" / "artifact_archive"
 ARCHIVE_LEDGER_PATH = DATA_DIR / "runtime" / "artifact_archive_ledger.jsonl"
+ARCHIVE_SEMANTIC_FRESHNESS_WARNING_HOURS = 24 * 30
 
 
 def archive_artifact_bundle(
@@ -231,6 +232,7 @@ def qc_bundle_archive_semantic_summary(limit: int = 20, *, verify_files: bool = 
         warnings.append("No archived QC report bundles were available for semantic verification.")
 
     semantic_pass_count = sum(1 for item in checked if item.get("semantic_status") == "pass")
+    freshness = _semantic_summary_freshness(checked, label="QC report bundle", warnings=warnings)
     return {
         "status": "fail" if errors else "warning" if warnings else "pass",
         "errors": errors,
@@ -242,6 +244,7 @@ def qc_bundle_archive_semantic_summary(limit: int = 20, *, verify_files: bool = 
         "semantic_warning_count": sum(1 for item in checked if item.get("semantic_status") == "warning"),
         "semantic_fail_count": sum(1 for item in checked if item.get("semantic_status") == "fail"),
         "latest_artifacts": checked,
+        **freshness,
     }
 
 
@@ -278,6 +281,7 @@ def structured_import_archive_summary(limit: int = 20, *, verify_files: bool = T
         warnings.append("No archived structured import audit bundles were available.")
 
     semantic_pass_count = sum(1 for item in checked if item.get("semantic_status") == "pass")
+    freshness = _semantic_summary_freshness(checked, label="structured import audit bundle", warnings=warnings)
     return {
         "status": "fail" if errors else "warning" if warnings else "pass",
         "errors": errors,
@@ -289,6 +293,7 @@ def structured_import_archive_summary(limit: int = 20, *, verify_files: bool = T
         "semantic_warning_count": sum(1 for item in checked if item.get("semantic_status") == "warning"),
         "semantic_fail_count": sum(1 for item in checked if item.get("semantic_status") == "fail"),
         "latest_artifacts": checked,
+        **freshness,
     }
 
 
@@ -783,6 +788,7 @@ def _bundle_archive_semantic_summary(
         warnings.append(f"No archived {label}s were available.")
 
     semantic_pass_count = sum(1 for item in checked if item.get("semantic_status") == "pass")
+    freshness = _semantic_summary_freshness(checked, label=label, warnings=warnings)
     return {
         "status": "fail" if errors else "warning" if warnings else "pass",
         "errors": errors,
@@ -794,7 +800,66 @@ def _bundle_archive_semantic_summary(
         "semantic_warning_count": sum(1 for item in checked if item.get("semantic_status") == "warning"),
         "semantic_fail_count": sum(1 for item in checked if item.get("semantic_status") == "fail"),
         "latest_artifacts": checked,
+        **freshness,
     }
+
+
+def _semantic_summary_freshness(checked: list[dict[str, Any]], *, label: str, warnings: list[str]) -> dict[str, Any]:
+    latest = _latest_semantic_summary_item(checked)
+    latest_created_at = latest.get("created_at") if latest else None
+    latest_age_hours = _age_hours(latest_created_at)
+    if not checked:
+        status = "empty"
+    elif latest_age_hours is None:
+        status = "unknown"
+        warnings.append(f"Latest archived {label} is missing created_at; freshness could not be verified.")
+    elif latest_age_hours > ARCHIVE_SEMANTIC_FRESHNESS_WARNING_HOURS:
+        status = "stale"
+        warnings.append(
+            f"Latest archived {label} is {latest_age_hours:.1f}h old; refresh evidence before production promotion."
+        )
+    else:
+        status = "fresh"
+    return {
+        "freshness_status": status,
+        "latest_created_at": latest_created_at,
+        "latest_age_hours": latest_age_hours,
+        "freshness_policy": {
+            "warning_hours": ARCHIVE_SEMANTIC_FRESHNESS_WARNING_HOURS,
+        },
+    }
+
+
+def _latest_semantic_summary_item(checked: list[dict[str, Any]]) -> dict[str, Any] | None:
+    latest: dict[str, Any] | None = None
+    latest_dt: datetime | None = None
+    for item in checked:
+        created_at = _parse_utc_datetime(item.get("created_at"))
+        if created_at is None:
+            continue
+        if latest_dt is None or created_at > latest_dt:
+            latest = item
+            latest_dt = created_at
+    return latest or (checked[0] if checked else None)
+
+
+def _age_hours(value: Any) -> float | None:
+    created_at = _parse_utc_datetime(value)
+    if created_at is None:
+        return None
+    return round(max(0.0, (datetime.now(timezone.utc) - created_at).total_seconds() / 3600), 3)
+
+
+def _parse_utc_datetime(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 def _bundle_summary_item_from_metadata(

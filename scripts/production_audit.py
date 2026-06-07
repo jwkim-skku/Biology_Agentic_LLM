@@ -594,6 +594,8 @@ def api_warnings(name: str, details: Any) -> list[str]:
     if name.endswith("_archive_semantics"):
         if int(payload.get("checked_count") or 0) == 0:
             warnings.append(f"{name} has no archived artifacts checked")
+        if payload.get("freshness_status") in {"stale", "unknown"}:
+            warnings.append(f"{name} freshness is {payload.get('freshness_status')}")
     if name == "qc_bundle_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         if latest.get("request_payload_status") not in {None, "pass"}:
