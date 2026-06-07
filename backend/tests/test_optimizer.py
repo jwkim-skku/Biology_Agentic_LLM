@@ -424,6 +424,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert len(optimizer_gate["details"]["results_hash"]) == 64
     assert len(audit["evidence"]["optimizer_diagnostics"]["benchmark"]["results_hash"]) == 64
     assert verification["status"] in {"pass", "warning"}
+    assert verification["semantic_checks"]["summary_recomputed"] == "pass"
     assert verification["semantic_checks"]["deployment_readiness_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_recomputed"] == "pass"
@@ -520,6 +521,38 @@ def test_production_audit_bundle_rejects_tampered_promotion_summary() -> None:
     assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_recomputed"] == "fail"
     assert "promotion_summary" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_tampered_summary() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+
+    audit["summary"] = {
+        **audit["summary"],
+        "status": "pass",
+        "deployment_ready": True,
+        "production_ready": True,
+        "counts": {"pass": len(audit["checks"]), "warning": 0, "fail": 0},
+        "blocking_checks": [],
+        "warning_checks": [],
+    }
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["summary_recomputed"] == "fail"
+    assert "summary" in " ".join(verification["errors"])
 
 
 def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:

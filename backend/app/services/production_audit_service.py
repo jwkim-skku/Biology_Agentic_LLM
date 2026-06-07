@@ -414,6 +414,13 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             _record_semantic_check(
                 semantic_checks,
                 errors,
+                "summary_recomputed",
+                summary == _summary(audit.get("checks") or []),
+                "production_audit.json summary does not match recomputed check summary.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
                 "deployment_readiness_evidence",
                 deployment_readiness == (evidence.get("deployment_readiness") or {}),
                 "evidence/deployment_readiness.json does not match production_audit.json evidence.",
