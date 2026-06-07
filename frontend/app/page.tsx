@@ -895,6 +895,23 @@ type ProductionAuditStatus = {
         structured_manifest_hash?: string | null;
       }>;
     };
+    workflow_trace_archive_semantics?: ArchiveSemanticFreshness & {
+      status: string;
+      checked_count: number;
+      semantic_pass_count: number;
+      semantic_warning_count: number;
+      semantic_fail_count: number;
+      latest_artifacts?: Array<{
+        artifact_id: string;
+        semantic_status?: string;
+        workflow_id?: string | null;
+        run_id?: string | null;
+        task_type?: string | null;
+        trace_hash?: string | null;
+        trace_step_count?: number | null;
+        structured_manifest_hash?: string | null;
+      }>;
+    };
   };
   summary?: {
     status: string;
@@ -4018,6 +4035,9 @@ export default function Dashboard() {
               <span>Vector index {productionAudit?.evidence?.rag_vector_index_archive_semantics?.status ?? "n/a"}</span>
               <span>Vector checked {productionAudit?.evidence?.rag_vector_index_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Vector fresh {formatArchiveFreshness(productionAudit?.evidence?.rag_vector_index_archive_semantics)}</span>
+              <span>Workflow trace {productionAudit?.evidence?.workflow_trace_archive_semantics?.status ?? "n/a"}</span>
+              <span>Trace checked {productionAudit?.evidence?.workflow_trace_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Trace fresh {formatArchiveFreshness(productionAudit?.evidence?.workflow_trace_archive_semantics)}</span>
               <span>Import audit {productionAudit?.evidence?.structured_import_archive_semantics?.status ?? "n/a"}</span>
               <span>Import checked {productionAudit?.evidence?.structured_import_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Audit {formatSeconds(productionAudit?.evidence?.timings?.total_seconds)}</span>
@@ -4084,6 +4104,13 @@ export default function Dashboard() {
               <span>
                 Vector parity {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.parity_status ?? "n/a"} /
                 row {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.vector_row_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Trace steps {productionAudit?.evidence?.workflow_trace_archive_semantics?.latest_artifacts?.[0]?.trace_step_count ?? "n/a"} /
+                task {productionAudit?.evidence?.workflow_trace_archive_semantics?.latest_artifacts?.[0]?.task_type ?? "n/a"}
+              </span>
+              <span>
+                Trace hash {productionAudit?.evidence?.workflow_trace_archive_semantics?.latest_artifacts?.[0]?.trace_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Import semantic pass {productionAudit?.evidence?.structured_import_archive_semantics?.semantic_pass_count ?? "n/a"} /

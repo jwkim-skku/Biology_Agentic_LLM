@@ -132,6 +132,7 @@ Operational endpoints:
 - `GET /api/v1/artifacts/rag-regressions/semantic-summary`
 - `GET /api/v1/artifacts/rag-vector-indexes/semantic-summary`
 - `GET /api/v1/artifacts/optimizer-benchmarks/semantic-summary`
+- `GET /api/v1/artifacts/workflow-traces/semantic-summary`
 - `GET /api/v1/artifacts`
 - `GET /api/v1/artifacts/retention/plan`
 - `POST /api/v1/artifacts/retention/apply?dry_run=true`
@@ -162,7 +163,7 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 python scripts/smoke_test.py
 ```
 
-The smoke test checks health readiness, deployment readiness, settings, security status, RAG status, structured data status, metrics, CDS report generation, release-lock pinning, data release bundle export/verification, data refresh plan bundle export/verification, run export archival and verification, data snapshot archival and verification, a dry-run background data-refresh job with job export archival/verification, artifact archive download/re-verification, indexed semantic archive summaries, artifact ledger verification, and audit-log visibility. Data refresh plan bundles include `request_hash`, `operations_hash`, `data_catalog_hash`, and `external_sources_hash` so reviewers can verify the normalized request, planned operation CSV, source catalog, and external-source snapshot state independently of row counts.
+The smoke test checks health readiness, deployment readiness, settings, security status, RAG status, structured data status, metrics, CDS report generation, release-lock pinning, data release bundle export/verification, data refresh plan bundle export/verification, run export archival and verification, data snapshot archival and verification, a dry-run background data-refresh job with job export archival/verification, artifact archive download/re-verification, indexed semantic archive summaries including workflow traces, artifact ledger verification, and audit-log visibility. Data refresh plan bundles include `request_hash`, `operations_hash`, `data_catalog_hash`, and `external_sources_hash` so reviewers can verify the normalized request, planned operation CSV, source catalog, and external-source snapshot state independently of row counts.
 
 RAG evaluation responses include `query_fingerprint`, `ranking_policy`, `retrieval_trace`, `facet_gap_analysis`, `query_term_coverage`, `top_sources`, and per-result `rationale` fields so operators can reproduce and explain why evidence chunks were selected for a design context, which source families support the result set, and which requested facets are absent from retrieved results or the indexed corpus. `POST /api/v1/rag/evaluate/export.zip` turns the same evaluation into a manifested ZIP with `evaluation.json`, `retrieval_trace.json`, `evidence_sufficiency.json`, `top_sources.json`, `score_breakdown.csv`, `chunks.jsonl`, `rag_status.json`, and `structured_manifest.json`; the bundle manifest records `evaluation_hash`, `top_sources_hash`, `score_breakdown_hash`, and `chunks_hash`, and `POST /api/v1/rag/evaluate/export/verify` recomputes those hashes plus the semantic checks before reuse in audit records.
 

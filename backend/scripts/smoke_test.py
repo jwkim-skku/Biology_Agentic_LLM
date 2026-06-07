@@ -664,6 +664,7 @@ def smoke_artifact_archive() -> bool:
     rag_regression_semantics = get_json("/artifacts/rag-regressions/semantic-summary?limit=5&verify_files=false")["data"]
     rag_vector_index_semantics = get_json("/artifacts/rag-vector-indexes/semantic-summary?limit=5&verify_files=false")["data"]
     optimizer_semantics = get_json("/artifacts/optimizer-benchmarks/semantic-summary?limit=5&verify_files=false")["data"]
+    workflow_trace_semantics = get_json("/artifacts/workflow-traces/semantic-summary?limit=5&verify_files=false")["data"]
     artifacts = get_json("/artifacts?limit=5")["data"]["artifacts"]
     if summary["total_artifacts"] < 1 or not artifacts:
         return False
@@ -702,6 +703,9 @@ def smoke_artifact_archive() -> bool:
         and optimizer_semantics["status"] in {"pass", "warning"}
         and optimizer_semantics["verification_mode"] == "indexed"
         and isinstance(optimizer_semantics["latest_artifacts"], list)
+        and workflow_trace_semantics["status"] in {"pass", "warning"}
+        and workflow_trace_semantics["verification_mode"] == "indexed"
+        and isinstance(workflow_trace_semantics["latest_artifacts"], list)
     )
 
 

@@ -46,6 +46,7 @@ REQUIRED_PATHS = {
     "/api/v1/artifacts/rag-regressions/semantic-summary": {"get"},
     "/api/v1/artifacts/rag-vector-indexes/semantic-summary": {"get"},
     "/api/v1/artifacts/optimizer-benchmarks/semantic-summary": {"get"},
+    "/api/v1/artifacts/workflow-traces/semantic-summary": {"get"},
     "/api/v1/artifacts/retention/plan": {"get"},
     "/api/v1/artifacts/retention/apply": {"post"},
     "/api/v1/artifacts/object-store/status": {"get"},
