@@ -524,6 +524,31 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         evidence_path.unlink(missing_ok=True)
 
 
+def test_compose_preflight_includes_required_object_store_env() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "compose_preflight.py"
+    spec = importlib.util.spec_from_file_location("compose_preflight_unit", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    failures: list[str] = []
+    module.static_checks(failures)
+    assert failures == []
+    synthetic = module.SYNTHETIC_ENV
+    required_object_store_keys = {
+        "ARTIFACT_OBJECT_STORE_ENABLED",
+        "ARTIFACT_OBJECT_STORE_ENDPOINT",
+        "ARTIFACT_OBJECT_STORE_BUCKET",
+        "ARTIFACT_OBJECT_STORE_REGION",
+        "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID",
+        "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY",
+    }
+    assert required_object_store_keys.issubset(synthetic)
+    assert synthetic["ARTIFACT_OBJECT_STORE_ENABLED"] == "true"
+    assert synthetic["ARTIFACT_OBJECT_STORE_ENDPOINT"].startswith("https://")
+
+
 def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "production_audit.py"

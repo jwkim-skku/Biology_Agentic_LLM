@@ -39,6 +39,13 @@ SYNTHETIC_ENV = {
     "ARTIFACT_SIGNING_KEY_ID": "compose-preflight-hmac-key",
     "ARTIFACT_RETENTION_DAYS": "365",
     "ARTIFACT_RETENTION_KEEP_MIN": "1000",
+    "ARTIFACT_OBJECT_STORE_ENABLED": "true",
+    "ARTIFACT_OBJECT_STORE_ENDPOINT": "https://s3.compose-preflight.example.com",
+    "ARTIFACT_OBJECT_STORE_BUCKET": "agentic-rag-compose-preflight",
+    "ARTIFACT_OBJECT_STORE_PREFIX": "agentic-rag/artifacts",
+    "ARTIFACT_OBJECT_STORE_REGION": "us-east-1",
+    "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID": "compose-preflight-object-access-key",
+    "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY": "compose-preflight-object-secret-key",
 }
 
 
@@ -82,6 +89,10 @@ def static_checks(failures: list[str]) -> None:
         "ARTIFACT_SIGNING_KEY is required for production compose",
         "NEXT_PUBLIC_API_BASE_URL is required for production compose",
         "POSTGRES_PASSWORD is required for production compose",
+        "ARTIFACT_OBJECT_STORE_ENDPOINT is required for production compose",
+        "ARTIFACT_OBJECT_STORE_BUCKET is required for production compose",
+        "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID is required for production compose",
+        "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY is required for production compose",
         "STORAGE_BACKEND: postgres",
     ]
     failures.extend(f"base compose missing token: {token}" for token in required_base_tokens if token not in base)
@@ -128,6 +139,8 @@ def run_docker_compose_config(*, require_docker: bool, failures: list[str], warn
         require_config_token(production, "STORAGE_BACKEND: postgres", failures, "production config did not force Postgres storage.")
         require_config_token(production, "condition: service_healthy", failures, "production config did not wait for Postgres health.")
         require_config_token(production, "compose-preflight-artifact-signing-key", failures, "production config did not require artifact signing.")
+        require_config_token(production, "https://s3.compose-preflight.example.com", failures, "production config did not require object-store endpoint.")
+        require_config_token(production, "agentic-rag-compose-preflight", failures, "production config did not require object-store bucket.")
 
     return {
         "available": True,

@@ -25,6 +25,7 @@ docker compose --env-file .env.production -f docker-compose.yml -f docker-compos
 ```
 
 `docker-compose.production.yml` is an override for production-like launches. It requires Postgres storage, API keys with explicit role mapping, artifact signing, nonzero retention settings, a configured frontend API URL, and a healthy Postgres service before the backend starts.
+`scripts/compose_preflight.py` uses a synthetic production env with Postgres, signing, rate-limit, and object-store mirror values, so `docker compose config` checks the same required variables that production startup demands.
 
 Create a deployment audit artifact before promotion:
 
