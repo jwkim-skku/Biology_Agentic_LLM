@@ -24,6 +24,7 @@ from app.services.data_refresh_service import data_catalog, record_data_baseline
 from app.services.data_snapshot_service import build_data_snapshot_bundle
 from app.services.data_provenance_service import data_provenance_audit
 from app.services.data_lock_service import build_data_lockfile, verify_data_lockfile, write_data_lockfile
+from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
 from app.services.data_release_lock_service import build_data_release_lock, verify_data_release_lock, write_data_release_lock
 from app.services.external_data_service import backfill_external_source_snapshots, external_source_coverage, external_source_status
 from app.services.audit_log_service import audit_summary, list_audit_events, record_audit_event
@@ -440,6 +441,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
 
     valid_hash = "a" * 64
     assert module.api_failures(
+        "data_release_bundle_verify",
+        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"records_hash": "pass", "records_csv_hash": "pass"}, "records_hash": valid_hash, "records_csv_hash": valid_hash}},
+    ) == []
+    assert module.api_failures(
         "rag_regression_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"results_hash": "pass"}, "results_hash": valid_hash}},
     ) == []
@@ -469,6 +474,12 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "results_hash" in " ".join(
         module.api_failures("rag_regression_bundle_verify", {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {}}})
     )
+    data_release_failures = module.api_failures(
+        "data_release_bundle_verify",
+        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {}}},
+    )
+    assert "records_hash" in " ".join(data_release_failures)
+    assert "records_csv_hash" in " ".join(data_release_failures)
     assert "results_hash" in " ".join(
         module.api_failures(
             "optimizer_benchmark_bundle_verify",
@@ -1164,6 +1175,20 @@ def test_data_release_lockfile_can_be_written_and_verified() -> None:
     assert written["status"] == "current"
     assert verified["status"] == "current"
     assert verified["locked_hash"] == verified["current_hash"]
+
+
+def test_data_release_bundle_verifies_record_hashes() -> None:
+    bundle = build_data_release_bundle()
+    verification = verify_data_release_bundle(bundle)
+    assert verification["status"] in {"pass", "warning"}
+    assert verification["semantic_checks"]["records_hash"] == "pass"
+    assert verification["semantic_checks"]["records_csv_hash"] == "pass"
+    assert len(verification["records_hash"]) == 64
+    assert len(verification["records_csv_hash"]) == 64
+    with ZipFile(BytesIO(bundle)) as archive:
+        release_manifest = json.loads(archive.read("release_manifest.json"))
+        assert release_manifest["records_hash"] == verification["records_hash"]
+        assert release_manifest["records_csv_hash"] == verification["records_csv_hash"]
 
 
 def test_data_provenance_audit_reports_checks() -> None:

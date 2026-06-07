@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 from datetime import datetime, timezone
+from hashlib import sha256
 from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any
@@ -51,11 +52,15 @@ def build_data_release_bundle() -> bytes:
     quality = structured_quality_gate()
     provenance = data_provenance_audit()
     release_lock = verify_data_release_lock()
+    records_jsonl = _records_jsonl(records)
+    records_csv = _records_csv(records)
     metadata = {
         "bundle_schema": RELEASE_BUNDLE_SCHEMA,
         "exported_at": datetime.now(timezone.utc).isoformat(),
         "structured_manifest_hash": manifest.get("manifest_hash"),
         "record_count": len(records),
+        "records_hash": _hash_text(records_jsonl),
+        "records_csv_hash": _hash_text(records_csv),
         "structured_file_count": len(manifest.get("files") or []),
         "external_snapshot_reference_count": len(_external_snapshot_paths(records)),
         "quality_status": quality.get("status"),
@@ -81,8 +86,8 @@ def build_data_release_bundle() -> bytes:
         bundle.writestr("data_release_lock_persisted.json", _json(read_data_release_lock() or {}))
         bundle.writestr("rag_status.json", _json(rag_status()))
         bundle.writestr("refresh_log.json", _json(refresh_log(limit=500)))
-        bundle.writestr("records.jsonl", _records_jsonl(records))
-        bundle.writestr("records.csv", _records_csv(records))
+        bundle.writestr("records.jsonl", records_jsonl)
+        bundle.writestr("records.csv", records_csv)
         for source_path in _structured_source_files():
             bundle.write_file(source_path, f"structured_sources/{source_path.name}")
         for snapshot_path in _external_snapshot_paths(records):
@@ -98,6 +103,7 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     semantic_checks: dict[str, str] = {}
     payloads: dict[str, dict[str, Any]] = {}
     zip_names: set[str] = set()
+    row_evidence: dict[str, Any] = {}
 
     if base.get("artifact_type") != "data_release_bundle":
         semantic_errors.append("Artifact manifest artifact_type must be data_release_bundle.")
@@ -115,7 +121,7 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
             else:
                 semantic_checks["required_files"] = "pass"
                 payloads = {name: _read_json(archive, name) for name in REQUIRED_DATA_RELEASE_FILES if name.endswith(".json")}
-                _verify_record_rows(archive, semantic_checks, semantic_errors)
+                row_evidence = _verify_record_rows(archive, semantic_checks, semantic_errors)
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         semantic_errors.append(f"Invalid data release bundle: {exc}")
 
@@ -193,6 +199,23 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_errors.append("Data release bundle must contain at least one structured record.")
         semantic_checks["record_count"] = "fail"
+
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "records_hash",
+        release_manifest.get("records_hash"),
+        row_evidence.get("records_hash"),
+        "release_manifest.json records_hash does not match records.jsonl.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "records_csv_hash",
+        release_manifest.get("records_csv_hash"),
+        row_evidence.get("records_csv_hash"),
+        "release_manifest.json records_csv_hash does not match records.csv.",
+    )
 
     validation_errors = _int_or_none(validation.get("error_count"))
     if validation_errors and validation_errors > 0:
@@ -278,6 +301,8 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "semantic_checks": semantic_checks,
         "structured_manifest_hash": next(iter(manifest_hashes), None),
         "record_count": next(iter(record_counts), None),
+        "records_hash": row_evidence.get("records_hash"),
+        "records_csv_hash": row_evidence.get("records_csv_hash"),
         "quality_status": quality.get("status"),
         "provenance_status": provenance.get("status"),
         "release_lock_status": release_lock.get("status"),
@@ -361,20 +386,29 @@ def _export_record(record: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in record.items() if not key.startswith("__")}
 
 
-def _verify_record_rows(archive: ZipFile, checks: dict[str, str], errors: list[str]) -> None:
-    jsonl_rows = [line for line in archive.read("records.jsonl").decode("utf-8").splitlines() if line.strip()]
-    csv_rows = list(csv.DictReader(StringIO(archive.read("records.csv").decode("utf-8"))))
+def _verify_record_rows(archive: ZipFile, checks: dict[str, str], errors: list[str]) -> dict[str, Any]:
+    jsonl_text = archive.read("records.jsonl").decode("utf-8")
+    csv_text = archive.read("records.csv").decode("utf-8")
+    jsonl_rows = [line for line in jsonl_text.splitlines() if line.strip()]
+    csv_rows = list(csv.DictReader(StringIO(csv_text)))
+    evidence = {
+        "jsonl_rows": len(jsonl_rows),
+        "csv_rows": len(csv_rows),
+        "records_hash": _hash_text(jsonl_text),
+        "records_csv_hash": _hash_text(csv_text),
+    }
     if len(jsonl_rows) != len(csv_rows):
         errors.append("records.jsonl and records.csv row counts differ.")
         checks["record_rows"] = "fail"
-        return
+        return evidence
     for line in jsonl_rows:
         payload = json.loads(line)
         if not isinstance(payload, dict) or not payload.get("id") or not payload.get("dataset"):
             errors.append("records.jsonl contains a row without id or dataset.")
             checks["record_rows"] = "fail"
-            return
+            return evidence
     checks["record_rows"] = "pass"
+    return evidence
 
 
 def _expect_equal(
@@ -408,3 +442,7 @@ def _int_or_none(value: Any) -> int | None:
 
 def _json(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True)
+
+
+def _hash_text(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()
