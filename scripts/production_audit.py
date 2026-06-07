@@ -560,6 +560,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data refresh plan archive is missing request_hash")
         if checked_count and not latest.get("operations_hash"):
             failures.append("latest data refresh plan archive is missing operations_hash")
+        if checked_count and not latest.get("data_catalog_hash"):
+            failures.append("latest data refresh plan archive is missing data_catalog_hash")
+        if checked_count and not latest.get("external_sources_hash"):
+            failures.append("latest data refresh plan archive is missing external_sources_hash")
         if checked_count and not latest.get("validation_status"):
             failures.append("latest data refresh plan archive is missing validation_status")
         if checked_count and not latest.get("dataset_id"):

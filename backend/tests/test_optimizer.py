@@ -801,6 +801,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "operation_count": 2,
                         "request_hash": valid_hash,
                         "operations_hash": valid_hash,
+                        "data_catalog_hash": valid_hash,
+                        "external_sources_hash": valid_hash,
                         "validation_status": "pass",
                         "dataset_id": "gtex_v8",
                         "structured_manifest_hash": valid_hash,
@@ -816,6 +818,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "operation_count" in " ".join(refresh_plan_failures)
     assert "request_hash" in " ".join(refresh_plan_failures)
     assert "operations_hash" in " ".join(refresh_plan_failures)
+    assert "data_catalog_hash" in " ".join(refresh_plan_failures)
+    assert "external_sources_hash" in " ".join(refresh_plan_failures)
     assert "dataset_id" in " ".join(refresh_plan_failures)
     assert "structured_manifest_hash" in " ".join(refresh_plan_failures)
     assert module.api_failures(
@@ -1612,8 +1616,12 @@ def test_data_catalog_and_refresh_plan() -> None:
     assert verification["semantic_checks"]["operation_count_csv"] == "pass"
     assert verification["semantic_checks"]["request_hash"] == "pass"
     assert verification["semantic_checks"]["operations_hash"] == "pass"
+    assert verification["semantic_checks"]["data_catalog_hash"] == "pass"
+    assert verification["semantic_checks"]["external_sources_hash"] == "pass"
     assert len(verification["request_hash"]) == 64
     assert len(verification["operations_hash"]) == 64
+    assert len(verification["data_catalog_hash"]) == 64
+    assert len(verification["external_sources_hash"]) == 64
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_data_refresh_plan_bundle",
@@ -1625,6 +1633,8 @@ def test_data_catalog_and_refresh_plan() -> None:
     assert semantic["operation_count"] >= 1
     assert semantic["request_hash"] == verification["request_hash"]
     assert semantic["operations_hash"] == verification["operations_hash"]
+    assert semantic["data_catalog_hash"] == verification["data_catalog_hash"]
+    assert semantic["external_sources_hash"] == verification["external_sources_hash"]
     assert semantic["dataset_id"] == "gtex_v8"
     summary = data_refresh_plan_archive_summary(limit=5, verify_files=False)
     assert summary["verification_mode"] == "indexed"
@@ -1635,6 +1645,8 @@ def test_data_catalog_and_refresh_plan() -> None:
         and item["operation_count"] >= 1
         and item["request_hash"] == verification["request_hash"]
         and item["operations_hash"] == verification["operations_hash"]
+        and item["data_catalog_hash"] == verification["data_catalog_hash"]
+        and item["external_sources_hash"] == verification["external_sources_hash"]
         and item["dataset_id"] == "gtex_v8"
         for item in summary["latest_artifacts"]
     )

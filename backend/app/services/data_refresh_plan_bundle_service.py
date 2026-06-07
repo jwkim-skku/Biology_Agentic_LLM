@@ -45,6 +45,8 @@ def build_data_refresh_plan_bundle(request_payload: dict[str, Any]) -> bytes:
     manifest = structured_manifest()
     status = structured_status()
     release_lock = verify_data_release_lock()
+    catalog_json = _json(data_catalog())
+    external_sources_json = _json(external_source_status())
     request_json = _json(normalized)
     operations_csv = _operations_csv(plan.get("operations") or [])
     metadata = {
@@ -54,6 +56,8 @@ def build_data_refresh_plan_bundle(request_payload: dict[str, Any]) -> bytes:
         "operation_count": len(plan.get("operations") or []),
         "request_hash": _hash_text(request_json),
         "operations_hash": _hash_text(operations_csv),
+        "data_catalog_hash": _hash_text(catalog_json),
+        "external_sources_hash": _hash_text(external_sources_json),
         "validation_status": validation.get("status"),
         "structured_manifest_hash": manifest.get("manifest_hash"),
         "release_lock_status": release_lock.get("status"),
@@ -67,13 +71,13 @@ def build_data_refresh_plan_bundle(request_payload: dict[str, Any]) -> bytes:
         bundle.writestr("refresh_plan.json", _json(plan))
         bundle.writestr("validation.json", _json(validation))
         bundle.writestr("operations.csv", operations_csv)
-        bundle.writestr("data_catalog.json", _json(data_catalog()))
+        bundle.writestr("data_catalog.json", catalog_json)
         bundle.writestr("structured_status.json", _json(status))
         bundle.writestr("structured_manifest.json", _json(manifest))
         bundle.writestr("structured_validation.json", _json(validate_structured_records()))
         bundle.writestr("structured_quality.json", _json(structured_quality_gate()))
         bundle.writestr("data_provenance.json", _json(data_provenance_audit()))
-        bundle.writestr("external_sources.json", _json(external_source_status()))
+        bundle.writestr("external_sources.json", external_sources_json)
         bundle.writestr("data_release_lock.json", _json(release_lock))
         bundle.writestr("rag_status.json", _json(rag_status()))
         bundle.writestr("refresh_log.json", _json(refresh_log(limit=200)))
@@ -90,6 +94,8 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
     operations_rows: list[dict[str, str]] = []
     request_text = ""
     operations_text = ""
+    data_catalog_text = ""
+    external_sources_text = ""
 
     if base.get("artifact_type") != "data_refresh_plan_bundle":
         semantic_errors.append("Artifact manifest artifact_type must be data_refresh_plan_bundle.")
@@ -108,6 +114,8 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
                 semantic_checks["required_files"] = "pass"
                 payloads = {name: _read_json(archive, name) for name in REQUIRED_DATA_REFRESH_PLAN_FILES if name.endswith(".json")}
                 request_text = archive.read("request.json").decode("utf-8")
+                data_catalog_text = archive.read("data_catalog.json").decode("utf-8")
+                external_sources_text = archive.read("external_sources.json").decode("utf-8")
                 operations_rows, operations_text = _read_operations_csv(archive)
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         semantic_errors.append(f"Invalid data refresh plan bundle: {exc}")
@@ -186,6 +194,22 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
         _hash_text(operations_text),
         "bundle_manifest.json operations_hash does not match operations.csv.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "data_catalog_hash",
+        bundle_manifest.get("data_catalog_hash"),
+        _hash_text(data_catalog_text),
+        "bundle_manifest.json data_catalog_hash does not match data_catalog.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "external_sources_hash",
+        bundle_manifest.get("external_sources_hash"),
+        _hash_text(external_sources_text),
+        "bundle_manifest.json external_sources_hash does not match external_sources.json.",
+    )
 
     manifest_hashes = {
         str(value)
@@ -247,6 +271,8 @@ def verify_data_refresh_plan_bundle(bundle: bytes) -> dict[str, Any]:
         "operation_count": operation_count,
         "request_hash": bundle_manifest.get("request_hash"),
         "operations_hash": bundle_manifest.get("operations_hash"),
+        "data_catalog_hash": bundle_manifest.get("data_catalog_hash"),
+        "external_sources_hash": bundle_manifest.get("external_sources_hash"),
         "validation_status": validation.get("status"),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
         "release_lock_status": release_lock.get("status"),

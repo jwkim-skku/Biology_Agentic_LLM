@@ -410,6 +410,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_operation_count": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("operation_count"),
                 "latest_request_hash": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("request_hash"),
                 "latest_operations_hash": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("operations_hash"),
+                "latest_data_catalog_hash": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("data_catalog_hash"),
+                "latest_external_sources_hash": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("external_sources_hash"),
                 "latest_validation_status": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("validation_status"),
                 "latest_dataset_id": (data_refresh_plan_archive.get("latest_artifacts") or [{}])[0].get("dataset_id"),
                 **_archive_freshness_details(data_refresh_plan_archive),
