@@ -12,6 +12,7 @@ from typing import Any
 
 from app.config import get_settings
 from app.services.export_manifest_service import verify_artifact_bundle
+from app.services.data_release_bundle_service import verify_data_release_bundle
 from app.services.data_refresh_plan_bundle_service import verify_data_refresh_plan_bundle
 from app.services.optimizer_benchmark_bundle_service import verify_optimizer_benchmark_bundle
 from app.services.qc_report_bundle_service import verify_qc_report_bundle
@@ -324,8 +325,28 @@ def rag_regression_archive_summary(limit: int = 20, *, verify_files: bool = True
     )
 
 
+def data_release_archive_summary(limit: int = 20, *, verify_files: bool = True) -> dict[str, Any]:
+    return _bundle_archive_semantic_summary(
+        limit=limit,
+        verify_files=verify_files,
+        artifact_type="data_release_bundle",
+        metadata_key="data_release_semantic_verification",
+        label="data release bundle",
+        extra_fields=(
+            "promotion_status",
+            "record_count",
+            "records_hash",
+            "records_csv_hash",
+            "structured_manifest_hash",
+            "external_snapshot_reference_count",
+        ),
+    )
+
+
 def _verify_export_bundle(content: bytes) -> dict[str, Any]:
     verification = verify_artifact_bundle(content)
+    if verification.get("artifact_type") == "data_release_bundle":
+        return verify_data_release_bundle(content)
     if verification.get("artifact_type") == "qc_report_bundle":
         return verify_qc_report_bundle(content)
     if verification.get("artifact_type") == "structured_import_audit_bundle":
@@ -351,6 +372,8 @@ def _archive_metadata(metadata: dict[str, Any] | None, verification: dict[str, A
         enriched["structured_import_semantic_verification"] = _structured_import_semantic_metadata(verification)
     if verification.get("artifact_type") == "data_refresh_plan_bundle":
         enriched["data_refresh_plan_semantic_verification"] = _data_refresh_plan_semantic_metadata(verification)
+    if verification.get("artifact_type") == "data_release_bundle":
+        enriched["data_release_semantic_verification"] = _data_release_semantic_metadata(verification)
     if verification.get("artifact_type") == "rag_evaluation_bundle":
         enriched["rag_evaluation_semantic_verification"] = _rag_evaluation_semantic_metadata(verification)
     if verification.get("artifact_type") == "rag_regression_bundle":
@@ -420,6 +443,30 @@ def _data_refresh_plan_semantic_metadata(verification: dict[str, Any]) -> dict[s
         "semantic_warnings": verification.get("semantic_warnings") or [],
         "indexed_at": _utc_now(),
         "index_schema": "agentic-rag-data-refresh-plan-semantic-index-v1",
+    }
+
+
+def _data_release_semantic_metadata(verification: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": verification.get("status"),
+        "semantic_status": verification.get("semantic_status"),
+        "promotion_status": verification.get("promotion_status"),
+        "record_count": verification.get("record_count"),
+        "records_hash": verification.get("records_hash"),
+        "records_csv_hash": verification.get("records_csv_hash"),
+        "structured_manifest_hash": verification.get("structured_manifest_hash"),
+        "quality_status": verification.get("quality_status"),
+        "provenance_status": verification.get("provenance_status"),
+        "release_lock_status": verification.get("release_lock_status"),
+        "external_snapshot_reference_count": verification.get("external_snapshot_reference_count"),
+        "external_snapshot_file_count": verification.get("external_snapshot_file_count"),
+        "checked_files": verification.get("checked_files"),
+        "file_count": verification.get("file_count"),
+        "manifest_hash": verification.get("manifest_hash"),
+        "semantic_errors": verification.get("semantic_errors") or [],
+        "semantic_warnings": verification.get("semantic_warnings") or [],
+        "indexed_at": _utc_now(),
+        "index_schema": "agentic-rag-data-release-semantic-index-v1",
     }
 
 

@@ -125,6 +125,7 @@ Operational endpoints:
 - `GET /api/v1/artifacts/summary`
 - `GET /api/v1/artifacts/qc-bundles/semantic-summary`
 - `GET /api/v1/artifacts/structured-imports/semantic-summary`
+- `GET /api/v1/artifacts/data-releases/semantic-summary`
 - `GET /api/v1/artifacts/rag-evaluations/semantic-summary`
 - `GET /api/v1/artifacts/optimizer-benchmarks/semantic-summary`
 - `GET /api/v1/artifacts`

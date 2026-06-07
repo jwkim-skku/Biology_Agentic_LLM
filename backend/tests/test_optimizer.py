@@ -34,6 +34,7 @@ from app.services.artifact_archive_service import (
     artifact_ledger,
     archive_artifact_bundle,
     archive_summary,
+    data_release_archive_summary,
     list_archived_artifacts,
     plan_artifact_retention,
     qc_bundle_archive_semantic_summary,
@@ -1189,6 +1190,20 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
         release_manifest = json.loads(archive.read("release_manifest.json"))
         assert release_manifest["records_hash"] == verification["records_hash"]
         assert release_manifest["records_csv_hash"] == verification["records_csv_hash"]
+    archived = archive_artifact_bundle(
+        bundle,
+        action="unit_test_data_release_bundle",
+        resource_type="data_release",
+        resource_id=verification["structured_manifest_hash"] or "data_release",
+        filename="unit_test_data_release_bundle.zip",
+    )
+    semantic = archived["metadata"]["data_release_semantic_verification"]
+    assert semantic["records_hash"] == verification["records_hash"]
+    assert semantic["records_csv_hash"] == verification["records_csv_hash"]
+    summary = data_release_archive_summary(limit=5, verify_files=False)
+    latest = next(item for item in summary["latest_artifacts"] if item["artifact_id"] == archived["artifact_id"])
+    assert latest["records_hash"] == verification["records_hash"]
+    assert latest["records_csv_hash"] == verification["records_csv_hash"]
 
 
 def test_data_provenance_audit_reports_checks() -> None:

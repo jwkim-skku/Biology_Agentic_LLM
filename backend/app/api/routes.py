@@ -32,6 +32,7 @@ from app.services.artifact_archive_service import (
     archive_artifact_bundle,
     archive_summary,
     backfill_artifact_ledger,
+    data_release_archive_summary,
     get_archived_artifact,
     list_archived_artifacts,
     optimizer_benchmark_archive_summary,
@@ -568,6 +569,11 @@ def qc_bundle_archive_semantic_summary_endpoint(limit: int = 20, verify_files: b
 @router.get("/artifacts/structured-imports/semantic-summary", response_model=ApiResponse)
 def structured_import_archive_semantic_summary_endpoint(limit: int = 20, verify_files: bool = True) -> ApiResponse:
     return ApiResponse(data=structured_import_archive_summary(limit=limit, verify_files=verify_files))
+
+
+@router.get("/artifacts/data-releases/semantic-summary", response_model=ApiResponse)
+def data_release_archive_semantic_summary_endpoint(limit: int = 20, verify_files: bool = True) -> ApiResponse:
+    return ApiResponse(data=data_release_archive_summary(limit=limit, verify_files=verify_files))
 
 
 @router.get("/artifacts/rag-evaluations/semantic-summary", response_model=ApiResponse)
