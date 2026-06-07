@@ -468,6 +468,8 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_check in ["records_hash", "records_csv_hash"]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"Data release bundle does not verify {hash_check}.")
+        if checks.get("external_snapshot_reference_coverage") != "pass":
+            failures.append("Data release bundle does not verify external_snapshot_reference_coverage.")
     if name == "rag_regression_bundle_verify":
         checks = payload.get("semantic_checks") or {}
         if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
@@ -519,6 +521,12 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data release archive is missing records_hash")
         if checked_count and not latest.get("records_csv_hash"):
             failures.append("latest data release archive is missing records_csv_hash")
+        if checked_count and latest.get("external_snapshot_missing_count") not in {0, None}:
+            failures.append("latest data release archive has missing external source snapshots")
+        if checked_count and int(latest.get("external_snapshot_referenced_count") or 0) < 1:
+            failures.append("latest data release archive is missing external snapshot reference evidence")
+        if checked_count and int(latest.get("external_snapshot_contained_count") or 0) < int(latest.get("external_snapshot_referenced_count") or 0):
+            failures.append("latest data release archive does not contain all referenced external snapshots")
     if name == "data_refresh_plan_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)

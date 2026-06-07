@@ -566,7 +566,19 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "rag_vector_index_archive_semantics" in api_check_names
     assert module.api_failures(
         "data_release_bundle_verify",
-        {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"records_hash": "pass", "records_csv_hash": "pass"}, "records_hash": valid_hash, "records_csv_hash": valid_hash}},
+        {
+            "data": {
+                "status": "pass",
+                "semantic_status": "pass",
+                "semantic_checks": {
+                    "records_hash": "pass",
+                    "records_csv_hash": "pass",
+                    "external_snapshot_reference_coverage": "pass",
+                },
+                "records_hash": valid_hash,
+                "records_csv_hash": valid_hash,
+            }
+        },
     ) == []
     assert module.api_failures(
         "rag_evaluation_bundle_verify",
@@ -645,6 +657,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     )
     assert "records_hash" in " ".join(data_release_failures)
     assert "records_csv_hash" in " ".join(data_release_failures)
+    assert "external_snapshot_reference_coverage" in " ".join(data_release_failures)
     assert "results_hash" in " ".join(
         module.api_failures(
             "optimizer_benchmark_bundle_verify",
@@ -683,6 +696,25 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"records_hash": valid_hash}]}},
     )
     assert "records_csv_hash" in " ".join(archive_hash_failures)
+    release_snapshot_failures = module.api_failures(
+        "data_release_archive_semantics",
+        {
+            "data": {
+                "status": "pass",
+                "checked_count": 1,
+                "latest_artifacts": [
+                    {
+                        "records_hash": valid_hash,
+                        "records_csv_hash": valid_hash,
+                        "external_snapshot_referenced_count": 2,
+                        "external_snapshot_contained_count": 1,
+                        "external_snapshot_missing_count": 1,
+                    }
+                ],
+            }
+        },
+    )
+    assert "missing external source snapshots" in " ".join(release_snapshot_failures)
     assert module.api_failures(
         "data_refresh_plan_archive_semantics",
         {
@@ -1524,8 +1556,11 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     assert verification["status"] in {"pass", "warning"}
     assert verification["semantic_checks"]["records_hash"] == "pass"
     assert verification["semantic_checks"]["records_csv_hash"] == "pass"
+    assert verification["semantic_checks"]["external_snapshot_reference_coverage"] in {"pass", "warning"}
     assert len(verification["records_hash"]) == 64
     assert len(verification["records_csv_hash"]) == 64
+    assert verification["external_snapshot_contained_count"] <= verification["external_snapshot_referenced_count"]
+    assert verification["external_snapshot_missing_count"] == 0
     with ZipFile(BytesIO(bundle)) as archive:
         release_manifest = json.loads(archive.read("release_manifest.json"))
         assert release_manifest["records_hash"] == verification["records_hash"]
@@ -1540,10 +1575,14 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     semantic = archived["metadata"]["data_release_semantic_verification"]
     assert semantic["records_hash"] == verification["records_hash"]
     assert semantic["records_csv_hash"] == verification["records_csv_hash"]
+    assert semantic["external_snapshot_contained_count"] == verification["external_snapshot_contained_count"]
+    assert semantic["external_snapshot_missing_count"] == 0
     summary = data_release_archive_summary(limit=5, verify_files=False)
     latest = next(item for item in summary["latest_artifacts"] if item["artifact_id"] == archived["artifact_id"])
     assert latest["records_hash"] == verification["records_hash"]
     assert latest["records_csv_hash"] == verification["records_csv_hash"]
+    assert latest["external_snapshot_contained_count"] == verification["external_snapshot_contained_count"]
+    assert latest["external_snapshot_missing_count"] == 0
 
 
 def test_data_provenance_audit_reports_checks() -> None:

@@ -357,6 +357,9 @@ def data_release_archive_summary(limit: int = 20, *, verify_files: bool = True) 
             "records_csv_hash",
             "structured_manifest_hash",
             "external_snapshot_reference_count",
+            "external_snapshot_referenced_count",
+            "external_snapshot_contained_count",
+            "external_snapshot_missing_count",
         ),
     )
 
@@ -488,6 +491,9 @@ def _data_release_semantic_metadata(verification: dict[str, Any]) -> dict[str, A
         "provenance_status": verification.get("provenance_status"),
         "release_lock_status": verification.get("release_lock_status"),
         "external_snapshot_reference_count": verification.get("external_snapshot_reference_count"),
+        "external_snapshot_referenced_count": verification.get("external_snapshot_referenced_count"),
+        "external_snapshot_contained_count": verification.get("external_snapshot_contained_count"),
+        "external_snapshot_missing_count": verification.get("external_snapshot_missing_count"),
         "external_snapshot_file_count": verification.get("external_snapshot_file_count"),
         "checked_files": verification.get("checked_files"),
         "file_count": verification.get("file_count"),

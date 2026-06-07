@@ -261,6 +261,10 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["structured_source_bytes"] = "fail"
 
     snapshot_files = [name for name in zip_names if name.startswith("external_source_snapshots/") and not name.endswith("/")]
+    snapshot_basenames = {Path(name).name for name in snapshot_files}
+    referenced_snapshot_basenames = set(row_evidence.get("external_snapshot_reference_basenames") or [])
+    missing_snapshot_basenames = sorted(referenced_snapshot_basenames - snapshot_basenames)
+    contained_snapshot_reference_count = len(referenced_snapshot_basenames) - len(missing_snapshot_basenames)
     expected_snapshot_files = _int_or_none(release_manifest.get("external_snapshot_reference_count"))
     if expected_snapshot_files is None:
         semantic_warnings.append("Data release bundle does not record external snapshot reference count.")
@@ -273,6 +277,14 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_errors.append("Data release bundle does not include all referenced external source snapshot bytes.")
         semantic_checks["external_snapshot_bytes"] = "fail"
+    if referenced_snapshot_basenames and not missing_snapshot_basenames:
+        semantic_checks["external_snapshot_reference_coverage"] = "pass"
+    elif referenced_snapshot_basenames:
+        semantic_errors.append("Data release bundle is missing one or more snapshot files referenced by records.jsonl.")
+        semantic_checks["external_snapshot_reference_coverage"] = "fail"
+    else:
+        semantic_warnings.append("records.jsonl contains no external source snapshot references.")
+        semantic_checks["external_snapshot_reference_coverage"] = "warning"
 
     promotion_status = str(release_manifest.get("promotion_status") or "unknown")
     if promotion_status == "fail":
@@ -310,6 +322,9 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "structured_source_file_count": len(source_files),
         "external_snapshot_file_count": len(snapshot_files),
         "external_snapshot_reference_count": expected_snapshot_files,
+        "external_snapshot_referenced_count": len(referenced_snapshot_basenames),
+        "external_snapshot_contained_count": contained_snapshot_reference_count,
+        "external_snapshot_missing_count": len(missing_snapshot_basenames),
     }
 
 
@@ -391,11 +406,13 @@ def _verify_record_rows(archive: ZipFile, checks: dict[str, str], errors: list[s
     csv_text = archive.read("records.csv").decode("utf-8")
     jsonl_rows = [line for line in jsonl_text.splitlines() if line.strip()]
     csv_rows = list(csv.DictReader(StringIO(csv_text)))
+    snapshot_references: set[str] = set()
     evidence = {
         "jsonl_rows": len(jsonl_rows),
         "csv_rows": len(csv_rows),
         "records_hash": _hash_text(jsonl_text),
         "records_csv_hash": _hash_text(csv_text),
+        "external_snapshot_reference_basenames": [],
     }
     if len(jsonl_rows) != len(csv_rows):
         errors.append("records.jsonl and records.csv row counts differ.")
@@ -407,7 +424,11 @@ def _verify_record_rows(archive: ZipFile, checks: dict[str, str], errors: list[s
             errors.append("records.jsonl contains a row without id or dataset.")
             checks["record_rows"] = "fail"
             return evidence
+        snapshot_path = payload.get("source_snapshot_path")
+        if snapshot_path:
+            snapshot_references.add(Path(str(snapshot_path)).name)
     checks["record_rows"] = "pass"
+    evidence["external_snapshot_reference_basenames"] = sorted(snapshot_references)
     return evidence
 
 

@@ -809,6 +809,9 @@ type ProductionAuditStatus = {
         records_hash?: string | null;
         records_csv_hash?: string | null;
         structured_manifest_hash?: string | null;
+        external_snapshot_referenced_count?: number | null;
+        external_snapshot_contained_count?: number | null;
+        external_snapshot_missing_count?: number | null;
       }>;
     };
     data_refresh_plan_archive_semantics?: {
@@ -1072,6 +1075,9 @@ type DataReleaseArchiveSemanticSummary = {
     records_csv_hash?: string | null;
     structured_manifest_hash?: string | null;
     external_snapshot_reference_count?: number | null;
+    external_snapshot_referenced_count?: number | null;
+    external_snapshot_contained_count?: number | null;
+    external_snapshot_missing_count?: number | null;
   }>;
 };
 
@@ -3938,6 +3944,11 @@ export default function Dashboard() {
                 CSV {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                Release snapshots {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.external_snapshot_contained_count ?? "n/a"}/
+                {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.external_snapshot_referenced_count ?? "n/a"} / missing{" "}
+                {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.external_snapshot_missing_count ?? "n/a"}
+              </span>
+              <span>
                 Plan ops {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.operation_count ?? "n/a"} /
                 validation {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.latest_artifacts?.[0]?.validation_status ?? "n/a"}
               </span>
@@ -4161,6 +4172,11 @@ export default function Dashboard() {
               <span>
                 Record hash {dataReleaseSemantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} / CSV{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Snapshots {dataReleaseSemantics?.latest_artifacts?.[0]?.external_snapshot_contained_count ?? "n/a"}/
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.external_snapshot_referenced_count ?? "n/a"} / missing{" "}
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.external_snapshot_missing_count ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="Data refresh plan archive summary">
