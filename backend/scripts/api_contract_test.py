@@ -157,6 +157,34 @@ REQUIRED_SCHEMAS = {
     "DataRefreshRequest",
 }
 
+API_RESPONSE_REF = "#/components/schemas/ApiResponse"
+
+NON_API_RESPONSE_PATHS = {
+    "/api/v1/health": {"get"},
+    "/api/v1/health/live": {"get"},
+    "/api/v1/deployment/audit/export.zip": {"get"},
+    "/api/v1/storage/postgres/schema.sql": {"get"},
+    "/api/v1/storage/migration/sqlite/export.zip": {"get"},
+    "/api/v1/governance/attestation/export.zip": {"get"},
+    "/api/v1/metrics/prometheus": {"get"},
+    "/api/v1/optimizer/benchmark/export.zip": {"get"},
+    "/api/v1/artifacts/{artifact_id}/download": {"get"},
+    "/api/v1/rag/evaluate/export.zip": {"post"},
+    "/api/v1/rag/vector-index/export.zip": {"get"},
+    "/api/v1/rag/regression/export.zip": {"get"},
+    "/api/v1/runs/{run_id}/export.zip": {"get"},
+    "/api/v1/runs/{run_id}/workflow/export.zip": {"get"},
+    "/api/v1/runs/{run_id}/artifacts/{artifact_type}": {"get"},
+    "/api/v1/jobs/{job_id}/export.zip": {"get"},
+    "/api/v1/data/release/export.zip": {"get"},
+    "/api/v1/data/refresh/plan/export.zip": {"post"},
+    "/api/v1/data/snapshot.zip": {"get"},
+    "/api/v1/report-from-gene/export/{export_format}": {"post"},
+    "/api/v1/report-from-gene/export-bundle.zip": {"post"},
+    "/api/v1/report/export/{export_format}": {"post"},
+    "/api/v1/report/export-bundle.zip": {"post"},
+}
+
 
 def main() -> int:
     spec = app.openapi()
@@ -178,22 +206,38 @@ def main() -> int:
     if unexpected_paths:
         failures.append(f"unexpected API paths missing from REQUIRED_PATHS: {', '.join(unexpected_paths)}")
 
+    unexpected_non_envelope_paths = sorted(set(NON_API_RESPONSE_PATHS) - set(REQUIRED_PATHS))
+    if unexpected_non_envelope_paths:
+        failures.append(f"non-envelope paths missing from REQUIRED_PATHS: {', '.join(unexpected_non_envelope_paths)}")
+
     for schema in sorted(REQUIRED_SCHEMAS):
         if schema not in schemas:
             failures.append(f"missing schema: {schema}")
 
+    envelope_checked = 0
     for path, methods in paths.items():
         if not path.startswith("/api/v1/"):
             continue
         for method, operation in methods.items():
-            if method.lower() not in {"get", "post", "put", "patch", "delete"}:
+            method_lower = method.lower()
+            if method_lower not in {"get", "post", "put", "patch", "delete"}:
                 continue
             if "responses" not in operation:
                 failures.append(f"{method.upper()} {path} missing responses")
             if "operationId" not in operation:
                 failures.append(f"{method.upper()} {path} missing operationId")
+            if method_lower in NON_API_RESPONSE_PATHS.get(path, set()):
+                continue
+            response = operation.get("responses", {}).get("200") or operation.get("responses", {}).get("201") or {}
+            schema = response.get("content", {}).get("application/json", {}).get("schema")
+            if schema != {"$ref": API_RESPONSE_REF}:
+                failures.append(f"{method.upper()} {path} must declare ApiResponse response envelope")
+            else:
+                envelope_checked += 1
 
     result = {
+        "api_response_envelope_checked": envelope_checked,
+        "non_api_response_paths": sum(len(methods) for methods in NON_API_RESPONSE_PATHS.values()),
         "required_paths": len(REQUIRED_PATHS),
         "required_schemas": len(REQUIRED_SCHEMAS),
         "path_count": len(paths),
