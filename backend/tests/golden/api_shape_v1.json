@@ -658,6 +658,13 @@
           "population_size": "int"
         },
         "seed": "int",
+        "seed_strategy": {
+          "deterministic_seeds": [
+            "str"
+          ],
+          "stochastic_fill": "str",
+          "version": "str"
+        },
         "selected_transcript": {
           "cds_length_nt": "int",
           "protein_length_aa": "int",
@@ -908,6 +915,20 @@
         "gene": "str",
         "modality": "str",
         "species": "str"
+      },
+      "target_structured_evidence": {
+        "brain_regions": [],
+        "cell_types": [],
+        "coverage": {},
+        "datasets": [],
+        "genes": [],
+        "live_record_count": "int",
+        "matched_record_count": "int",
+        "release_pinned_record_count": "int",
+        "seed_record_count": "int",
+        "snapshot_record_count": "int",
+        "status": "str",
+        "top_records": []
       },
       "transcript_provenance": {
         "cds_length_nt": "null",
@@ -1540,6 +1561,13 @@
         "population_size": "int"
       },
       "seed": "int",
+      "seed_strategy": {
+        "deterministic_seeds": [
+          "str"
+        ],
+        "stochastic_fill": "str",
+        "version": "str"
+      },
       "selected_transcript": {
         "cds_length_nt": "int",
         "protein_length_aa": "int",
@@ -1790,6 +1818,20 @@
       "gene": "str",
       "modality": "str",
       "species": "str"
+    },
+    "target_structured_evidence": {
+      "brain_regions": [],
+      "cell_types": [],
+      "coverage": {},
+      "datasets": [],
+      "genes": [],
+      "live_record_count": "int",
+      "matched_record_count": "int",
+      "release_pinned_record_count": "int",
+      "seed_record_count": "int",
+      "snapshot_record_count": "int",
+      "status": "str",
+      "top_records": []
     },
     "transcript_provenance": {
       "cds_length_nt": "null",

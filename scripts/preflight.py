@@ -174,7 +174,10 @@ def main() -> int:
 def run_check(name: str, command: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> dict[str, object]:
     started = time.perf_counter()
     print(f"[preflight] {name}: {' '.join(command)}", flush=True)
-    completed = subprocess.run(command, cwd=cwd, env=env, text=True)
+    completed = subprocess.run(command, cwd=cwd, env=env, text=True, capture_output=True)
+    stdout = compact_text(completed.stdout)
+    stderr = compact_text(completed.stderr)
+    details = parse_json(completed.stdout)
     return {
         "name": name,
         "returncode": completed.returncode,
@@ -182,6 +185,9 @@ def run_check(name: str, command: list[str], *, cwd: Path, env: dict[str, str] |
         "duration_seconds": round(time.perf_counter() - started, 3),
         "command": command,
         "cwd": str(cwd),
+        "stdout": stdout,
+        "stderr": stderr,
+        "details": details if details is not None else stdout,
     }
 
 
@@ -276,6 +282,23 @@ def wait_for_frontend(url: str) -> None:
 
 def npm_command() -> str:
     return "npm.cmd" if os.name == "nt" else "npm"
+
+
+def parse_json(text: str) -> Any | None:
+    stripped = text.strip()
+    if not stripped:
+        return None
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+
+
+def compact_text(text: str, limit: int = 4000) -> str:
+    stripped = text.strip()
+    if len(stripped) <= limit:
+        return stripped
+    return stripped[:limit] + "...<truncated>"
 
 
 if __name__ == "__main__":
