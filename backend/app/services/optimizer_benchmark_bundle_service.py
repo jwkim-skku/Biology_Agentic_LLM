@@ -291,6 +291,16 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["case_provenance_schema"] = "fail"
     else:
         semantic_checks["case_provenance_schema"] = "pass"
+    case_fingerprints = [
+        str((case.get("case_provenance") or {}).get("case_fingerprint") or "")
+        for case in diag_cases
+        if (case.get("case_provenance") or {}).get("case_fingerprint")
+    ]
+    if len(case_fingerprints) != len(diag_cases) or len(set(case_fingerprints)) != len(case_fingerprints):
+        semantic_errors.append("candidate_diagnostics.json benchmark case fingerprints are missing or not unique.")
+        semantic_checks["case_provenance_fingerprints"] = "fail"
+    else:
+        semantic_checks["case_provenance_fingerprints"] = "pass"
 
     if any(row.get("status") not in {"pass", "warning", "fail"} for row in metric_rows):
         semantic_errors.append("case_metrics.csv contains invalid case status values.")
@@ -367,6 +377,8 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "diagnostics_hash": manifest.get("diagnostics_hash"),
         "case_metrics_hash": manifest.get("case_metrics_hash"),
         "candidate_diagnostics_hash": manifest.get("candidate_diagnostics_hash"),
+        "case_provenance_hash": _hash_json(sorted(case_fingerprints)),
+        "case_fingerprint_count": len(case_fingerprints),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }
 
@@ -480,6 +492,10 @@ def _json(payload: Any) -> str:
 
 def _hash_text(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
+
+
+def _hash_json(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def _expect_equal(

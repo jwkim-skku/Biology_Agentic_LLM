@@ -22,7 +22,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - External source snapshot coverage and backfill controls for reproducible bundled/manual structured records.
 - Seeded NSGA-II synonymous optimizer with repair and manufacturing-policy scoring for GC/CpG/motif/polyA/splice/restriction-site/codon-pair/5-prime-GC/hairpin/secondary-structure-proxy/complexity constraints.
 - Optimizer diagnostics for objective inventory, benchmark quality bands, weak-case surfacing, and tuning recommendations.
-- Manifested optimizer benchmark ZIP bundles with benchmark metrics, case provenance fingerprints, diagnostics, case catalog, candidate diagnostics, config snapshots, artifact verification, archive storage, and semantic cross-checks.
+- Manifested optimizer benchmark ZIP bundles with benchmark metrics, case provenance fingerprints, diagnostics, case catalog, candidate diagnostics, config snapshots, artifact verification, archive storage, readiness/audit evidence, and semantic cross-checks.
 - ORF validation and QC gate checks for CDS inputs and recommended candidates.
 - Candidate diagnostics for feasible-set counts, Pareto-front representatives, score ranges, codon-level diversity, and recommendation-audit trade-off regret against best-by-metric alternatives.
 - Optimizer reproducibility manifests with canonical config hashes, score-config hashes, objective inventory, seed, repair policy, target hash, and source CDS hash.

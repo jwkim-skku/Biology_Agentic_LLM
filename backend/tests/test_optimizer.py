@@ -649,8 +649,13 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
         "latest_diagnostics_hash",
         "latest_case_metrics_hash",
         "latest_candidate_diagnostics_hash",
+        "latest_case_provenance_hash",
     ]:
         assert optimizer_archive_gate["details"][field] is None or len(optimizer_archive_gate["details"][field]) == 64
+    assert (
+        optimizer_archive_gate["details"]["latest_case_fingerprint_count"] is None
+        or optimizer_archive_gate["details"]["latest_case_fingerprint_count"] >= 1
+    )
     assert optimizer_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
 
 
@@ -1239,6 +1244,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "diagnostics_hash": valid_hash,
                         "case_metrics_hash": valid_hash,
                         "candidate_diagnostics_hash": valid_hash,
+                        "case_provenance_hash": valid_hash,
+                        "case_fingerprint_count": 3,
                     }
                 ],
             }
@@ -1257,6 +1264,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "diagnostics_hash" in " ".join(optimizer_archive_failures)
     assert "case_metrics_hash" in " ".join(optimizer_archive_failures)
     assert "candidate_diagnostics_hash" in " ".join(optimizer_archive_failures)
+    assert "case_provenance_hash" in " ".join(optimizer_archive_failures)
+    assert "case_fingerprint_count" in " ".join(optimizer_archive_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
@@ -1562,6 +1571,7 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["pareto_quality_schema"] == "pass"
     assert verification["semantic_checks"]["pareto_quality_hash"] == "pass"
     assert verification["semantic_checks"]["case_provenance_schema"] == "pass"
+    assert verification["semantic_checks"]["case_provenance_fingerprints"] == "pass"
     assert verification["semantic_checks"]["case_metric_columns"] == "pass"
     assert verification["semantic_checks"]["stress_schema"] == "pass"
     assert verification["stress_status"] in {"pass", "warning"}
@@ -1570,6 +1580,8 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert len(verification["diagnostics_hash"]) == 64
     assert len(verification["case_metrics_hash"]) == 64
     assert len(verification["candidate_diagnostics_hash"]) == 64
+    assert len(verification["case_provenance_hash"]) == 64
+    assert verification["case_fingerprint_count"] == verification["case_count"]
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "search_strategy.json" in names
@@ -1613,12 +1625,16 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     semantic = archived["metadata"]["optimizer_benchmark_semantic_verification"]
     assert semantic["stress_status"] == verification["stress_status"]
     assert semantic["case_metrics_hash"] == verification["case_metrics_hash"]
+    assert semantic["case_provenance_hash"] == verification["case_provenance_hash"]
+    assert semantic["case_fingerprint_count"] == verification["case_fingerprint_count"]
     summary = optimizer_benchmark_archive_summary(limit=5, verify_files=False)
     assert any(
         item["artifact_id"] == archived["artifact_id"]
         and item["stress_status"] == verification["stress_status"]
         and item["case_count"] == verification["case_count"]
         and item["case_metrics_hash"] == verification["case_metrics_hash"]
+        and item["case_provenance_hash"] == verification["case_provenance_hash"]
+        and item["case_fingerprint_count"] == verification["case_fingerprint_count"]
         for item in summary["latest_artifacts"]
     )
 

@@ -691,9 +691,21 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest optimizer benchmark archive is missing case_count")
         if checked_count and not latest.get("cases_hash"):
             failures.append("latest optimizer benchmark archive is missing cases_hash")
-        for hash_field in ["results_hash", "benchmark_hash", "diagnostics_hash", "case_metrics_hash", "candidate_diagnostics_hash"]:
+        for hash_field in [
+            "results_hash",
+            "benchmark_hash",
+            "diagnostics_hash",
+            "case_metrics_hash",
+            "candidate_diagnostics_hash",
+            "case_provenance_hash",
+        ]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest optimizer benchmark archive is missing {hash_field}")
+        if checked_count and (
+            not latest.get("case_fingerprint_count")
+            or int(latest.get("case_fingerprint_count") or 0) < int(latest.get("case_count") or 0)
+        ):
+            failures.append("latest optimizer benchmark archive is missing case_fingerprint_count coverage")
     if name == "rag_regression_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)
