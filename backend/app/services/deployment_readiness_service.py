@@ -554,6 +554,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "semantic_fail_count": rag_regression_archive["semantic_fail_count"],
                 "latest_results_hash": (rag_regression_archive.get("latest_artifacts") or [{}])[0].get("results_hash"),
                 "latest_quality_summary_hash": (rag_regression_archive.get("latest_artifacts") or [{}])[0].get("quality_summary_hash"),
+                "latest_case_metrics_hash": (rag_regression_archive.get("latest_artifacts") or [{}])[0].get("case_metrics_hash"),
                 "latest_quality_status": (rag_regression_archive.get("latest_artifacts") or [{}])[0].get("quality_status"),
                 "latest_source_provenance_summary_hash": (rag_regression_archive.get("latest_artifacts") or [{}])[0].get("source_provenance_summary_hash"),
                 "latest_source_provenance_case_count": (rag_regression_archive.get("latest_artifacts") or [{}])[0].get("source_provenance_case_count"),

@@ -1006,6 +1006,27 @@ type ProductionAuditStatus = {
         structured_manifest_hash?: string | null;
       }>;
     };
+    rag_regression_archive_semantics?: ArchiveSemanticFreshness & {
+      status: string;
+      checked_count: number;
+      semantic_pass_count: number;
+      semantic_warning_count: number;
+      semantic_fail_count: number;
+      latest_artifacts?: Array<{
+        artifact_id: string;
+        semantic_status?: string;
+        cases_hash?: string | null;
+        results_hash?: string | null;
+        quality_summary_hash?: string | null;
+        case_metrics_hash?: string | null;
+        quality_status?: string | null;
+        source_provenance_summary_hash?: string | null;
+        source_provenance_case_count?: number | null;
+        source_snapshot_case_count?: number | null;
+        top_source_count?: number | null;
+        missing_term_case_count?: number | null;
+      }>;
+    };
     optimizer_benchmark_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
@@ -4257,6 +4278,8 @@ export default function Dashboard() {
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>Vector fresh {deploymentGateFreshness(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
+              <span>RAG regress {deploymentGateStatus(deploymentReadiness, "rag_regression_archive_semantics")}</span>
+              <span>RAG metrics {deploymentGateHash(deploymentReadiness, "rag_regression_archive_semantics", "latest_case_metrics_hash")}</span>
               <span>Bench summary {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommendation_summary_hash")}</span>
               <span>Bench folding {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
@@ -4311,6 +4334,8 @@ export default function Dashboard() {
               <span>Vector index {productionAudit?.evidence?.rag_vector_index_archive_semantics?.status ?? "n/a"}</span>
               <span>Vector checked {productionAudit?.evidence?.rag_vector_index_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Vector fresh {formatArchiveFreshness(productionAudit?.evidence?.rag_vector_index_archive_semantics)}</span>
+              <span>RAG regress {productionAudit?.evidence?.rag_regression_archive_semantics?.status ?? "n/a"}</span>
+              <span>RAG metrics {productionAudit?.evidence?.rag_regression_archive_semantics?.latest_artifacts?.[0]?.case_metrics_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>Optimizer archive {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.status ?? "n/a"}</span>
               <span>Optimizer checked {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Workflow trace {productionAudit?.evidence?.workflow_trace_archive_semantics?.status ?? "n/a"}</span>

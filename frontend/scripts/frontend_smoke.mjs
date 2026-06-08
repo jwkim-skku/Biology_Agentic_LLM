@@ -177,6 +177,8 @@ async function main() {
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC folding hash was not rendered: ${deploymentText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC rank evidence was not rendered: ${deploymentText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness import audit gate was not rendered: ${deploymentText}`);
+    assert(/RAG regress\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness RAG regression archive gate was not rendered: ${deploymentText}`);
+    assert(/RAG metrics\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG metrics hash was not rendered: ${deploymentText}`);
     assert(/tRNA prior\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness tRNA prior caveat count was not rendered: ${deploymentText}`);
     const deploymentResponse = apiResponses.find((item) => item.url === `${API_BASE}/deployment/readiness`);
     assert(deploymentResponse?.status === 200, "Frontend did not load /deployment/readiness successfully.");
@@ -188,6 +190,8 @@ async function main() {
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC folding hash was not rendered: ${productionAuditText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC rank evidence was not rendered: ${productionAuditText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit import archive status was not rendered: ${productionAuditText}`);
+    assert(/RAG regress\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit RAG regression archive status was not rendered: ${productionAuditText}`);
+    assert(/RAG metrics\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit RAG metrics hash was not rendered: ${productionAuditText}`);
     assert(/QC semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit QC semantic counts were not rendered: ${productionAuditText}`);
     assert(/Import semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit import semantic counts were not rendered: ${productionAuditText}`);
     assert(/Audit\s+(\d+(\.\d+)?s|n\/a)/.test(productionAuditText), `Production audit timing was not rendered: ${productionAuditText}`);

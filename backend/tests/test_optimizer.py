@@ -473,6 +473,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "data_refresh_plan_archive_semantics" in audit["evidence"]
     assert "rag_vector_index_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "rag_vector_index_archive_semantics" in audit["evidence"]
+    assert "rag_regression_archive_semantics" in {item["name"] for item in audit["checks"]}
+    assert "rag_regression_archive_semantics" in audit["evidence"]
     assert "optimizer_benchmark_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "optimizer_benchmark_archive_semantics" in audit["evidence"]
     assert "workflow_trace_archive_semantics" in {item["name"] for item in audit["checks"]}
@@ -481,6 +483,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "production_gap_summary" in audit["evidence"]
     rag_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["results_hash"]) == 64
+    rag_archive_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression_archive_semantics")
+    assert rag_archive_gate["details"]["latest_case_metrics_hash"] is None or len(rag_archive_gate["details"]["latest_case_metrics_hash"]) == 64
     assert len(audit["evidence"]["rag_diagnostics"]["regression"]["results_hash"]) == 64
     optimizer_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "optimizer_benchmark")
     assert len(optimizer_gate["details"]["results_hash"]) == 64
@@ -515,6 +519,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/data_refresh_plan_archive_semantics.json" in names
         assert "evidence/data_release_archive_semantics.json" in names
         assert "evidence/data_snapshot_archive_semantics.json" in names
+        assert "evidence/rag_regression_archive_semantics.json" in names
         assert "evidence/rag_vector_index_archive_semantics.json" in names
         assert "evidence/optimizer_benchmark_archive_semantics.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
@@ -755,6 +760,10 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert vector_archive_gate["details"]["latest_migration_target_backend"] in {None, "local_json", "pgvector", "qdrant"}
     assert vector_archive_gate["details"]["latest_parity_status"] in {None, "pass", "warning"}
     assert vector_archive_gate["details"]["latest_vector_row_hash"] is None or len(vector_archive_gate["details"]["latest_vector_row_hash"]) == 64
+    rag_regression_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_regression_archive_semantics")
+    assert rag_regression_archive_gate["details"]["status"] in {"pass", "warning"}
+    assert rag_regression_archive_gate["details"]["latest_case_metrics_hash"] is None or len(rag_regression_archive_gate["details"]["latest_case_metrics_hash"]) == 64
+    assert rag_regression_archive_gate["details"]["latest_quality_status"] in {None, "pass", "warning"}
     optimizer_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark_archive_semantics")
     assert optimizer_archive_gate["details"]["status"] in {"pass", "warning"}
     assert optimizer_archive_gate["details"]["latest_stress_status"] in {None, "pass", "warning"}
