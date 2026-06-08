@@ -990,6 +990,33 @@ def render_markdown(report: dict[str, Any]) -> str:
                 warnings=escape_cell("; ".join(check.get("warnings", [])) or "-"),
             )
         )
+    api_checks = [check for check in report["checks"] if check.get("kind") == "api"]
+    if api_checks:
+        api_failures = [check for check in api_checks if check.get("status") == "fail"]
+        api_warnings = [check for check in api_checks if check.get("warnings") or check.get("status") == "warning"]
+        lines.extend(
+            [
+                "",
+                "## API Evidence",
+                "",
+                f"- API checks: `{len(api_checks)}`",
+                f"- API failures: `{len(api_failures)}`",
+                f"- API warnings: `{len(api_warnings)}`",
+                "",
+                "| API Check | Status | HTTP | Detail |",
+                "| --- | --- | --- | --- |",
+            ]
+        )
+        for check in api_checks:
+            detail = "; ".join(check.get("failures") or check.get("warnings") or []) or "pass"
+            lines.append(
+                "| {name} | {status} | {http_status} | {detail} |".format(
+                    name=escape_cell(str(check.get("name") or "")),
+                    status=escape_cell(str(check.get("status") or "")),
+                    http_status=check.get("http_status", "n/a"),
+                    detail=escape_cell(detail),
+                )
+            )
     preflight = next((check for check in report["checks"] if check.get("name") == "preflight_evidence"), None)
     if preflight:
         details = preflight.get("details") if isinstance(preflight.get("details"), dict) else {}

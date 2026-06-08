@@ -910,8 +910,19 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
             "purpose": "deployment promotion evidence for the Agentic RAG codon optimization platform",
             "duration_seconds": 0.1,
             "mode": {"env": "template", "skip_api": True},
-            "summary": {"status": "pass", "checks": 1, "failures": [], "warnings": ["preflight_evidence"]},
-            "checks": [preflight_check],
+            "summary": {"status": "pass", "checks": 2, "failures": [], "warnings": ["preflight_evidence"]},
+            "checks": [
+                preflight_check,
+                {
+                    "name": "deployment_readiness",
+                    "kind": "api",
+                    "status": "pass",
+                    "http_status": 200,
+                    "failures": [],
+                    "warnings": [],
+                    "details": {"status": "pass"},
+                },
+            ],
         }
         report["audit_hash"] = module.audit_hash(report)
         markdown = module.render_markdown(report)
@@ -926,6 +937,9 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert len(preflight_check["details"]["required_checks"]) == len(module.REQUIRED_PREFLIGHT_CHECKS)
         assert module.audit_hash(report) == report["audit_hash"]
         assert report["audit_hash"] in markdown
+        assert "## API Evidence" in markdown
+        assert "API checks: `1`" in markdown
+        assert "| deployment_readiness | pass | 200 | pass |" in markdown
         assert "## Preflight Evidence" in markdown
         assert "Missing required checks: `0`" in markdown
         assert "Skipped checks: `1`" in markdown
