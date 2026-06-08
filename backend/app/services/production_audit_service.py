@@ -404,6 +404,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
         with ZipFile(BytesIO(bundle), "r") as archive:
             audit = json.loads(archive.read("production_audit.json").decode("utf-8"))
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
+            production_gap_summary = json.loads(archive.read("evidence/production_gap_summary.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
             evidence_hashes = json.loads(archive.read("evidence_hashes.json").decode("utf-8"))
             audit_hash = audit.get("audit_hash")
@@ -452,6 +453,29 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 "promotion_summary_recomputed",
                 audit.get("promotion_summary") == recomputed_promotion,
                 "production_audit.json promotion_summary does not match recomputed promotion evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "production_gap_summary_evidence",
+                audit.get("production_gap_summary") == production_gap_summary
+                and production_gap_summary == (evidence.get("production_gap_summary") or {}),
+                "production_audit.json production_gap_summary does not match embedded production_gap_summary evidence.",
+            )
+            recomputed_gaps = _production_gap_summary(audit.get("checks") or [], recomputed_promotion, deployment_readiness)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "production_gap_summary_recomputed",
+                audit.get("production_gap_summary") == recomputed_gaps,
+                "production_audit.json production_gap_summary does not match recomputed gap evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "production_gap_summary_hash",
+                _gap_summary_hash_matches(production_gap_summary),
+                "production_gap_summary.json gap_summary_hash or gap_hash values do not match contents.",
             )
             _record_semantic_check(
                 semantic_checks,
@@ -518,7 +542,6 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
     return {
         "status": "fail" if errors else "warning" if warnings else verification.get("status", "pass"),
         "errors": errors,
-        "warnings": warnings,
         "audit_hash": audit_hash,
         "summary": summary,
         "semantic_checks": semantic_checks,
@@ -796,6 +819,19 @@ def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dic
     }
     summary["gap_summary_hash"] = _hash_payload({key: value for key, value in summary.items() if key != "gap_summary_hash"})
     return summary
+
+
+def _gap_summary_hash_matches(summary: dict[str, Any]) -> bool:
+    if summary.get("gap_schema") != "agentic-rag-production-gap-summary-v1":
+        return False
+    for gap in summary.get("gaps") or []:
+        expected = gap.get("gap_hash")
+        payload = {key: value for key, value in gap.items() if key != "gap_hash"}
+        if expected != _hash_payload(payload):
+            return False
+    expected_summary = summary.get("gap_summary_hash")
+    payload = {key: value for key, value in summary.items() if key != "gap_summary_hash"}
+    return bool(expected_summary) and expected_summary == _hash_payload(payload)
 
 
 def _evidence_key_for_check(name: str) -> str:

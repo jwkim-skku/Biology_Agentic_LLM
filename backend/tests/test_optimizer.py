@@ -437,6 +437,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["deployment_readiness_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_recomputed"] == "pass"
+    assert verification["semantic_checks"]["production_gap_summary_evidence"] == "pass"
+    assert verification["semantic_checks"]["production_gap_summary_recomputed"] == "pass"
+    assert verification["semantic_checks"]["production_gap_summary_hash"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_hash"] == "pass"
     assert verification["semantic_checks"]["workflow_trace_archive_steps"] == "pass"
@@ -561,6 +564,38 @@ def test_production_audit_bundle_rejects_tampered_promotion_summary() -> None:
     assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_recomputed"] == "fail"
     assert "promotion_summary" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_tampered_gap_summary() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    gap_summary = json.loads(source.read("evidence/production_gap_summary.json").decode("utf-8"))
+
+    gap_summary["gap_count"] = 0
+    gap_summary["gaps"] = []
+    audit["production_gap_summary"] = gap_summary
+    audit["evidence"]["production_gap_summary"] = gap_summary
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/production_gap_summary.json":
+                tampered.writestr(item, json.dumps(gap_summary, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["production_gap_summary_evidence"] == "pass"
+    assert verification["semantic_checks"]["production_gap_summary_recomputed"] == "fail"
+    assert verification["semantic_checks"]["production_gap_summary_hash"] == "fail"
+    assert "production_gap_summary" in " ".join(verification["errors"])
 
 
 def test_production_audit_bundle_rejects_tampered_summary() -> None:
