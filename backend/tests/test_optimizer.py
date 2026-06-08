@@ -1524,7 +1524,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "chunk_count": 8,
                         "embedding_dimensions": 64,
                         "embedding_model": "hash-bow-v1",
-                        "retrieval_model": "hybrid-hash-bm25-facet-rerank-v2",
+                        "retrieval_model": "hybrid-hash-bm25-facet-rerank-v3",
                         "structured_manifest_hash": valid_hash,
                     }
                 ],
@@ -2256,13 +2256,19 @@ def test_rag_evaluation_explains_coverage() -> None:
     assert evaluation["ranking_policy"]["weights"]["vector_score"] == 0.36
     assert evaluation["retrieval_trace"]["trace_schema"] == "agentic-rag-retrieval-trace-v1"
     assert evaluation["retrieval_trace"]["score_weights"]["rerank_score"] == 0.40
+    assert evaluation["retrieval_trace"]["retrieval_query_hash"] == evaluation["query_analysis"]["retrieval_query_hash"]
+    assert "dopaminergic" in evaluation["retrieval_trace"]["retrieval_query_terms"]
     assert all(len(value) == 64 for value in evaluation["retrieval_trace"]["top_rank_evidence_hashes"])
-    assert evaluation["index"]["retrieval_model"] == "hybrid-hash-bm25-facet-rerank-v2"
+    assert evaluation["index"]["retrieval_model"] == "hybrid-hash-bm25-facet-rerank-v3"
     assert evaluation["query_analysis"]["aliases_added"]
+    assert "brain" in evaluation["query_analysis"]["retrieval_query_terms"]
+    assert len(evaluation["query_analysis"]["retrieval_query_hash"]) == 64
     assert evaluation["evidence_sufficiency"]["sufficiency_schema"] == "agentic-rag-evidence-sufficiency-v1"
     assert evaluation["evidence_sufficiency"]["status"] in {"pass", "warning", "fail"}
     assert evaluation["evidence_sufficiency"]["checks"]
     assert all("facet_score" in item for item in evaluation["score_breakdown"])
+    assert all("intent_match_score" in item for item in evaluation["score_breakdown"])
+    assert any(item["intent_match_score"] > 0 for item in evaluation["score_breakdown"])
     assert all(len(item["rank_evidence_hash"]) == 64 for item in evaluation["score_breakdown"])
     assert all(item["rationale"] for item in evaluation["score_breakdown"])
     assert any(item["matched_facets"] for item in evaluation["score_breakdown"])

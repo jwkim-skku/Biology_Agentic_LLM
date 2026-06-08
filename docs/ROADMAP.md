@@ -15,7 +15,7 @@ Implemented:
 - Structured source manifest with SHA-256 hashes and validation checks
 - Structured data promotion quality gate for live/seed fractions, release pinning, source snapshot/hash coverage, dataset caveats, and operator actions
 - Data release lockfile for structured dataset release/file-hash pinning
-- Hybrid hash embedding + BM25 retrieval with biomedical alias expansion, facet-aware reranking, and source-priority scoring
+- Hybrid hash embedding + BM25 retrieval with biomedical alias expansion, facet-expanded candidate retrieval, intent-aware reranking, and source/collection diversification
 - Configurable RAG embedding backend boundary with `hash_bow` default, optional local-files-only `sentence_transformers` model loading, diagnostics, vector-index ZIP evidence, readiness gates, and production audit evidence
 - fixed RAG retrieval regression suite with required evidence coverage, Recall@k, and nDCG@k
 - RAG diagnostics for corpus/source distribution, token and embedding health, regression macro metrics, weak cases, and operational recommendations

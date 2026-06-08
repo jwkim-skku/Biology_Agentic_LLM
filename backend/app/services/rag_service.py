@@ -21,7 +21,7 @@ EVIDENCE_PATH = DATA_DIR / "evidence_seed.json"
 RAG_INDEX_PATH = DATA_DIR / "rag_index.json"
 EMBEDDING_DIMENSIONS = DEFAULT_EMBEDDING_DIMENSIONS
 EMBEDDING_MODEL = HASH_BOW_MODEL
-RETRIEVAL_MODEL = "hybrid-hash-bm25-facet-rerank-v2"
+RETRIEVAL_MODEL = "hybrid-hash-bm25-facet-rerank-v3"
 RANKING_POLICY = {
     "version": "hybrid-score-policy-v2",
     "weights": {
@@ -30,13 +30,15 @@ RANKING_POLICY = {
         "rerank_score": 0.40,
     },
     "rerank_components": {
-        "lexical": 0.34,
-        "facet": 0.30,
-        "field_match": 0.18,
+        "lexical": 0.28,
+        "facet": 0.24,
+        "field_match": 0.16,
+        "intent_match": 0.20,
         "source_priority": 0.10,
-        "confidence": 0.08,
+        "confidence": 0.02,
     },
-    "diversification": "first pass keeps one top chunk per document, then fills remaining slots by score",
+    "diversification": "first pass keeps one top chunk per collection, second pass keeps one per source, then fills remaining slots by document and score",
+    "query_expansion": "vector and BM25 candidate retrieval use the user query plus requested biological facets",
 }
 CHUNKING_POLICY = {
     "version": "lexical-window-v2",
@@ -165,16 +167,18 @@ def rag_search(query: str, filters: dict[str, Any] | None = None, limit: int = 6
     filters = filters or {}
     index = load_rag_index()
     query_profile = _query_profile(query, filters)
-    query_embedding = _embed(query)
+    retrieval_query = query_profile["retrieval_query_text"]
+    query_embedding = _embed(retrieval_query)
     corpus_stats = _corpus_stats(index["chunks"])
-    vector_candidates = vector_search_candidates(query_embedding=query_embedding, chunks=index["chunks"], limit=limit)
+    candidate_limit = max(limit * 4, min(len(index["chunks"]), 24))
+    vector_candidates = vector_search_candidates(query_embedding=query_embedding, chunks=index["chunks"], limit=candidate_limit)
     results = []
     for candidate in vector_candidates["candidates"]:
         chunk = candidate["chunk"]
         if not _passes_filters(chunk["metadata"], filters):
             continue
         vector_score = float(candidate.get("vector_score") or 0)
-        bm25_score = _bm25_score(chunk["text"], query, corpus_stats)
+        bm25_score = _bm25_score(chunk["text"], retrieval_query, corpus_stats)
         rerank = _rerank_score(chunk, query, filters, query_profile)
         score = round((vector_score * 0.36) + (bm25_score * 0.24) + (rerank["rerank_score"] * 0.40), 6)
         if score > 0:
@@ -187,7 +191,8 @@ def rag_search(query: str, filters: dict[str, Any] | None = None, limit: int = 6
                     **{key: round(value, 6) for key, value in rerank.items()},
                 }
             )
-    results = _with_rank_evidence(_diversify_by_document(sorted(results, key=lambda item: item["score"], reverse=True), limit), filters)
+    diversified = _diversify_by_document(sorted(results, key=lambda item: item["score"], reverse=True), limit)
+    results = _with_rank_evidence(sorted(diversified, key=lambda item: item["score"], reverse=True), filters)
     return {
         "query": query,
         "filters": filters,
@@ -204,6 +209,7 @@ def rag_search(query: str, filters: dict[str, Any] | None = None, limit: int = 6
                 "fallback_active": vector_candidates.get("fallback_active"),
                 "warnings": vector_candidates.get("warnings") or [],
             },
+            "candidate_limit": candidate_limit,
         },
         "query_analysis": query_profile,
         "chunks": results,
@@ -249,6 +255,7 @@ def evaluate_rag_query(query: str, filters: dict[str, Any] | None = None, limit:
                 "facet_score": chunk.get("facet_score", 0),
                 "field_match_score": chunk.get("field_match_score", 0),
                 "source_priority_score": chunk.get("source_priority_score", 0),
+                "intent_match_score": chunk.get("intent_match_score", 0),
                 "rank_evidence_hash": chunk.get("rank_evidence_hash"),
                 "matched_facets": _matched_facets(chunk["metadata"], filters),
                 "rationale": _result_rationale(chunk, filters),
@@ -288,6 +295,7 @@ def rag_chunks_to_evidence_records(chunks: list[dict[str, Any]]) -> list[dict[st
                     "facet_score": chunk.get("facet_score", 0),
                     "field_match_score": chunk.get("field_match_score", 0),
                     "source_priority_score": chunk.get("source_priority_score", 0),
+                    "intent_match_score": chunk.get("intent_match_score", 0),
                     "rank_evidence_hash": chunk.get("rank_evidence_hash"),
                     "embedding_model": EMBEDDING_MODEL,
                     "embedding_backend": (chunk.get("embedding_metadata") or {}).get("active_backend"),
@@ -544,9 +552,12 @@ def _retrieval_trace(
         "ranking_policy": RANKING_POLICY["version"],
         "chunking_policy": CHUNKING_POLICY["version"],
         "requested_limit": limit,
+        "candidate_limit": search["index"].get("candidate_limit"),
         "returned_chunks": len(chunks),
         "filters_requested": search["query_analysis"].get("filters_requested", []),
         "aliases_added_count": len(search["query_analysis"].get("aliases_added", [])),
+        "retrieval_query_hash": search["query_analysis"].get("retrieval_query_hash"),
+        "retrieval_query_terms": search["query_analysis"].get("retrieval_query_terms", []),
         "score_weights": RANKING_POLICY["weights"],
         "rerank_components": RANKING_POLICY["rerank_components"],
         "diversification": RANKING_POLICY["diversification"],
@@ -574,6 +585,8 @@ def _result_rationale(chunk: dict[str, Any], filters: dict[str, Any]) -> list[st
         reasons.append(f"source priority {chunk['source_priority_score']:.2f} for {metadata.get('collection', 'collection')}")
     if chunk.get("field_match_score", 0) > 0:
         reasons.append(f"metadata field match {chunk['field_match_score']:.2f}")
+    if chunk.get("intent_match_score", 0) > 0:
+        reasons.append(f"query intent match {chunk['intent_match_score']:.2f}")
     if metadata.get("confidence"):
         reasons.append(f"{metadata['confidence']} confidence evidence")
     return reasons
@@ -581,7 +594,29 @@ def _result_rationale(chunk: dict[str, Any], filters: dict[str, Any]) -> list[st
 
 def _diversify_by_document(results: list[dict[str, Any]], limit: int) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
+    seen_collections: set[str] = set()
+    for result in results:
+        collection = str((result.get("metadata") or {}).get("collection") or result.get("document_id") or "")
+        if collection in seen_collections:
+            continue
+        selected.append(result)
+        seen_collections.add(collection)
+        if len(selected) >= limit:
+            return selected
+    seen_sources = {str((item.get("metadata") or {}).get("source") or item.get("document_id") or "") for item in selected}
+    for result in results:
+        if result in selected:
+            continue
+        source = str((result.get("metadata") or {}).get("source") or result.get("document_id") or "")
+        if source in seen_sources:
+            continue
+        selected.append(result)
+        seen_sources.add(source)
+        if len(selected) >= limit:
+            return selected
     seen_documents: set[str] = set()
+    for result in selected:
+        seen_documents.add(str(result.get("document_id") or ""))
     for result in results:
         if result["document_id"] in seen_documents:
             continue
@@ -622,6 +657,7 @@ def _rank_evidence(chunk: dict[str, Any], rank: int, filters: dict[str, Any]) ->
             "rerank_score": chunk.get("rerank_score"),
             "facet_score": chunk.get("facet_score"),
             "field_match_score": chunk.get("field_match_score"),
+            "intent_match_score": chunk.get("intent_match_score"),
             "source_priority_score": chunk.get("source_priority_score"),
         },
         "matched_facets": _matched_facets(metadata, filters),
@@ -810,13 +846,18 @@ def _rerank_score(chunk: dict[str, Any], query: str, filters: dict[str, Any], qu
     lexical = len(query_tokens & text_tokens) / max(len(query_tokens), 1)
     facet = _filter_score(metadata, filters)
     field_match = _metadata_field_match_score(metadata, query_tokens)
-    source_priority = _source_priority_score(metadata, filters)
+    intent_match = _intent_match_score(metadata, query_tokens)
+    source_priority = _source_priority_score(metadata, filters, query_profile)
     confidence = 1.0 if metadata.get("confidence") == "high" else 0.62 if metadata.get("confidence") == "medium" else 0.38
-    rerank_score = min(1.0, lexical * 0.34 + facet * 0.30 + field_match * 0.18 + source_priority * 0.10 + confidence * 0.08)
+    rerank_score = min(
+        1.0,
+        lexical * 0.28 + facet * 0.24 + field_match * 0.16 + intent_match * 0.20 + source_priority * 0.10 + confidence * 0.02,
+    )
     return {
         "rerank_score": rerank_score,
         "facet_score": facet,
         "field_match_score": field_match,
+        "intent_match_score": intent_match,
         "source_priority_score": source_priority,
     }
 
@@ -871,10 +912,33 @@ def _metadata_field_match_score(metadata: dict[str, Any], query_tokens: set[str]
     return min(1.0, len(query_tokens & field_tokens) / max(len(query_tokens), 1) * 1.6)
 
 
-def _source_priority_score(metadata: dict[str, Any], filters: dict[str, Any]) -> float:
+def _intent_match_score(metadata: dict[str, Any], query_tokens: set[str]) -> float:
+    collection = str(metadata.get("collection") or "").lower()
+    source = str(metadata.get("source") or "").lower()
+    evidence_class = str(metadata.get("evidence_class") or "").lower()
+    topics = " ".join(str(item).lower() for item in metadata.get("topics", []))
+    text = " ".join([collection, source, evidence_class, topics])
+    score = 0.0
+    if query_tokens & {"custom", "codon", "translation", "trna"} and any(
+        token in text for token in ["custom", "codon", "translation", "trna", "literature"]
+    ):
+        score += 0.55
+    if query_tokens & {"mane", "canonical", "refseq", "ensembl"} and any(token in text for token in ["mane", "canonical", "refseq", "ensembl"]):
+        score += 0.55
+    if query_tokens & {"aav", "payload", "vector"} and any(token in text for token in ["aav", "payload", "vector", "design"]):
+        score += 0.50
+    if query_tokens & {"allen", "dopaminergic", "neuron", "cell"} and any(token in text for token in ["allen", "cell", "atlas"]):
+        score += 0.35
+    if query_tokens & {"gtex", "expression", "tissue"} and any(token in text for token in ["gtex", "tissue", "expression"]):
+        score += 0.35
+    return min(1.0, score)
+
+
+def _source_priority_score(metadata: dict[str, Any], filters: dict[str, Any], query_profile: dict[str, Any]) -> float:
     collection = metadata.get("collection")
     source = str(metadata.get("source") or "").lower()
     evidence_class = metadata.get("evidence_class")
+    query_tokens = set(query_profile.get("expanded_tokens") or [])
     score = 0.0
     if metadata.get("confidence") == "high":
         score += 0.25
@@ -890,19 +954,46 @@ def _source_priority_score(metadata: dict[str, Any], filters: dict[str, Any]) ->
         score += 0.12
     if any(label in source for label in ["mane", "gtex", "allen", "ensembl"]):
         score += 0.10
+    if query_tokens & {"custom", "codon", "trna", "translation"} and (
+        collection in {"literature", "structured_translation_prior"} or "custom" in source
+    ):
+        score += 0.25
     return min(1.0, score)
 
 
 def _query_profile(query: str, filters: dict[str, Any]) -> dict[str, Any]:
-    raw_terms = " ".join(str(value) for value in [query, *filters.values()] if value)
+    retrieval_query = _retrieval_query_text(query, filters)
+    raw_terms = retrieval_query
     tokens = _token_list(raw_terms)
     expanded = _expanded_token_list(raw_terms)
     return {
+        "retrieval_query_text": retrieval_query,
+        "retrieval_query_hash": _hash_compact({"query": retrieval_query}),
+        "retrieval_query_terms": sorted(set(tokens)),
         "tokens": sorted(set(tokens)),
         "expanded_tokens": sorted(set(expanded)),
         "aliases_added": sorted(set(expanded) - set(tokens)),
         "filters_requested": sorted(key for key, value in filters.items() if value),
     }
+
+
+def _retrieval_query_text(query: str, filters: dict[str, Any]) -> str:
+    facet_terms = []
+    labels = {
+        "species": "species",
+        "brain_region": "brain region",
+        "cell_type": "cell type",
+        "modality": "delivery modality",
+        "transcript_selection": "transcript selection",
+        "collection": "collection",
+        "evidence_class": "evidence class",
+        "source": "source",
+    }
+    for key in sorted(filters):
+        value = str(filters.get(key) or "").strip()
+        if value:
+            facet_terms.append(f"{labels.get(key, key)} {value}")
+    return " ".join(item for item in [query.strip(), *facet_terms] if item)
 
 
 def _tokens(text: str) -> set[str]:
