@@ -1006,6 +1006,21 @@ type ProductionAuditStatus = {
         structured_manifest_hash?: string | null;
       }>;
     };
+    rag_evaluation_archive_semantics?: ArchiveSemanticFreshness & {
+      status: string;
+      checked_count: number;
+      semantic_pass_count: number;
+      semantic_warning_count: number;
+      semantic_fail_count: number;
+      latest_artifacts?: Array<{
+        artifact_id: string;
+        semantic_status?: string;
+        source_provenance_hash?: string | null;
+        source_provenance_count?: number | null;
+        source_payload_hash_count?: number | null;
+        source_snapshot_count?: number | null;
+      }>;
+    };
     rag_regression_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
@@ -4276,6 +4291,8 @@ export default function Dashboard() {
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Plan fresh {deploymentGateFreshness(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
+              <span>RAG eval {deploymentGateStatus(deploymentReadiness, "rag_evaluation_archive_semantics")}</span>
+              <span>RAG source {deploymentGateHash(deploymentReadiness, "rag_evaluation_archive_semantics", "latest_source_provenance_hash")}</span>
               <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>Vector fresh {deploymentGateFreshness(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>RAG regress {deploymentGateStatus(deploymentReadiness, "rag_regression_archive_semantics")}</span>
@@ -4331,6 +4348,8 @@ export default function Dashboard() {
               <span>Refresh plan {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.status ?? "n/a"}</span>
               <span>Plan checked {productionAudit?.evidence?.data_refresh_plan_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Plan fresh {formatArchiveFreshness(productionAudit?.evidence?.data_refresh_plan_archive_semantics)}</span>
+              <span>RAG eval {productionAudit?.evidence?.rag_evaluation_archive_semantics?.status ?? "n/a"}</span>
+              <span>RAG source {productionAudit?.evidence?.rag_evaluation_archive_semantics?.latest_artifacts?.[0]?.source_provenance_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>Vector index {productionAudit?.evidence?.rag_vector_index_archive_semantics?.status ?? "n/a"}</span>
               <span>Vector checked {productionAudit?.evidence?.rag_vector_index_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Vector fresh {formatArchiveFreshness(productionAudit?.evidence?.rag_vector_index_archive_semantics)}</span>
