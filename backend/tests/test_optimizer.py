@@ -951,7 +951,7 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         evidence_path.unlink(missing_ok=True)
 
 
-def test_compose_preflight_includes_required_object_store_env() -> None:
+def test_compose_preflight_includes_required_external_service_env() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "compose_preflight.py"
     spec = importlib.util.spec_from_file_location("compose_preflight_unit", script_path)
@@ -974,6 +974,22 @@ def test_compose_preflight_includes_required_object_store_env() -> None:
     assert required_object_store_keys.issubset(synthetic)
     assert synthetic["ARTIFACT_OBJECT_STORE_ENABLED"] == "true"
     assert synthetic["ARTIFACT_OBJECT_STORE_ENDPOINT"].startswith("https://")
+
+    required_openai_embedding_keys = {
+        "RAG_EMBEDDING_BACKEND",
+        "RAG_EMBEDDING_MODEL",
+        "RAG_EMBEDDING_DIMENSIONS",
+        "OPENAI_API_KEY",
+        "OPENAI_EMBEDDING_BASE_URL",
+        "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS",
+        "OPENAI_EMBEDDING_BUDGET_USD",
+    }
+    assert required_openai_embedding_keys.issubset(synthetic)
+    assert synthetic["RAG_EMBEDDING_BACKEND"] == "openai"
+    assert synthetic["OPENAI_API_KEY"]
+    assert synthetic["OPENAI_EMBEDDING_BASE_URL"].startswith("https://")
+    assert float(synthetic["OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS"]) > 0
+    assert float(synthetic["OPENAI_EMBEDDING_BUDGET_USD"]) > 0
 
 
 def test_cli_production_audit_requires_bundle_hash_evidence() -> None:

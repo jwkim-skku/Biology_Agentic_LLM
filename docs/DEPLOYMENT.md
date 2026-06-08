@@ -25,7 +25,7 @@ docker compose --env-file .env.production -f docker-compose.yml -f docker-compos
 ```
 
 `docker-compose.production.yml` is an override for production-like launches. It requires Postgres storage, API keys with explicit role mapping, artifact signing, nonzero retention settings, a configured frontend API URL, and a healthy Postgres service before the backend starts.
-`scripts/compose_preflight.py` uses a synthetic production env with Postgres, signing, rate-limit, and object-store mirror values, so `docker compose config` checks the same required variables that production startup demands.
+`scripts/compose_preflight.py` uses a synthetic production env with Postgres, signing, rate-limit, OpenAI embedding, and object-store mirror values, so `docker compose config` checks the same required variables that production startup demands.
 
 Create a deployment audit artifact before promotion:
 
@@ -54,6 +54,7 @@ Useful runtime variables:
 - `RAG_EMBEDDING_BACKEND`: `hash_bow`, `sentence_transformers`, or `openai`. Production promotion expects `sentence_transformers` with a pinned local model or `openai` with an API key and regression evidence.
 - `OPENAI_API_KEY` and `OPENAI_EMBEDDING_BASE_URL`: optional managed embedding backend credentials used only when `RAG_EMBEDDING_BACKEND=openai`. Repeated OpenAI embedding calls are cached under `APP_DATA_DIR/runtime/openai_embedding_cache.json`; `GET /api/v1/rag/embedding/status` reports cache existence, entry count, file SHA-256, entry-key hash, model/dimension distribution, estimated input tokens, estimated spend, and invalid-entry count for promotion evidence.
 - `OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS` and `OPENAI_EMBEDDING_BUDGET_USD`: optional operator-supplied cost controls for managed embedding runs. The application does not hard-code provider pricing; set the current embedding price and budget before production refreshes to expose estimated spend and remaining budget in `/rag/embedding/status`. When a budget is configured, uncached OpenAI embedding calls are blocked before the network request if the estimated cached spend plus the estimated request cost would exceed the budget.
+  Both Compose profiles pass these OpenAI embedding variables through to the backend container, and `scripts/compose_preflight.py` validates the pass-through path with a synthetic OpenAI embedding profile before deployment.
 - `API_KEYS`: comma-separated API keys. Empty means local-development mode.
 - `API_KEY_ROLES`: optional API key role mapping. Use `key=admin;other=viewer,operator` or JSON such as `{"key":["admin"]}`. Without this mapping, configured keys default to `admin`.
 - `NEXT_PUBLIC_API_KEY`: browser demo key when API auth is enabled. It must map to a configured `viewer` or `operator` role, never `admin`.

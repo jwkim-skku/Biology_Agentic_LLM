@@ -28,6 +28,21 @@ SYNTHETIC_ENV = {
     "POSTGRES_DB": "agentic_rag",
     "POSTGRES_USER": "agentic_rag",
     "POSTGRES_PASSWORD": "compose-preflight-postgres-password",
+    "RAG_VECTOR_BACKEND": "pgvector",
+    "RAG_PGVECTOR_TABLE": "rag_chunks",
+    "QDRANT_URL": "",
+    "QDRANT_COLLECTION": "agentic_rag_chunks",
+    "RAG_EMBEDDING_BACKEND": "openai",
+    "RAG_EMBEDDING_MODEL": "text-embedding-3-small",
+    "RAG_EMBEDDING_DIMENSIONS": "128",
+    "OPENAI_API_KEY": "compose-preflight-openai-key",
+    "OPENAI_EMBEDDING_BASE_URL": "https://api.openai.com/v1",
+    "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS": "0.001",
+    "OPENAI_EMBEDDING_BUDGET_USD": "0.05",
+    "RNA_FOLDING_BACKEND": "rnafold",
+    "RNAFOLD_EXECUTABLE": "RNAfold",
+    "RNAFOLD_TIMEOUT_SECONDS": "10",
+    "RNAFOLD_WINDOW_NT": "180",
     "API_KEYS": "admin-compose-key-000000000001,operator-compose-key-0000000001,viewer-compose-key-000000000001",
     "API_KEY_ROLES": (
         "admin-compose-key-000000000001=admin;"
@@ -80,6 +95,10 @@ def static_checks(failures: list[str]) -> None:
         "${BACKEND_PORT:-8000}:8000",
         "${FRONTEND_PORT:-3000}:3000",
         "${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:8000/api/v1}",
+        "${OPENAI_API_KEY:-}",
+        "${OPENAI_EMBEDDING_BASE_URL:-https://api.openai.com/v1}",
+        "${OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS:-0}",
+        "${OPENAI_EMBEDDING_BUDGET_USD:-0}",
         "condition: service_healthy",
     ]
     required_production_tokens = [
@@ -89,6 +108,10 @@ def static_checks(failures: list[str]) -> None:
         "ARTIFACT_SIGNING_KEY is required for production compose",
         "NEXT_PUBLIC_API_BASE_URL is required for production compose",
         "POSTGRES_PASSWORD is required for production compose",
+        "OPENAI_API_KEY",
+        "OPENAI_EMBEDDING_BASE_URL",
+        "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS",
+        "OPENAI_EMBEDDING_BUDGET_USD",
         "ARTIFACT_OBJECT_STORE_ENDPOINT is required for production compose",
         "ARTIFACT_OBJECT_STORE_BUCKET is required for production compose",
         "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID is required for production compose",
@@ -137,6 +160,29 @@ def run_docker_compose_config(*, require_docker: bool, failures: list[str], warn
         require_config_token(base, "13000:3000", failures, "base config did not apply FRONTEND_PORT.")
     if production:
         require_config_token(production, "STORAGE_BACKEND: postgres", failures, "production config did not force Postgres storage.")
+        require_config_token(production, "RAG_EMBEDDING_BACKEND: openai", failures, "production config did not apply RAG_EMBEDDING_BACKEND.")
+        require_config_token(production, "OPENAI_API_KEY: compose-preflight-openai-key", failures, "production config did not pass OPENAI_API_KEY.")
+        require_config_token(production, "OPENAI_EMBEDDING_BASE_URL: https://api.openai.com/v1", failures, "production config did not pass OPENAI_EMBEDDING_BASE_URL.")
+        require_any_config_token(
+            production,
+            [
+                "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS: '0.001'",
+                'OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS: "0.001"',
+                "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS: 0.001",
+            ],
+            failures,
+            "production config did not pass OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS.",
+        )
+        require_any_config_token(
+            production,
+            [
+                "OPENAI_EMBEDDING_BUDGET_USD: '0.05'",
+                'OPENAI_EMBEDDING_BUDGET_USD: "0.05"',
+                "OPENAI_EMBEDDING_BUDGET_USD: 0.05",
+            ],
+            failures,
+            "production config did not pass OPENAI_EMBEDDING_BUDGET_USD.",
+        )
         require_config_token(production, "condition: service_healthy", failures, "production config did not wait for Postgres health.")
         require_config_token(production, "compose-preflight-artifact-signing-key", failures, "production config did not require artifact signing.")
         require_config_token(production, "https://s3.compose-preflight.example.com", failures, "production config did not require object-store endpoint.")
@@ -161,6 +207,11 @@ def compose_config(args: list[str], failures: list[str]) -> str:
 
 def require_config_token(config: str, token: str, failures: list[str], message: str) -> None:
     if token not in config:
+        failures.append(message)
+
+
+def require_any_config_token(config: str, tokens: list[str], failures: list[str], message: str) -> None:
+    if not any(token in config for token in tokens):
         failures.append(message)
 
 
