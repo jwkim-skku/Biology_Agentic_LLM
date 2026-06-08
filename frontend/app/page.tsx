@@ -863,6 +863,7 @@ type ProductionAuditStatus = {
         optimizer_manifest_hash?: string | null;
         request_hash?: string | null;
         qc_report_hash?: string | null;
+        report_formats_summary_hash?: string | null;
         candidate_ranking_hash?: string | null;
         recommendation_audit_hash?: string | null;
         recommended_folding_evidence_hash?: string | null;
@@ -1191,6 +1192,7 @@ type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     optimizer_manifest_hash?: string | null;
     request_hash?: string | null;
     qc_report_hash?: string | null;
+    report_formats_summary_hash?: string | null;
     candidate_ranking_hash?: string | null;
     recommendation_audit_hash?: string | null;
     recommended_folding_evidence_hash?: string | null;
@@ -4179,6 +4181,7 @@ export default function Dashboard() {
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
               <span>QC folding {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_status")}</span>
               <span>QC fold hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
+              <span>QC formats {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_report_formats_summary_hash")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
@@ -4263,6 +4266,9 @@ export default function Dashboard() {
               </span>
               <span>
                 QC optimizer {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.optimizer_manifest_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                QC formats {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.report_formats_summary_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 QC recommend {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_audit_hash?.slice(0, 10) ?? "n/a"}

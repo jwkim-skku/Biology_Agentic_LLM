@@ -26,6 +26,7 @@ REQUIRED_QC_BUNDLE_FILES = {
     "qc_report.md",
     "qc_report.html",
     "qc_report.pdf",
+    "report_formats_summary.json",
     "optimizer_reproducibility.json",
     "recommendation_audit.json",
     "recommended_folding_evidence.json",
@@ -55,9 +56,20 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
     run_id = str(design.get("run_id") or "unsaved_run")
     report_json = _json(report)
     request_json = _json(request_payload)
+    report_markdown = _as_text(export_qc_report(report, "markdown"))
+    report_html = _as_text(export_qc_report(report, "html"))
+    report_pdf = _as_bytes(export_qc_report(report, "pdf"))
     candidate_csv = _candidate_csv(design.get("candidates") or [])
     recommendation_audit = _recommendation_audit_payload(design, report)
     folding_evidence = _recommended_folding_evidence_payload(design, report)
+    report_formats_summary = _report_formats_summary(
+        {
+            "qc_report.json": report_json.encode("utf-8"),
+            "qc_report.md": report_markdown.encode("utf-8"),
+            "qc_report.html": report_html.encode("utf-8"),
+            "qc_report.pdf": report_pdf,
+        }
+    )
     manifest = {
         "bundle_schema": "agentic-rag-qc-report-bundle-v1",
         "bundle_type": bundle_type,
@@ -68,6 +80,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         "optimizer_manifest_hash": ((report.get("optimizer_reproducibility") or {}).get("manifest_hash")),
         "request_hash": _hash_payload(request_payload),
         "qc_report_hash": _hash_payload(report),
+        "report_formats_summary_hash": _hash_payload(report_formats_summary),
         "candidate_ranking_hash": _hash_text(candidate_csv),
         "recommendation_audit_hash": _hash_payload(recommendation_audit),
         "recommended_folding_evidence_hash": _hash_payload(folding_evidence),
@@ -82,9 +95,10 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         bundle.writestr("request.json", request_json)
         bundle.writestr("design_summary.json", _json(_design_summary(design)))
         bundle.writestr("qc_report.json", report_json)
-        bundle.writestr("qc_report.md", export_qc_report(report, "markdown"))
-        bundle.writestr("qc_report.html", export_qc_report(report, "html"))
-        bundle.writestr("qc_report.pdf", export_qc_report(report, "pdf"))
+        bundle.writestr("qc_report.md", report_markdown)
+        bundle.writestr("qc_report.html", report_html)
+        bundle.writestr("qc_report.pdf", report_pdf)
+        bundle.writestr("report_formats_summary.json", _json(report_formats_summary))
         bundle.writestr("candidate_diagnostics.json", _json(design.get("candidate_diagnostics") or report.get("candidate_diagnostics") or {}))
         bundle.writestr("optimizer_reproducibility.json", _json(report.get("optimizer_reproducibility") or optimizer_reproducibility_manifest(design)))
         bundle.writestr("recommendation_audit.json", _json(recommendation_audit))
@@ -124,6 +138,13 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             request = _read_json_member(archive, "request.json")
             design_summary = _read_json_member(archive, "design_summary.json")
             qc_report = _read_json_member(archive, "qc_report.json")
+            report_formats_summary = _read_json_member(archive, "report_formats_summary.json")
+            report_format_payloads = {
+                "qc_report.json": archive.read("qc_report.json"),
+                "qc_report.md": archive.read("qc_report.md"),
+                "qc_report.html": archive.read("qc_report.html"),
+                "qc_report.pdf": archive.read("qc_report.pdf"),
+            }
             optimizer_manifest = _read_json_member(archive, "optimizer_reproducibility.json")
             recommendation_audit_file = _read_json_member(archive, "recommendation_audit.json")
             recommended_folding_evidence_file = _read_json_member(archive, "recommended_folding_evidence.json")
@@ -160,6 +181,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "optimizer_manifest_hash": optimizer_hash,
             "request_hash": _hash_payload(request),
             "qc_report_hash": _hash_payload(qc_report),
+            "report_formats_summary_hash": _hash_payload(report_formats_summary),
             "candidate_ranking_hash": _hash_text(candidate_csv_text),
             "recommendation_audit_hash": _hash_payload(recommendation_audit_file),
             "recommended_folding_evidence_hash": _hash_payload(recommended_folding_evidence_file),
@@ -297,6 +319,24 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         _hash_payload(qc_report),
         "bundle_manifest.json qc_report_hash does not match qc_report.json.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "report_formats_summary_hash",
+        bundle_manifest.get("report_formats_summary_hash"),
+        _hash_payload(report_formats_summary),
+        "bundle_manifest.json report_formats_summary_hash does not match report_formats_summary.json.",
+    )
+    expected_report_formats = _report_formats_summary(report_format_payloads)
+    if report_formats_summary.get("summary_schema") != "agentic-rag-qc-report-formats-summary-v1":
+        semantic_errors.append("report_formats_summary.json summary_schema is invalid.")
+        semantic_checks["report_formats_summary_schema"] = "fail"
+    elif report_formats_summary != expected_report_formats:
+        semantic_errors.append("report_formats_summary.json does not match exported QC report format files.")
+        semantic_checks["report_formats_summary_consistency"] = "fail"
+    else:
+        semantic_checks["report_formats_summary_schema"] = "pass"
+        semantic_checks["report_formats_summary_consistency"] = "pass"
     _expect_equal(
         semantic_checks,
         semantic_errors,
@@ -643,6 +683,56 @@ def _recommendation_audit_payload(design: dict[str, Any], report: dict[str, Any]
 
 def _recommended_folding_evidence_payload(design: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
     return design.get("recommended_folding_evidence") or report.get("recommended_folding_evidence") or {}
+
+
+def _report_formats_summary(files: dict[str, bytes]) -> dict[str, Any]:
+    formats = []
+    for path, payload in sorted(files.items()):
+        suffix = path.rsplit(".", 1)[-1]
+        media_type = {
+            "json": "application/json",
+            "md": "text/markdown",
+            "html": "text/html",
+            "pdf": "application/pdf",
+        }.get(suffix, "application/octet-stream")
+        item: dict[str, Any] = {
+            "path": path,
+            "format": "markdown" if suffix == "md" else suffix,
+            "media_type": media_type,
+            "bytes": len(payload),
+            "sha256": sha256(payload).hexdigest(),
+        }
+        if suffix == "pdf":
+            item["pdf_header_valid"] = payload.startswith(b"%PDF-")
+        else:
+            item["utf8_decodable"] = _is_utf8(payload)
+        formats.append(item)
+    return {
+        "summary_schema": "agentic-rag-qc-report-formats-summary-v1",
+        "format_count": len(formats),
+        "total_bytes": sum(item["bytes"] for item in formats),
+        "formats": formats,
+    }
+
+
+def _is_utf8(payload: bytes) -> bool:
+    try:
+        payload.decode("utf-8")
+    except UnicodeDecodeError:
+        return False
+    return True
+
+
+def _as_text(payload: str | bytes) -> str:
+    if isinstance(payload, bytes):
+        return payload.decode("utf-8")
+    return payload
+
+
+def _as_bytes(payload: str | bytes) -> bytes:
+    if isinstance(payload, bytes):
+        return payload
+    return payload.encode("utf-8")
 
 
 def _json(payload: Any) -> str:

@@ -594,6 +594,7 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_check in [
             "request_hash",
             "qc_report_hash",
+            "report_formats_summary_hash",
             "candidate_ranking_hash",
             "recommendation_audit_hash",
             "recommended_folding_evidence_hash",
@@ -602,6 +603,8 @@ def api_failures(name: str, details: Any) -> list[str]:
                 failures.append(f"QC report bundle does not verify {hash_check}.")
         required_qc_explainability = [
             "optimizer_hash_report",
+            "report_formats_summary_schema",
+            "report_formats_summary_consistency",
             "candidate_csv_explainability_columns",
             "candidate_ranking_report_count",
             "candidate_ranking_report_ids",
@@ -637,6 +640,7 @@ def api_failures(name: str, details: Any) -> list[str]:
         for hash_field in [
             "request_hash",
             "qc_report_hash",
+            "report_formats_summary_hash",
             "candidate_ranking_hash",
             "recommendation_audit_hash",
             "recommended_folding_evidence_hash",

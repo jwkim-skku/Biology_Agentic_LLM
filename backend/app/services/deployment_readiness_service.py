@@ -405,6 +405,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_optimizer_manifest_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("optimizer_manifest_hash"),
                 "latest_request_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("request_hash"),
                 "latest_qc_report_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("qc_report_hash"),
+                "latest_report_formats_summary_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("report_formats_summary_hash"),
                 "latest_candidate_ranking_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("candidate_ranking_hash"),
                 "latest_recommendation_audit_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("recommendation_audit_hash"),
                 "latest_recommended_folding_evidence_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("recommended_folding_evidence_hash"),

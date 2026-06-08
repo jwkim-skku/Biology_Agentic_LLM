@@ -998,10 +998,13 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "request_payload": "pass",
                     "request_hash": "pass",
                     "qc_report_hash": "pass",
+                    "report_formats_summary_hash": "pass",
                     "candidate_ranking_hash": "pass",
                     "recommendation_audit_hash": "pass",
                     "recommended_folding_evidence_hash": "pass",
                     "optimizer_hash_report": "pass",
+                    "report_formats_summary_schema": "pass",
+                    "report_formats_summary_consistency": "pass",
                     "candidate_csv_explainability_columns": "pass",
                     "candidate_ranking_report_count": "pass",
                     "candidate_ranking_report_ids": "pass",
@@ -1022,6 +1025,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 },
                 "request_hash": valid_hash,
                 "qc_report_hash": valid_hash,
+                "report_formats_summary_hash": valid_hash,
                 "candidate_ranking_hash": valid_hash,
                 "recommendation_audit_hash": valid_hash,
                 "recommended_folding_evidence_hash": valid_hash,
@@ -1089,6 +1093,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     )
     assert "request_hash" in " ".join(qc_failures)
     assert "qc_report_hash" in " ".join(qc_failures)
+    assert "report_formats_summary_hash" in " ".join(qc_failures)
     assert "candidate_ranking_hash" in " ".join(qc_failures)
     assert "recommendation_audit_hash" in " ".join(qc_failures)
     assert "recommended_folding_evidence_hash" in " ".join(qc_failures)
@@ -1105,6 +1110,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"request_payload_status": "pass"}]}},
     )
     assert "request_hash" in " ".join(qc_archive_failures)
+    assert "report_formats_summary_hash" in " ".join(qc_archive_failures)
     assert "recommended_folding_evidence_hash" in " ".join(qc_archive_failures)
     assert "recommended_folding_status" in " ".join(qc_archive_failures)
     assert "retrieval_quality_status" in " ".join(qc_archive_failures)
@@ -2526,6 +2532,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert "qc_report.md" in names
         assert "qc_report.html" in names
         assert "qc_report.pdf" in names
+        assert "report_formats_summary.json" in names
         assert "optimizer_reproducibility.json" in names
         assert "recommendation_audit.json" in names
         assert "recommended_folding_evidence.json" in names
@@ -2533,6 +2540,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         optimizer_manifest = json.loads(archive.read("optimizer_reproducibility.json"))
         recommendation_audit = json.loads(archive.read("recommendation_audit.json"))
         recommended_folding_evidence = json.loads(archive.read("recommended_folding_evidence.json"))
+        report_formats_summary = json.loads(archive.read("report_formats_summary.json"))
         request = json.loads(archive.read("request.json"))
         assert request["brain_region"] == "cortex"
         assert optimizer_manifest["manifest_schema"] == "agentic-rag-optimizer-reproducibility-v1"
@@ -2547,6 +2555,10 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert any(item["path"] == "qc_report.pdf" and item["sha256"] for item in artifact_manifest["files"])
         assert len(bundle_manifest["request_hash"]) == 64
         assert len(bundle_manifest["qc_report_hash"]) == 64
+        assert len(bundle_manifest["report_formats_summary_hash"]) == 64
+        assert report_formats_summary["summary_schema"] == "agentic-rag-qc-report-formats-summary-v1"
+        assert report_formats_summary["format_count"] == 4
+        assert any(item["path"] == "qc_report.pdf" and item["pdf_header_valid"] for item in report_formats_summary["formats"])
         assert len(bundle_manifest["candidate_ranking_hash"]) == 64
         assert len(bundle_manifest["recommendation_audit_hash"]) == 64
         assert len(bundle_manifest["recommended_folding_evidence_hash"]) == 64
@@ -2559,6 +2571,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["optimizer_manifest_hash"] == optimizer_manifest["manifest_hash"]
     assert verification["request_hash"] == bundle_manifest["request_hash"]
     assert verification["qc_report_hash"] == bundle_manifest["qc_report_hash"]
+    assert verification["report_formats_summary_hash"] == bundle_manifest["report_formats_summary_hash"]
     assert verification["candidate_ranking_hash"] == bundle_manifest["candidate_ranking_hash"]
     assert verification["recommendation_audit_hash"] == bundle_manifest["recommendation_audit_hash"]
     assert verification["recommended_folding_evidence_hash"] == bundle_manifest["recommended_folding_evidence_hash"]
@@ -2566,6 +2579,9 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["recommended_folding_backend"] in {"rnafold", "deterministic_proxy"}
     assert verification["semantic_checks"]["request_hash"] == "pass"
     assert verification["semantic_checks"]["qc_report_hash"] == "pass"
+    assert verification["semantic_checks"]["report_formats_summary_hash"] == "pass"
+    assert verification["semantic_checks"]["report_formats_summary_schema"] == "pass"
+    assert verification["semantic_checks"]["report_formats_summary_consistency"] == "pass"
     assert verification["semantic_checks"]["candidate_ranking_hash"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_hash"] == "pass"
     assert verification["semantic_checks"]["evidence_retrieval_quality_schema"] == "pass"
@@ -2600,6 +2616,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert archived["metadata"]["qc_bundle_semantic_verification"]["semantic_status"] == "pass"
     assert archived["metadata"]["qc_bundle_semantic_verification"]["optimizer_manifest_hash"] == optimizer_manifest["manifest_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["qc_report_hash"] == verification["qc_report_hash"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["report_formats_summary_hash"] == verification["report_formats_summary_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
@@ -2630,6 +2647,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         and item["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
         and item["request_hash"] == verification["request_hash"]
         and item["qc_report_hash"] == verification["qc_report_hash"]
+        and item["report_formats_summary_hash"] == verification["report_formats_summary_hash"]
         and item["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
         and item["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
         and item["recommended_folding_status"] in {"pass", "warning"}

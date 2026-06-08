@@ -29,7 +29,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - Optimizer reproducibility manifests with canonical config hashes, score-config hashes, objective inventory, seed, repair policy, target hash, and source CDS hash.
 - CUSTOM-style tissue-aware codon multipliers from structured priors.
 - Markdown, HTML, JSON, and PDF QC report export.
-- Manifested QC report ZIP bundles with JSON, Markdown, HTML, PDF, candidate ranking CSV, provenance files, artifact verification, and semantic cross-checks for report and optimizer reproducibility metadata.
+- Manifested QC report ZIP bundles with JSON, Markdown, HTML, PDF, report-format summary hashes, candidate ranking CSV, provenance files, artifact verification, and semantic cross-checks for report and optimizer reproducibility metadata.
 - SQLite run persistence with request/design/report/trace storage.
 - Persistent agent memory index for session, semantic-rule, and artifact summaries derived from saved design runs.
 - SQLite background job store for long-running single-gene design, batch gene design, and data refresh work.

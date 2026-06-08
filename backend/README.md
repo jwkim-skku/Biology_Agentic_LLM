@@ -186,14 +186,14 @@ Invoke-RestMethod `
 - `POST /api/v1/design-from-gene`: fetch CDS from a gene symbol, optimize it, and return provenance.
 - `POST /api/v1/report-from-gene`: run gene-to-design and return only the structured QC report.
 - `POST /api/v1/report-from-gene/export/{markdown|html|json|pdf}`: export gene-to-design QC report.
-- `POST /api/v1/report-from-gene/export-bundle.zip`: export a manifested QC bundle with JSON, Markdown, HTML, PDF, candidate CSV, data-quality evidence, optimizer-stress evidence, and provenance.
+- `POST /api/v1/report-from-gene/export-bundle.zip`: export a manifested QC bundle with JSON, Markdown, HTML, PDF, report-format hashes, candidate CSV, data-quality evidence, optimizer-stress evidence, and provenance.
 - `POST /api/v1/report-from-gene/export-bundle/verify`: rebuild and verify the manifested gene-to-design QC bundle, including report/optimizer reproducibility, data-quality, and optimizer-stress cross-checks.
 - `POST /api/v1/report`: return a QC-report-shaped JSON payload.
 - `POST /api/v1/report/export/{markdown|html|json|pdf}`: export CDS-input QC report.
-- `POST /api/v1/report/export-bundle.zip`: export a manifested CDS-input QC bundle with all report formats, request/report/candidate-ranking hashes, data-quality evidence, optimizer-stress evidence, and provenance.
+- `POST /api/v1/report/export-bundle.zip`: export a manifested CDS-input QC bundle with all report formats, report-format summary hashes, request/report/candidate-ranking hashes, data-quality evidence, optimizer-stress evidence, and provenance.
 - `POST /api/v1/report/export-bundle/verify`: rebuild and verify the manifested CDS-input QC bundle, including report/optimizer reproducibility, data-quality, and optimizer-stress cross-checks.
 
-Design and report responses include per-candidate `selection_trace` and `constraint_risk` fields plus recommended-candidate RNA folding/proxy evidence so operators can explain the recommended candidate, inspect fallback Pareto trade-offs, and see pass/warning/fail counts for payload, motif, splice, GC-window, hairpin, deterministic secondary-structure proxy, thermodynamic evidence availability, and complexity risks. Workflow runs carry role-level trace rows, and run audit bundles include `workflow_summary.json`. QC reports also summarize structured data quality and optimizer stress state; QC bundles preserve the full `data_quality.json`, `optimizer_stress.json`, and `recommended_folding_evidence.json` evidence files, carry candidate summaries in `candidate_ranking.csv`, and verify that the report, CSV, and evidence files remain consistent.
+Design and report responses include per-candidate `selection_trace` and `constraint_risk` fields plus recommended-candidate RNA folding/proxy evidence so operators can explain the recommended candidate, inspect fallback Pareto trade-offs, and see pass/warning/fail counts for payload, motif, splice, GC-window, hairpin, deterministic secondary-structure proxy, thermodynamic evidence availability, and complexity risks. Workflow runs carry role-level trace rows, and run audit bundles include `workflow_summary.json`. QC reports also summarize structured data quality and optimizer stress state; QC bundles preserve the full `data_quality.json`, `optimizer_stress.json`, `recommended_folding_evidence.json`, and `report_formats_summary.json` evidence files, carry candidate summaries in `candidate_ranking.csv`, and verify that the report formats, CSV, and evidence files remain consistent.
 
 ## Gene-to-Design Example
 
