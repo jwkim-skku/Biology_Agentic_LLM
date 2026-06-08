@@ -1918,6 +1918,10 @@ def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
     assert verification["semantic_checks"]["query_term_coverage_hash"] == "pass"
     assert verification["semantic_checks"]["top_sources_hash"] == "pass"
     assert verification["semantic_checks"]["top_sources_consistency"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_hash"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_schema"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_consistency"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_count"] == "pass"
     assert verification["semantic_checks"]["score_breakdown_hash"] == "pass"
     assert verification["semantic_checks"]["chunks_hash"] == "pass"
     assert len(verification["evaluation_hash"]) == 64
@@ -1926,6 +1930,10 @@ def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
     assert len(verification["facet_gap_analysis_hash"]) == 64
     assert len(verification["query_term_coverage_hash"]) == 64
     assert len(verification["top_sources_hash"]) == 64
+    assert len(verification["source_provenance_hash"]) == 64
+    assert verification["source_provenance_count"] >= 1
+    assert verification["source_payload_hash_count"] >= 0
+    assert verification["source_snapshot_count"] >= 0
     assert len(verification["score_breakdown_hash"]) == 64
     assert len(verification["chunks_hash"]) == 64
     with ZipFile(BytesIO(bundle)) as archive:
@@ -1933,12 +1941,14 @@ def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
         assert "facet_gap_analysis.json" in set(archive.namelist())
         assert "query_term_coverage.json" in set(archive.namelist())
         assert "top_sources.json" in set(archive.namelist())
+        assert "source_provenance.json" in set(archive.namelist())
         manifest = json.loads(archive.read("bundle_manifest.json"))
         trace = json.loads(archive.read("retrieval_trace.json"))
         sufficiency = json.loads(archive.read("evidence_sufficiency.json"))
         facet_gap = json.loads(archive.read("facet_gap_analysis.json"))
         term_coverage = json.loads(archive.read("query_term_coverage.json"))
         top_sources = json.loads(archive.read("top_sources.json"))
+        source_provenance = json.loads(archive.read("source_provenance.json"))
         evaluation = json.loads(archive.read("evaluation.json"))
         assert manifest["evaluation_hash"] == verification["evaluation_hash"]
         assert manifest["retrieval_trace_hash"] == verification["retrieval_trace_hash"]
@@ -1946,6 +1956,8 @@ def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
         assert manifest["facet_gap_analysis_hash"] == verification["facet_gap_analysis_hash"]
         assert manifest["query_term_coverage_hash"] == verification["query_term_coverage_hash"]
         assert manifest["top_sources_hash"] == verification["top_sources_hash"]
+        assert manifest["source_provenance_hash"] == verification["source_provenance_hash"]
+        assert manifest["source_provenance_count"] == verification["source_provenance_count"]
         assert manifest["score_breakdown_hash"] == verification["score_breakdown_hash"]
         assert manifest["chunks_hash"] == verification["chunks_hash"]
         assert sufficiency["sufficiency_schema"] == "agentic-rag-evidence-sufficiency-v1"
@@ -1955,6 +1967,9 @@ def test_rag_evaluation_bundle_contains_evidence_sufficiency_gate() -> None:
         assert facet_gap == evaluation["facet_gap_analysis"]
         assert term_coverage == evaluation["query_term_coverage"]
         assert top_sources == evaluation["top_sources"]
+        assert source_provenance["provenance_schema"] == "agentic-rag-evaluation-source-provenance-v1"
+        assert source_provenance["source_count"] == verification["source_provenance_count"]
+        assert source_provenance["sources"]
 
 
 def test_rag_facet_reranker_prioritizes_cell_type_context() -> None:

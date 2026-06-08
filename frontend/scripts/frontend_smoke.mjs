@@ -201,6 +201,7 @@ async function main() {
     assert(/Folding hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `QC archive folding hash was not rendered: ${archiveText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `Structured import audit summary was not rendered: ${archiveText}`);
     assert(/RAG eval archive\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `RAG evaluation archive summary was not rendered: ${archiveText}`);
+    assert(/Source prov\s+([a-f0-9]{10}|n\/a)\s+\/\s+sources\s+(\d+|n\/a)\s+\/\s+snapshots\s+(\d+|n\/a)/.test(archiveText), `RAG source provenance archive summary was not rendered: ${archiveText}`);
     assert(/OPT bench archive\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `Optimizer benchmark archive summary was not rendered: ${archiveText}`);
     const archiveSection = page.locator('section[aria-label="Immutable artifact archive"]');
     const verifyButton = archiveSection.getByTitle("Verify archived artifact").first();

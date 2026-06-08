@@ -660,6 +660,9 @@ def _metadata_from_record(record: dict[str, Any]) -> dict[str, Any]:
         "summary": record.get("summary", ""),
         "release": record.get("release", ""),
         "source_sha256": record.get("source_sha256", record.get("_source_sha256", "")),
+        "source_request_url": record.get("source_request_url", ""),
+        "source_snapshot_path": record.get("source_snapshot_path", ""),
+        "source_payload_sha256": record.get("source_payload_sha256", ""),
     }
 
 

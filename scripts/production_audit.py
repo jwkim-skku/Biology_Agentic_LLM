@@ -474,6 +474,9 @@ def api_failures(name: str, details: Any) -> list[str]:
             "evidence_sufficiency_schema",
             "facet_gap_analysis",
             "query_term_coverage",
+            "source_provenance_schema",
+            "source_provenance_consistency",
+            "source_provenance_count",
             "retrieval_trace_hash",
             "evidence_sufficiency_hash",
             "facet_gap_analysis_hash",
@@ -481,6 +484,7 @@ def api_failures(name: str, details: Any) -> list[str]:
             "top_sources_consistency",
             "evaluation_hash",
             "top_sources_hash",
+            "source_provenance_hash",
             "score_breakdown_hash",
             "chunks_hash",
         ]
@@ -494,11 +498,14 @@ def api_failures(name: str, details: Any) -> list[str]:
             "facet_gap_analysis_hash",
             "query_term_coverage_hash",
             "top_sources_hash",
+            "source_provenance_hash",
             "score_breakdown_hash",
             "chunks_hash",
         ]:
             if not payload.get(hash_check):
                 failures.append(f"RAG evaluation bundle does not expose {hash_check}.")
+        if int(payload.get("source_provenance_count") or 0) < 1:
+            failures.append("RAG evaluation bundle does not expose source_provenance_count.")
     if name == "data_release_bundle_verify":
         checks = payload.get("semantic_checks") or {}
         for hash_check in ["records_hash", "records_csv_hash", "release_handoff_hash"]:
@@ -693,6 +700,13 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data refresh plan archive is missing dataset_id")
         if checked_count and not latest.get("structured_manifest_hash"):
             failures.append("latest data refresh plan archive is missing structured_manifest_hash")
+    if name == "rag_evaluation_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and not latest.get("source_provenance_hash"):
+            failures.append("latest RAG evaluation archive is missing source_provenance_hash")
+        if checked_count and int(latest.get("source_provenance_count") or 0) < 1:
+            failures.append("latest RAG evaluation archive is missing source_provenance_count")
     if name == "rag_vector_index_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)

@@ -22,6 +22,7 @@ REQUIRED_RAG_EVALUATION_FILES = {
     "facet_gap_analysis.json",
     "query_term_coverage.json",
     "top_sources.json",
+    "source_provenance.json",
     "score_breakdown.csv",
     "chunks.jsonl",
     "rag_status.json",
@@ -41,6 +42,8 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
     facet_gap_json = _json(evaluation.get("facet_gap_analysis") or {})
     query_term_coverage_json = _json(evaluation.get("query_term_coverage") or {})
     top_sources_json = _json(evaluation.get("top_sources") or [])
+    source_provenance = _source_provenance(search.get("chunks") or [])
+    source_provenance_json = _json(source_provenance)
     score_breakdown_csv = _score_breakdown_csv(evaluation.get("score_breakdown") or [])
     chunks_jsonl = _chunks_jsonl(search.get("chunks") or [])
     metadata = {
@@ -56,6 +59,10 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         "facet_gap_analysis_hash": _hash_text(facet_gap_json),
         "query_term_coverage_hash": _hash_text(query_term_coverage_json),
         "top_sources_hash": _hash_text(top_sources_json),
+        "source_provenance_hash": _hash_text(source_provenance_json),
+        "source_provenance_count": source_provenance.get("source_count"),
+        "source_payload_hash_count": source_provenance.get("source_payload_hash_count"),
+        "source_snapshot_count": source_provenance.get("source_snapshot_count"),
         "score_breakdown_hash": _hash_text(score_breakdown_csv),
         "chunks_hash": _hash_text(chunks_jsonl),
         "structured_manifest_hash": rag_status().get("structured_manifest_hash"),
@@ -72,6 +79,7 @@ def build_rag_evaluation_bundle(request_payload: dict[str, Any]) -> bytes:
         bundle.writestr("facet_gap_analysis.json", facet_gap_json)
         bundle.writestr("query_term_coverage.json", query_term_coverage_json)
         bundle.writestr("top_sources.json", top_sources_json)
+        bundle.writestr("source_provenance.json", source_provenance_json)
         bundle.writestr("score_breakdown.csv", score_breakdown_csv)
         bundle.writestr("chunks.jsonl", chunks_jsonl)
         bundle.writestr("rag_status.json", _json(rag_status()))
@@ -106,6 +114,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                 chunk_rows: list[dict[str, Any]] = []
                 evaluation_text = ""
                 top_sources_text = ""
+                source_provenance_text = ""
                 score_breakdown_text = ""
                 chunks_text = ""
                 retrieval_trace_text = ""
@@ -120,6 +129,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                 facet_gap_text = archive.read("facet_gap_analysis.json").decode("utf-8")
                 query_term_coverage_text = archive.read("query_term_coverage.json").decode("utf-8")
                 top_sources_text = archive.read("top_sources.json").decode("utf-8")
+                source_provenance_text = archive.read("source_provenance.json").decode("utf-8")
                 score_breakdown_text = archive.read("score_breakdown.csv").decode("utf-8")
                 chunks_text = archive.read("chunks.jsonl").decode("utf-8")
                 payloads = {
@@ -131,6 +141,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
                     "facet_gap_analysis": _json_from_text(facet_gap_text),
                     "query_term_coverage": _json_from_text(query_term_coverage_text),
                     "top_sources": _json_value_from_text(top_sources_text),
+                    "source_provenance": _json_from_text(source_provenance_text),
                     "rag_status": _read_json(archive, "rag_status.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
                 }
@@ -143,6 +154,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         chunk_rows = []
         evaluation_text = ""
         top_sources_text = ""
+        source_provenance_text = ""
         score_breakdown_text = ""
         chunks_text = ""
         retrieval_trace_text = ""
@@ -157,6 +169,7 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     facet_gap_file = payloads.get("facet_gap_analysis") or {}
     term_coverage_file = payloads.get("query_term_coverage") or {}
     top_sources = payloads.get("top_sources")
+    source_provenance = payloads.get("source_provenance") or {}
     request = payloads.get("request") or {}
     rag = payloads.get("rag_status") or {}
     structured = payloads.get("structured_manifest") or {}
@@ -233,6 +246,14 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
     _expect_equal(
         semantic_checks,
         semantic_errors,
+        "source_provenance_hash",
+        manifest.get("source_provenance_hash"),
+        _hash_text(source_provenance_text),
+        "bundle_manifest.json source_provenance_hash does not match source_provenance.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
         "score_breakdown_hash",
         manifest.get("score_breakdown_hash"),
         _hash_text(score_breakdown_text),
@@ -271,6 +292,24 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["top_sources_consistency"] = "fail"
     else:
         semantic_checks["top_sources_consistency"] = "pass"
+    expected_source_provenance = _source_provenance(chunk_rows)
+    if source_provenance.get("provenance_schema") != "agentic-rag-evaluation-source-provenance-v1":
+        semantic_errors.append("source_provenance.json provenance_schema is invalid.")
+        semantic_checks["source_provenance_schema"] = "fail"
+    elif source_provenance != expected_source_provenance:
+        semantic_errors.append("source_provenance.json does not match chunks.jsonl source metadata.")
+        semantic_checks["source_provenance_consistency"] = "fail"
+    else:
+        semantic_checks["source_provenance_schema"] = "pass"
+        semantic_checks["source_provenance_consistency"] = "pass"
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "source_provenance_count",
+        manifest.get("source_provenance_count"),
+        source_provenance.get("source_count"),
+        "bundle_manifest.json source_provenance_count does not match source_provenance.json.",
+    )
     facet_gap = evaluation.get("facet_gap_analysis") or {}
     if facet_gap.get("analysis_schema") != "agentic-rag-facet-gap-analysis-v1":
         semantic_errors.append("evaluation.json facet_gap_analysis schema is invalid.")
@@ -351,6 +390,10 @@ def verify_rag_evaluation_bundle(bundle: bytes) -> dict[str, Any]:
         "facet_gap_analysis_hash": manifest.get("facet_gap_analysis_hash"),
         "query_term_coverage_hash": manifest.get("query_term_coverage_hash"),
         "top_sources_hash": manifest.get("top_sources_hash"),
+        "source_provenance_hash": manifest.get("source_provenance_hash"),
+        "source_provenance_count": source_provenance.get("source_count"),
+        "source_payload_hash_count": source_provenance.get("source_payload_hash_count"),
+        "source_snapshot_count": source_provenance.get("source_snapshot_count"),
         "score_breakdown_hash": manifest.get("score_breakdown_hash"),
         "chunks_hash": manifest.get("chunks_hash"),
         "result_count": result_count,
@@ -413,6 +456,74 @@ def _score_breakdown_csv(rows: list[dict[str, Any]]) -> str:
 
 def _chunks_jsonl(chunks: list[dict[str, Any]]) -> str:
     return "\n".join(json.dumps(_chunk_summary(chunk), ensure_ascii=False, sort_keys=True) for chunk in chunks) + ("\n" if chunks else "")
+
+
+def _source_provenance(chunks: list[dict[str, Any]]) -> dict[str, Any]:
+    sources: dict[str, dict[str, Any]] = {}
+    for chunk in chunks:
+        metadata = chunk.get("metadata") or {}
+        source = str(metadata.get("source") or "unknown")
+        item = sources.setdefault(
+            source,
+            {
+                "source": source,
+                "chunk_count": 0,
+                "document_ids": set(),
+                "collections": set(),
+                "source_urls": set(),
+                "source_paths": set(),
+                "source_sha256_values": set(),
+                "source_snapshot_paths": set(),
+                "source_payload_sha256_values": set(),
+                "high_confidence_chunks": 0,
+            },
+        )
+        item["chunk_count"] += 1
+        if chunk.get("document_id"):
+            item["document_ids"].add(str(chunk.get("document_id")))
+        if metadata.get("collection"):
+            item["collections"].add(str(metadata.get("collection")))
+        if metadata.get("source_url"):
+            item["source_urls"].add(str(metadata.get("source_url")))
+        if metadata.get("source_path"):
+            item["source_paths"].add(str(metadata.get("source_path")))
+        for key, target in [
+            ("source_sha256", "source_sha256_values"),
+            ("source_payload_sha256", "source_payload_sha256_values"),
+            ("source_snapshot_path", "source_snapshot_paths"),
+        ]:
+            if metadata.get(key):
+                item[target].add(str(metadata.get(key)))
+        if metadata.get("confidence") == "high":
+            item["high_confidence_chunks"] += 1
+    rows = []
+    for source, item in sorted(sources.items(), key=lambda pair: (-pair[1]["chunk_count"], pair[0].lower())):
+        rows.append(
+            {
+                "source": source,
+                "chunk_count": item["chunk_count"],
+                "document_count": len(item["document_ids"]),
+                "document_ids": sorted(item["document_ids"]),
+                "collections": sorted(item["collections"]),
+                "source_urls": sorted(item["source_urls"]),
+                "source_paths": sorted(item["source_paths"]),
+                "source_sha256_values": sorted(item["source_sha256_values"]),
+                "source_snapshot_paths": sorted(item["source_snapshot_paths"]),
+                "source_payload_sha256_values": sorted(item["source_payload_sha256_values"]),
+                "has_source_url": bool(item["source_urls"]),
+                "has_source_hash": bool(item["source_sha256_values"] or item["source_payload_sha256_values"]),
+                "has_source_snapshot": bool(item["source_snapshot_paths"]),
+                "high_confidence_chunks": item["high_confidence_chunks"],
+            }
+        )
+    return {
+        "provenance_schema": "agentic-rag-evaluation-source-provenance-v1",
+        "source_count": len(rows),
+        "source_payload_hash_count": sum(1 for row in rows if row["has_source_hash"]),
+        "source_snapshot_count": sum(1 for row in rows if row["has_source_snapshot"]),
+        "high_confidence_source_count": sum(1 for row in rows if row["high_confidence_chunks"] > 0),
+        "sources": rows,
+    }
 
 
 def _chunk_summary(chunk: dict[str, Any]) -> dict[str, Any]:

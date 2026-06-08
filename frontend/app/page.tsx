@@ -1308,6 +1308,10 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     facet_gap_analysis_hash?: string | null;
     query_term_coverage_hash?: string | null;
     top_sources_hash?: string | null;
+    source_provenance_hash?: string | null;
+    source_provenance_count?: number | null;
+    source_payload_hash_count?: number | null;
+    source_snapshot_count?: number | null;
     score_breakdown_hash?: string | null;
     chunks_hash?: string | null;
     benchmark_status?: string | null;
@@ -4660,6 +4664,11 @@ export default function Dashboard() {
                 {ragEvaluationSemantics?.latest_artifacts?.[0]?.chunks_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>Top sources {ragEvaluationSemantics?.latest_artifacts?.[0]?.top_sources_hash?.slice(0, 10) ?? "n/a"}</span>
+              <span>
+                Source prov {ragEvaluationSemantics?.latest_artifacts?.[0]?.source_provenance_hash?.slice(0, 10) ?? "n/a"} / sources{" "}
+                {ragEvaluationSemantics?.latest_artifacts?.[0]?.source_provenance_count ?? "n/a"} / snapshots{" "}
+                {ragEvaluationSemantics?.latest_artifacts?.[0]?.source_snapshot_count ?? "n/a"}
+              </span>
               <span>
                 Trace {ragEvaluationSemantics?.latest_artifacts?.[0]?.retrieval_trace_hash?.slice(0, 10) ?? "n/a"} / suff{" "}
                 {ragEvaluationSemantics?.latest_artifacts?.[0]?.evidence_sufficiency_hash?.slice(0, 10) ?? "n/a"}

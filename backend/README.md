@@ -129,7 +129,7 @@ Invoke-RestMethod `
 - `POST /api/v1/rag/rebuild`: rebuild the local RAG index from seed records.
 - `POST /api/v1/rag/search`: retrieve chunks from the local RAG index.
 - `POST /api/v1/rag/evaluate`: retrieve chunks with coverage, missing facets, sources, score breakdown, query fingerprint, ranking policy, retrieval trace, and per-result rationale.
-- `POST /api/v1/rag/evaluate/export.zip`: export a manifested RAG evaluation bundle with request, evaluation JSON, retrieval trace, score CSV, retrieved chunks JSONL, RAG status, and structured manifest.
+- `POST /api/v1/rag/evaluate/export.zip`: export a manifested RAG evaluation bundle with request, evaluation JSON, retrieval trace, evidence sufficiency, facet/query-term coverage, top sources, source provenance hashes, score CSV, retrieved chunks JSONL, RAG status, and structured manifest.
 - `POST /api/v1/rag/evaluate/export/verify`: rebuild and semantically verify the RAG evaluation bundle for the same request.
 - `GET /api/v1/rag/vector-index/export.zip`: export the full local RAG vector index as JSONL plus pgvector schema, Qdrant collection config, payload contract, diagnostics, and structured manifest.
 - `GET /api/v1/rag/vector-index/export/verify`: rebuild and semantically verify the full RAG vector-index migration bundle.
