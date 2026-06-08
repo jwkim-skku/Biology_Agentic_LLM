@@ -176,6 +176,8 @@ async function main() {
     assert(/QC folding\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC folding status was not rendered: ${deploymentText}`);
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC folding hash was not rendered: ${deploymentText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC rank evidence was not rendered: ${deploymentText}`);
+    assert(/Release handoff\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness release handoff hash was not rendered: ${deploymentText}`);
+    assert(/Plan ops\s+(\d+|n\/a)\s+\/\s+validation\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness refresh plan operation evidence was not rendered: ${deploymentText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness import audit gate was not rendered: ${deploymentText}`);
     assert(/RAG eval\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness RAG evaluation archive gate was not rendered: ${deploymentText}`);
     assert(/RAG source\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG source provenance hash was not rendered: ${deploymentText}`);

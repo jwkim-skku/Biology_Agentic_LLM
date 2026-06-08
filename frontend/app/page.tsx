@@ -4288,8 +4288,13 @@ export default function Dashboard() {
               <span>QC formats {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_report_formats_summary_hash")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>
+              <span>Release handoff {deploymentGateHash(deploymentReadiness, "data_release_archive_semantics", "latest_release_handoff_hash")}</span>
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Plan fresh {deploymentGateFreshness(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
+              <span>
+                Plan ops {deploymentGateDetail(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_operation_count")} /
+                validation {deploymentGateDetail(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_validation_status")}
+              </span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>RAG eval {deploymentGateStatus(deploymentReadiness, "rag_evaluation_archive_semantics")}</span>
               <span>RAG source {deploymentGateHash(deploymentReadiness, "rag_evaluation_archive_semantics", "latest_source_provenance_hash")}</span>

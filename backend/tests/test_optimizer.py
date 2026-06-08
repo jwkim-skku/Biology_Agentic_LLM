@@ -741,6 +741,7 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert data_release_gate["details"]["status"] in {"pass", "warning"}
     assert data_release_gate["details"]["latest_records_hash"] is None or len(data_release_gate["details"]["latest_records_hash"]) == 64
     assert data_release_gate["details"]["latest_records_csv_hash"] is None or len(data_release_gate["details"]["latest_records_csv_hash"]) == 64
+    assert data_release_gate["details"]["latest_release_handoff_hash"] is None or len(data_release_gate["details"]["latest_release_handoff_hash"]) == 64
     assert data_release_gate["details"]["latest_rag_structured_manifest_hash"] is None or data_release_gate["details"]["latest_rag_structured_manifest_hash"]
     assert data_release_gate["details"]["latest_rag_index_hash"] is None or len(data_release_gate["details"]["latest_rag_index_hash"]) == 64
     assert data_release_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
@@ -757,6 +758,8 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert refresh_plan_gate["details"]["latest_operation_count"] is None or refresh_plan_gate["details"]["latest_operation_count"] >= 1
     assert refresh_plan_gate["details"]["latest_request_hash"] is None or len(refresh_plan_gate["details"]["latest_request_hash"]) == 64
     assert refresh_plan_gate["details"]["latest_operations_hash"] is None or len(refresh_plan_gate["details"]["latest_operations_hash"]) == 64
+    assert refresh_plan_gate["details"]["latest_validation_status"] in {None, "pass", "warning", "fail"}
+    assert refresh_plan_gate["details"]["latest_dataset_id"] is None or refresh_plan_gate["details"]["latest_dataset_id"]
     assert refresh_plan_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
     rag_evaluation_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_evaluation_archive_semantics")
     assert rag_evaluation_archive_gate["details"]["status"] in {"pass", "warning"}
