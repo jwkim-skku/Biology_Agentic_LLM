@@ -810,14 +810,22 @@ def test_deployment_readiness_archive_actions_are_specific() -> None:
     gates = [
         {"name": "qc_bundle_archive_semantics", "status": "warning", "message": "QC archive stale.", "details": {}},
         {"name": "data_snapshot_archive_semantics", "status": "warning", "message": "Snapshot archive stale.", "details": {}},
+        {"name": "rag_evaluation_archive_semantics", "status": "warning", "message": "RAG evaluation archive stale.", "details": {}},
+        {"name": "rag_regression_archive_semantics", "status": "warning", "message": "RAG regression archive stale.", "details": {}},
         {"name": "rag_vector_index_archive_semantics", "status": "warning", "message": "Vector archive stale.", "details": {}},
+        {"name": "workflow_trace_archive_semantics", "status": "warning", "message": "Workflow trace archive stale.", "details": {}},
         {"name": "optimizer_benchmark_archive_semantics", "status": "warning", "message": "Optimizer archive stale.", "details": {}},
     ]
     actions = {item["gate"]: item["action"] for item in deployment_readiness_service._required_actions(gates)}
     action_hashes = {item["gate"]: item["detail_hash"] for item in deployment_readiness_service._required_actions(gates)}
     assert "QC report bundle" in actions["qc_bundle_archive_semantics"]
     assert "data snapshot bundle" in actions["data_snapshot_archive_semantics"]
+    assert "RAG evaluation bundle" in actions["rag_evaluation_archive_semantics"]
+    assert "source-hash evidence" in actions["rag_evaluation_archive_semantics"]
+    assert "RAG regression bundle" in actions["rag_regression_archive_semantics"]
+    assert "quality-summary hashes" in actions["rag_regression_archive_semantics"]
     assert "vector index bundle" in actions["rag_vector_index_archive_semantics"]
+    assert "workflow trace evidence" in actions["workflow_trace_archive_semantics"]
     assert "optimizer benchmark bundle" in actions["optimizer_benchmark_archive_semantics"]
     assert "recommendation-summary" in actions["optimizer_benchmark_archive_semantics"]
     assert len(set(actions.values())) == len(actions)
