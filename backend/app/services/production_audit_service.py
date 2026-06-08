@@ -269,6 +269,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         signing=signing_status(),
         object_store=object_store,
     )
+    production_gap_summary = _production_gap_summary(checks, promotion_summary, readiness)
     payload = {
         "audit_schema": "agentic-rag-production-audit-v1",
         "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -290,10 +291,12 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         },
         "summary": summary,
         "promotion_summary": promotion_summary,
+        "production_gap_summary": production_gap_summary,
         "checks": checks,
         "evidence": {
             "deployment_readiness": readiness,
             "promotion_summary": promotion_summary,
+            "production_gap_summary": production_gap_summary,
             "security": security,
             "storage": storage,
             "data_provenance": provenance,
@@ -351,6 +354,7 @@ def build_production_audit_bundle(openapi_spec: dict[str, Any] | None = None, *,
         bundle.writestr("evidence_hashes.json", _json(audit["evidence_hashes"]))
         bundle.writestr("evidence/deployment_readiness.json", _json(audit["evidence"]["deployment_readiness"]))
         bundle.writestr("evidence/promotion_summary.json", _json(audit["evidence"]["promotion_summary"]))
+        bundle.writestr("evidence/production_gap_summary.json", _json(audit["evidence"]["production_gap_summary"]))
         bundle.writestr("evidence/security.json", _json(audit["evidence"]["security"]))
         bundle.writestr("evidence/storage.json", _json(audit["evidence"]["storage"]))
         bundle.writestr("evidence/data_provenance.json", _json(audit["evidence"]["data_provenance"]))
@@ -535,6 +539,7 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
         f"- Production ready: `{audit['summary']['production_ready']}`",
         f"- Promotion summary: `{promotion.get('status', 'n/a')}`",
         f"- Remaining production actions: `{len(promotion.get('required_actions') or [])}`",
+        f"- Production gaps: `{((audit.get('production_gap_summary') or {}).get('gap_count', 'n/a'))}`",
         f"- Readiness action hash: `{((audit.get('evidence') or {}).get('deployment_readiness') or {}).get('required_actions_hash', 'n/a')}`",
         "",
         "## Promotion Summary",
@@ -555,6 +560,25 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
         lines.extend(["", "Required actions:"])
         for action in promotion.get("required_actions") or []:
             lines.append(f"- {action}")
+    gap_summary = audit.get("production_gap_summary") or {}
+    lines.extend(
+        [
+            "",
+            "## Production Gaps",
+            "",
+            "| Area | Priority | Status | Action |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    for item in gap_summary.get("gaps") or []:
+        lines.append(
+            "| {area} | {priority} | {status} | {action} |".format(
+                area=_escape_cell(str(item.get("area") or "unknown")),
+                priority=_escape_cell(str(item.get("priority") or "unknown")),
+                status=_escape_cell(str(item.get("status") or "unknown")),
+                action=_escape_cell(str(item.get("action") or "")),
+            )
+        )
     lines.extend(
         [
             "",
@@ -721,6 +745,66 @@ def _promotion_item(area: str, status: Any, detail: str, action: str) -> dict[st
     if normalized in {"disabled", "proxy", "fallback", "missing", "unsigned"}:
         normalized = "warning"
     return {"area": area, "status": normalized, "detail": detail, "action": action}
+
+
+def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dict[str, Any], readiness: dict[str, Any]) -> dict[str, Any]:
+    readiness_actions = {
+        str(action.get("gate") or ""): action
+        for action in readiness.get("required_actions") or []
+        if isinstance(action, dict)
+    }
+    promotion_items = {
+        str(item.get("area") or ""): item
+        for item in promotion_summary.get("items") or []
+        if isinstance(item, dict)
+    }
+    gaps: list[dict[str, Any]] = []
+    for check in checks:
+        if check.get("status") == "pass":
+            continue
+        name = str(check.get("name") or "unknown")
+        readiness_action = readiness_actions.get(name)
+        promotion_item = promotion_items.get(name)
+        action = (
+            (readiness_action or {}).get("action")
+            or (promotion_item or {}).get("action")
+            or check.get("message")
+            or "Review this production audit check before promotion."
+        )
+        evidence_key = _evidence_key_for_check(name)
+        gap = {
+            "area": name,
+            "status": check.get("status"),
+            "priority": "blocking" if check.get("blocking") else "promotion",
+            "evidence_key": evidence_key,
+            "check_detail_hash": check.get("detail_hash"),
+            "readiness_detail_hash": (readiness_action or {}).get("detail_hash"),
+            "action": action,
+        }
+        gap["gap_hash"] = _hash_payload(gap)
+        gaps.append(gap)
+    summary = {
+        "gap_schema": "agentic-rag-production-gap-summary-v1",
+        "status": "fail" if any(gap["priority"] == "blocking" for gap in gaps) else "warning" if gaps else "pass",
+        "gap_count": len(gaps),
+        "blocking_count": sum(1 for gap in gaps if gap["priority"] == "blocking"),
+        "promotion_count": sum(1 for gap in gaps if gap["priority"] == "promotion"),
+        "evidence_keys": sorted({str(gap["evidence_key"]) for gap in gaps if gap.get("evidence_key")}),
+        "readiness_action_hash": readiness.get("required_actions_hash"),
+        "promotion_required_action_count": len(promotion_summary.get("required_actions") or []),
+        "gaps": gaps,
+    }
+    summary["gap_summary_hash"] = _hash_payload({key: value for key, value in summary.items() if key != "gap_summary_hash"})
+    return summary
+
+
+def _evidence_key_for_check(name: str) -> str:
+    return {
+        "external_source_coverage": "external_sources",
+        "rag_embedding_backend": "rag_embedding",
+        "rna_folding_backend": "rna_folding",
+        "governance_attestation": "governance_attestation_verification",
+    }.get(name, name)
 
 
 def _timed(name: str, timings: dict[str, Any], factory: Any) -> Any:

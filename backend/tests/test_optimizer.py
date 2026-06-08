@@ -396,12 +396,17 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert timings["slowest"]
     assert "## Timing" in markdown
     assert "## Promotion Summary" in markdown
+    assert "## Production Gaps" in markdown
     assert "Total seconds" in markdown
     assert audit["evidence_hashes"]["hash_schema"] == "agentic-rag-production-audit-evidence-hashes-v1"
     assert audit["evidence_hashes"]["evidence_count"] == len(audit["evidence"])
     assert len(audit["evidence_hashes"]["combined_hash"]) == 64
     assert audit["promotion_summary"]["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
     assert audit["promotion_summary"]["items"]
+    assert audit["production_gap_summary"]["gap_schema"] == "agentic-rag-production-gap-summary-v1"
+    assert audit["production_gap_summary"] == audit["evidence"]["production_gap_summary"]
+    assert len(audit["production_gap_summary"]["gap_summary_hash"]) == 64
+    assert audit["production_gap_summary"]["gap_count"] == len(audit["production_gap_summary"]["gaps"])
     optimizer_item = next(item for item in audit["promotion_summary"]["items"] if item["area"] == "optimizer")
     assert "deterministic-tradeoff-seeds-v1" in optimizer_item["detail"]
     assert "structured_import_archive_semantics" in {item["name"] for item in audit["checks"]}
@@ -419,6 +424,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "workflow_trace_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "workflow_trace_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
+    assert "production_gap_summary" in audit["evidence"]
     rag_gate = next(gate for gate in audit["evidence"]["deployment_readiness"]["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["results_hash"]) == 64
     assert len(audit["evidence"]["rag_diagnostics"]["regression"]["results_hash"]) == 64
@@ -447,6 +453,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "production_audit.md" in names
         assert "evidence_hashes.json" in names
         assert "evidence/promotion_summary.json" in names
+        assert "evidence/production_gap_summary.json" in names
         assert "evidence/timings.json" in names
         assert "evidence/data_refresh_plan_archive_semantics.json" in names
         assert "evidence/data_release_archive_semantics.json" in names
@@ -457,14 +464,18 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/workflow_trace_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
         assert "## Timing" in bundled_markdown
+        assert "## Production Gaps" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
+        gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
         deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json"))
         evidence_hashes = json.loads(archive.read("evidence_hashes.json"))
         assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
+        assert gap_summary == audit["production_gap_summary"]
         assert len(deployment_readiness["required_actions_hash"]) == 64
         assert evidence_hashes == audit["evidence_hashes"]
         assert evidence_hashes["items"]["evidence/promotion_summary.json"] == audit["evidence_hashes"]["items"]["evidence/promotion_summary.json"]
+        assert evidence_hashes["items"]["evidence/production_gap_summary.json"] == audit["evidence_hashes"]["items"]["evidence/production_gap_summary.json"]
 
 
 def test_production_audit_bundle_rejects_tampered_action_detail_hash() -> None:

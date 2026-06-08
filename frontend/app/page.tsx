@@ -841,6 +841,21 @@ type ProductionAuditStatus = {
     combined_hash?: string;
     items?: Record<string, string>;
   };
+  production_gap_summary?: {
+    gap_schema?: string;
+    status?: string;
+    gap_count?: number;
+    blocking_count?: number;
+    promotion_count?: number;
+    gap_summary_hash?: string;
+    gaps?: Array<{
+      area?: string;
+      status?: string;
+      priority?: string;
+      action?: string;
+      gap_hash?: string;
+    }>;
+  };
   generated_at?: string;
   cache_policy?: {
     ttl_seconds?: number;
@@ -851,6 +866,7 @@ type ProductionAuditStatus = {
       total_seconds?: number;
       slowest?: Array<{ name: string; duration_seconds: number }>;
     };
+    production_gap_summary?: ProductionAuditStatus["production_gap_summary"];
     qc_bundle_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
@@ -2192,6 +2208,7 @@ export default function Dashboard() {
           generated_at: auditPayload.data.generated_at,
           cache_policy: auditPayload.data.cache_policy,
           summary: auditPayload.data.summary,
+          production_gap_summary: auditPayload.data.production_gap_summary,
           evidence: auditPayload.data.evidence,
           verification: verifyPayload.data
         });
@@ -4256,6 +4273,7 @@ export default function Dashboard() {
               <span>Status {productionAudit?.summary?.status ?? "n/a"}</span>
               <span>Deploy {productionAudit?.summary?.deployment_ready ? "ready" : "hold"}</span>
               <span>Prod {productionAudit?.summary?.production_ready ? "ready" : "warn"}</span>
+              <span>Gaps {productionAudit?.production_gap_summary?.gap_count ?? "n/a"}</span>
             </div>
             <div className="security-grid">
               <span>Pass {productionAudit?.summary?.counts?.pass ?? "n/a"}</span>
@@ -4284,6 +4302,7 @@ export default function Dashboard() {
               <span>Import audit {productionAudit?.evidence?.structured_import_archive_semantics?.status ?? "n/a"}</span>
               <span>Import checked {productionAudit?.evidence?.structured_import_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Audit {formatSeconds(productionAudit?.evidence?.timings?.total_seconds)}</span>
+              <span>Gap status {productionAudit?.production_gap_summary?.status ?? "n/a"}</span>
             </div>
             <div className="governance-card">
               <span>Hash {productionAudit?.audit_hash?.slice(0, 16) ?? "n/a"}</span>
@@ -4291,6 +4310,11 @@ export default function Dashboard() {
                 Evidence hash {productionAudit?.evidence_hashes?.combined_hash?.slice(0, 10) ?? "n/a"} /{" "}
                 {productionAudit?.evidence_hashes?.evidence_count ?? "n/a"} files
               </span>
+              <span>
+                Gap hash {productionAudit?.production_gap_summary?.gap_summary_hash?.slice(0, 10) ?? "n/a"} / blocking{" "}
+                {productionAudit?.production_gap_summary?.blocking_count ?? "n/a"}
+              </span>
+              <span>{productionAudit?.production_gap_summary?.gaps?.[0]?.action ?? "No production gaps recorded"}</span>
               <span>
                 Bundle {productionAudit?.verification?.artifact_verification?.checked_files ?? "n/a"}/
                 {productionAudit?.verification?.artifact_verification?.file_count ?? "n/a"} files
