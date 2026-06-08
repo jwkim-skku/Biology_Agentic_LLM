@@ -552,6 +552,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
 
 def render_production_audit_markdown(audit: dict[str, Any]) -> str:
     promotion = audit.get("promotion_summary") or {}
+    readiness = ((audit.get("evidence") or {}).get("deployment_readiness") or {})
     lines = [
         "# Production Audit Report",
         "",
@@ -602,6 +603,19 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
                 action=_escape_cell(str(item.get("action") or "")),
             )
         )
+    readiness_rows = _readiness_markdown_rows(readiness)
+    if readiness_rows:
+        lines.extend(
+            [
+                "",
+                "## Readiness Evidence",
+                "",
+                "| Evidence | Value |",
+                "| --- | --- |",
+            ]
+        )
+        for label, value in readiness_rows:
+            lines.append(f"| {_escape_cell(label)} | {_escape_cell(value)} |")
     lines.extend(
         [
             "",
@@ -644,6 +658,44 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
         lines.append(f"- {note}")
     lines.append("")
     return "\n".join(lines)
+
+
+def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]:
+    gates = {
+        str(gate.get("name")): gate.get("details") or {}
+        for gate in readiness.get("gates") or []
+        if isinstance(gate, dict) and gate.get("name")
+    }
+    release = gates.get("data_release_archive_semantics") or {}
+    refresh = gates.get("data_refresh_plan_archive_semantics") or {}
+    rag_eval = gates.get("rag_evaluation_archive_semantics") or {}
+    rag_regression = gates.get("rag_regression_archive_semantics") or {}
+    optimizer = gates.get("optimizer_benchmark_archive_semantics") or {}
+    workflow = gates.get("workflow_trace_archive_semantics") or {}
+    rows = [
+        ("Release handoff hash", _short_hash(release.get("latest_release_handoff_hash"))),
+        ("Refresh plan operations", _markdown_value(refresh.get("latest_operation_count"))),
+        ("Refresh plan validation", _markdown_value(refresh.get("latest_validation_status"))),
+        ("RAG evaluation source provenance", _short_hash(rag_eval.get("latest_source_provenance_hash"))),
+        ("RAG regression case metrics", _short_hash(rag_regression.get("latest_case_metrics_hash"))),
+        ("Optimizer recommended-front count", _markdown_value(optimizer.get("latest_recommended_on_pareto_front_count"))),
+        ("Optimizer max regret", _markdown_value(optimizer.get("latest_recommendation_max_regret"))),
+        ("Workflow trace steps", _markdown_value(workflow.get("latest_trace_step_count"))),
+        ("Workflow trace hash", _short_hash(workflow.get("latest_trace_hash"))),
+    ]
+    return [(label, value) for label, value in rows if value != "n/a"]
+
+
+def _markdown_value(value: Any) -> str:
+    if value is None or value == "":
+        return "n/a"
+    return str(value)
+
+
+def _short_hash(value: Any, length: int = 12) -> str:
+    if not isinstance(value, str) or not value:
+        return "n/a"
+    return value[:length]
 
 
 def _security_summary() -> dict[str, Any]:

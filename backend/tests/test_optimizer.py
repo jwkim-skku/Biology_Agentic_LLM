@@ -447,6 +447,11 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "## Timing" in markdown
     assert "## Promotion Summary" in markdown
     assert "## Production Gaps" in markdown
+    assert "## Readiness Evidence" in markdown
+    assert "Release handoff hash" in markdown
+    assert "RAG regression case metrics" in markdown
+    assert "Optimizer recommended-front count" in markdown
+    assert "Workflow trace hash" in markdown
     assert "Total seconds" in markdown
     assert audit["evidence_hashes"]["hash_schema"] == "agentic-rag-production-audit-evidence-hashes-v1"
     assert audit["evidence_hashes"]["evidence_count"] == len(audit["evidence"])
@@ -532,6 +537,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
         assert "## Timing" in bundled_markdown
         assert "## Production Gaps" in bundled_markdown
+        assert "## Readiness Evidence" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
