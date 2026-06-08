@@ -405,6 +405,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             audit = json.loads(archive.read("production_audit.json").decode("utf-8"))
             markdown = archive.read("production_audit.md").decode("utf-8")
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
+            agent_memory = json.loads(archive.read("evidence/agent_memory.json").decode("utf-8"))
             production_gap_summary = json.loads(archive.read("evidence/production_gap_summary.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
             evidence_hashes = json.loads(archive.read("evidence_hashes.json").decode("utf-8"))
@@ -446,6 +447,13 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 "deployment_readiness_evidence",
                 deployment_readiness == (evidence.get("deployment_readiness") or {}),
                 "evidence/deployment_readiness.json does not match production_audit.json evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "agent_memory_evidence",
+                agent_memory == (evidence.get("agent_memory") or {}),
+                "evidence/agent_memory.json does not match production_audit.json evidence.",
             )
             _record_semantic_check(
                 semantic_checks,
@@ -538,6 +546,17 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 not action_detail_mismatches,
                 "deployment readiness required action detail_hash values do not match gate details: "
                 + ", ".join(action_detail_mismatches[:8]),
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "agent_memory_hash_aggregate",
+                int(agent_memory.get("memory_count") or 0) == 0
+                or (
+                    len(str(agent_memory.get("memory_hash_aggregate") or "")) == 64
+                    and int(agent_memory.get("memory_hash_count") or 0) == int(agent_memory.get("memory_count") or 0)
+                ),
+                "Agent memory summary is missing a valid aggregate hash for persisted memories.",
             )
             signature_result = _verify_audit_signature(audit)
             if signature_result["status"] == "fail":
@@ -684,6 +703,7 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
     rows = [
         ("Agent memory count", _markdown_value(memory.get("memory_count"))),
         ("Agent memory genes", _markdown_value(memory.get("distinct_genes"))),
+        ("Agent memory aggregate", _short_hash(memory.get("memory_hash_aggregate"))),
         ("Release handoff hash", _short_hash(release.get("latest_release_handoff_hash"))),
         ("Refresh plan operations", _markdown_value(refresh.get("latest_operation_count"))),
         ("Refresh plan validation", _markdown_value(refresh.get("latest_validation_status"))),

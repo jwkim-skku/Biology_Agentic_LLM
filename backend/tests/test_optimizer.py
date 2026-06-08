@@ -504,6 +504,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["markdown_recomputed"] == "pass"
     assert verification["semantic_checks"]["check_detail_hashes"] == "pass"
     assert verification["semantic_checks"]["deployment_readiness_evidence"] == "pass"
+    assert verification["semantic_checks"]["agent_memory_evidence"] == "pass"
+    assert verification["semantic_checks"]["agent_memory_hash_aggregate"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_recomputed"] == "pass"
     assert verification["semantic_checks"]["production_gap_summary_evidence"] == "pass"
@@ -540,6 +542,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "## Timing" in bundled_markdown
         assert "## Production Gaps" in bundled_markdown
         assert "## Readiness Evidence" in bundled_markdown
+        assert "Agent memory aggregate" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))

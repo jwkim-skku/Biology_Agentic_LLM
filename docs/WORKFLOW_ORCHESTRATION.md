@@ -79,7 +79,7 @@ Invoke-RestMethod "http://127.0.0.1:8000/api/v1/agent-memory?gene=SNCA&limit=5"
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/agent-memory/{run_id}
 ```
 
-The memory table is included in the Postgres deployment schema, SQLite-to-Postgres migration bundle, deployment readiness gate, production audit evidence, and data snapshot summary.
+The memory table is included in the Postgres deployment schema, SQLite-to-Postgres migration bundle, deployment readiness gate, production audit evidence, and data snapshot summary. Readiness and audit summaries also expose the latest memory hash and a stable aggregate hash over persisted memory rows so reviewers can detect changes to the indexed agent memory evidence.
 
 ## Production Upgrade Path
 

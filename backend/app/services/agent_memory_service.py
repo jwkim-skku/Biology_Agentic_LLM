@@ -190,6 +190,13 @@ def agent_memory_summary() -> dict[str, Any]:
                 """
             ).fetchall()
             by_run_type = conn.execute("select run_type, count(*) as count from agent_memory group by run_type").fetchall()
+            memory_hash_rows = conn.execute(
+                """
+                select memory_hash
+                from agent_memory
+                order by updated_at desc, run_id asc
+                """
+            ).fetchall()
     else:
         with _connect_sqlite() as conn:
             rows = conn.execute(
@@ -203,7 +210,15 @@ def agent_memory_summary() -> dict[str, Any]:
                 """
             ).fetchall()
             by_run_type = conn.execute("select run_type, count(*) as count from agent_memory group by run_type").fetchall()
+            memory_hash_rows = conn.execute(
+                """
+                select memory_hash
+                from agent_memory
+                order by updated_at desc, run_id asc
+                """
+            ).fetchall()
     row = _row_to_dict(rows[0]) if rows else {}
+    memory_hashes = [str(item.get("memory_hash") or "") for item in map(_row_to_dict, memory_hash_rows) if item.get("memory_hash")]
     return {
         "memory_schema": MEMORY_SCHEMA,
         "status": "pass",
@@ -213,6 +228,9 @@ def agent_memory_summary() -> dict[str, Any]:
         "distinct_brain_regions": int(row.get("brain_regions") or 0),
         "distinct_cell_types": int(row.get("cell_types") or 0),
         "latest_updated_at": row.get("latest_updated_at"),
+        "latest_memory_hash": memory_hashes[0] if memory_hashes else None,
+        "memory_hash_count": len(memory_hashes),
+        "memory_hash_aggregate": _hash_payload(memory_hashes) if memory_hashes else None,
         "by_run_type": {str(item.get("run_type") or "unknown"): int(item.get("count") or 0) for item in map(_row_to_dict, by_run_type)},
     }
 
