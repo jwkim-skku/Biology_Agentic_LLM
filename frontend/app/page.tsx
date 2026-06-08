@@ -175,6 +175,33 @@ type RecommendationAudit = {
   }>;
 };
 
+type RecommendedFoldingEvidence = {
+  folding_schema?: string;
+  status?: string;
+  requested_backend?: string;
+  active_backend?: string;
+  fallback_active?: boolean;
+  input_length_nt?: number;
+  evaluated_window_nt?: number;
+  proxy?: {
+    secondary_structure_proxy_score?: number;
+    mfe_proxy_delta_g?: number;
+  };
+  rnafold?: {
+    status?: string;
+    algorithm?: string;
+    sequence_length_nt?: number;
+    structure?: string;
+    mfe_delta_g?: number;
+    message?: string;
+  } | null;
+  thermodynamic_mfe_delta_g?: number;
+  thermodynamic_structure?: string;
+  thermodynamic_risk_score?: number;
+  folding_evidence_hash?: string;
+  warnings?: string[];
+};
+
 type QcReport = {
   evidence_summary: {
     supported_rules: QcRule[];
@@ -292,6 +319,7 @@ type QcReport = {
     native?: SequencePolicyAudit;
     recommended?: SequencePolicyAudit;
   };
+  recommended_folding_evidence?: RecommendedFoldingEvidence;
   warnings: string[];
   open_questions: string[];
   qc_gate?: {
@@ -334,6 +362,7 @@ type DesignResponse = {
   recommended_candidate: Candidate | null;
   candidate_diagnostics?: CandidateDiagnostics;
   recommendation_audit?: RecommendationAudit;
+  recommended_folding_evidence?: RecommendedFoldingEvidence;
   warnings: string[];
   provenance: {
     input_source: string;
@@ -836,6 +865,10 @@ type ProductionAuditStatus = {
         qc_report_hash?: string | null;
         candidate_ranking_hash?: string | null;
         recommendation_audit_hash?: string | null;
+        recommended_folding_evidence_hash?: string | null;
+        recommended_folding_status?: string | null;
+        recommended_folding_backend?: string | null;
+        recommended_folding_fallback_active?: boolean | null;
         data_quality_status?: string | null;
         optimizer_stress_status?: string | null;
         objective_count?: number | null;
@@ -1125,6 +1158,8 @@ type ArchivedArtifactVerification = {
     status: string;
     semantic_status?: string;
     optimizer_manifest_hash?: string | null;
+    recommended_folding_evidence_hash?: string | null;
+    recommended_folding_status?: string | null;
     checked_files?: number;
     file_count?: number;
     semantic_checks?: Record<string, string>;
@@ -1154,6 +1189,10 @@ type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     qc_report_hash?: string | null;
     candidate_ranking_hash?: string | null;
     recommendation_audit_hash?: string | null;
+    recommended_folding_evidence_hash?: string | null;
+    recommended_folding_status?: string | null;
+    recommended_folding_backend?: string | null;
+    recommended_folding_fallback_active?: boolean | null;
     data_quality_status?: string | null;
     optimizer_stress_status?: string | null;
     objective_count?: number | null;
@@ -1285,6 +1324,10 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     diagnostics_hash?: string | null;
     case_metrics_hash?: string | null;
     candidate_diagnostics_hash?: string | null;
+    case_provenance_hash?: string | null;
+    case_fingerprint_count?: number | null;
+    recommended_folding_evidence_hash?: string | null;
+    recommended_folding_evidence_count?: number | null;
     structured_manifest_hash?: string | null;
     workflow_id?: string | null;
     run_id?: string | null;
@@ -4118,6 +4161,8 @@ export default function Dashboard() {
               <span>Actions {deploymentReadiness?.required_actions?.length ?? "n/a"}</span>
               <span>Action hash {deploymentReadiness?.required_actions_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
+              <span>QC folding {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_status")}</span>
+              <span>QC fold hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
@@ -4125,6 +4170,7 @@ export default function Dashboard() {
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>Vector fresh {deploymentGateFreshness(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
+              <span>Bench folding {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>
             <div className="metrics-list">
@@ -4204,6 +4250,14 @@ export default function Dashboard() {
               </span>
               <span>
                 QC recommend {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_audit_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                QC folding {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_status ?? "n/a"} /{" "}
+                {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_backend ?? "n/a"}
+              </span>
+              <span>
+                QC fold hash{" "}
+                {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 QC retrieval {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_status ?? "n/a"} /
@@ -4468,6 +4522,13 @@ export default function Dashboard() {
                 Recommend audit {qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_audit_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                Folding {qcBundleSemantics?.latest_artifacts?.[0]?.recommended_folding_status ?? "n/a"} /{" "}
+                {qcBundleSemantics?.latest_artifacts?.[0]?.recommended_folding_backend ?? "n/a"}
+              </span>
+              <span>
+                Folding hash {qcBundleSemantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Request {qcBundleSemantics?.latest_artifacts?.[0]?.request_payload_status ?? "n/a"} / target{" "}
                 {qcRequestTargetSummary(qcBundleSemantics?.latest_artifacts?.[0]?.request_target_checks)}
               </span>
@@ -4677,6 +4738,14 @@ export default function Dashboard() {
                 Stress {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.stress_status ?? "n/a"} / cases{" "}
                 {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.case_count ?? "n/a"}
               </span>
+              <span>
+                Folding hash {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"} / count{" "}
+                {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_folding_evidence_count ?? "n/a"}
+              </span>
+              <span>
+                Case provenance {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.case_provenance_hash?.slice(0, 10) ?? "n/a"} / count{" "}
+                {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.case_fingerprint_count ?? "n/a"}
+              </span>
             </div>
             <div className="data-quality" aria-label="Workflow trace archive summary">
               <span>
@@ -4723,6 +4792,10 @@ export default function Dashboard() {
                 <span>
                   Semantic {artifactVerification.bundle_verification?.semantic_status ?? "n/a"} / QC optimizer{" "}
                   {artifactVerification.bundle_verification?.optimizer_manifest_hash?.slice(0, 10) ?? "n/a"}
+                </span>
+                <span>
+                  Folding {artifactVerification.bundle_verification?.recommended_folding_status ?? "n/a"} /{" "}
+                  {artifactVerification.bundle_verification?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"}
                 </span>
                 <span>Artifact {artifactVerification.artifact.artifact_id}</span>
               </div>
@@ -4911,6 +4984,7 @@ function QcReportPanel({ report }: { report: QcReport }) {
   const retrievalQuality = report.evidence_summary.retrieval_quality;
   const bestByMetric = diagnostics?.best_by_metric ?? {};
   const recommendationAudit = report.recommendation_audit ?? diagnostics?.recommendation_audit;
+  const foldingEvidence = report.recommended_folding_evidence;
 
   return (
     <section className="qc-panel" aria-label="QC report summary">
@@ -5139,6 +5213,34 @@ function QcReportPanel({ report }: { report: QcReport }) {
           <div>
             <span>Primary tradeoff</span>
             <strong>{recommendationAudit.primary_tradeoff?.metric?.replaceAll("_", " ") ?? "none"}</strong>
+          </div>
+        </div>
+      ) : null}
+      {foldingEvidence ? (
+        <div className="policy-strip" aria-label="Recommended folding evidence">
+          <div>
+            <span>Folding evidence</span>
+            <strong>{foldingEvidence.status ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Backend</span>
+            <strong>{foldingEvidence.active_backend ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Fallback</span>
+            <strong>{foldingEvidence.fallback_active ? "yes" : "no"}</strong>
+          </div>
+          <div>
+            <span>Window</span>
+            <strong>{foldingEvidence.evaluated_window_nt ?? "n/a"} nt</strong>
+          </div>
+          <div>
+            <span>Thermo risk</span>
+            <strong>{formatMetric(foldingEvidence.thermodynamic_risk_score, 3)}</strong>
+          </div>
+          <div>
+            <span>Folding hash</span>
+            <strong>{foldingEvidence.folding_evidence_hash?.slice(0, 12) ?? "n/a"}</strong>
           </div>
         </div>
       ) : null}
@@ -5512,6 +5614,19 @@ function readinessAttentionGates(readiness?: DeploymentReadinessStatus | null) {
 
 function deploymentGateStatus(readiness: DeploymentReadinessStatus | null | undefined, name: string) {
   return readiness?.gates?.find((gate) => gate.name === name)?.status ?? "n/a";
+}
+
+function deploymentGateDetail(readiness: DeploymentReadinessStatus | null | undefined, name: string, key: string) {
+  const value = readiness?.gates?.find((gate) => gate.name === name)?.details?.[key];
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  return "n/a";
+}
+
+function deploymentGateHash(readiness: DeploymentReadinessStatus | null | undefined, name: string, key: string) {
+  const value = readiness?.gates?.find((gate) => gate.name === name)?.details?.[key];
+  return typeof value === "string" ? value.slice(0, 10) : "n/a";
 }
 
 function deploymentGateFreshness(readiness: DeploymentReadinessStatus | null | undefined, name: string) {
