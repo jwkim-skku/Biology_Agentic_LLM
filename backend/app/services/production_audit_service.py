@@ -680,7 +680,10 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
     rag_regression = gates.get("rag_regression_archive_semantics") or {}
     optimizer = gates.get("optimizer_benchmark_archive_semantics") or {}
     workflow = gates.get("workflow_trace_archive_semantics") or {}
+    memory = gates.get("agent_memory") or {}
     rows = [
+        ("Agent memory count", _markdown_value(memory.get("memory_count"))),
+        ("Agent memory genes", _markdown_value(memory.get("distinct_genes"))),
         ("Release handoff hash", _short_hash(release.get("latest_release_handoff_hash"))),
         ("Refresh plan operations", _markdown_value(refresh.get("latest_operation_count"))),
         ("Refresh plan validation", _markdown_value(refresh.get("latest_validation_status"))),

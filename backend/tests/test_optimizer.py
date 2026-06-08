@@ -448,6 +448,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "## Promotion Summary" in markdown
     assert "## Production Gaps" in markdown
     assert "## Readiness Evidence" in markdown
+    assert "Agent memory count" in markdown
     assert "Release handoff hash" in markdown
     assert "RAG regression case metrics" in markdown
     assert "Optimizer recommended-front count" in markdown
