@@ -137,6 +137,15 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
     data_quality = structured_quality_gate()
     optimizer_stress = optimizer_stress_gate()
     target_structured_evidence = _target_structured_evidence_summary(design.get("evidence", {}))
+    recommendation_readiness = _recommendation_readiness_summary(
+        best,
+        design.get("recommendation_audit") or (design.get("candidate_diagnostics") or {}).get("recommendation_audit") or {},
+        folding_evidence,
+        data_quality,
+        optimizer_stress,
+        design.get("validation", {}),
+        design.get("qc_gate", {}),
+    )
 
     return {
         "project_metadata": {
@@ -190,6 +199,7 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
         ],
         "candidate_diagnostics": design.get("candidate_diagnostics", {}),
         "recommendation_audit": design.get("recommendation_audit") or (design.get("candidate_diagnostics") or {}).get("recommendation_audit") or {},
+        "recommendation_readiness": recommendation_readiness,
         "recommended_candidate": {
             "candidate_id": best.get("candidate_id"),
             "rationale": [*_candidate_rationale(native_scores, best_scores), *best.get("selection_trace", [])],
@@ -253,6 +263,7 @@ def export_qc_report_markdown(report: dict[str, Any]) -> str:
     data_quality = report.get("data_quality", {})
     target_structured = report.get("target_structured_evidence", {})
     optimizer_stress = report.get("optimizer_stress", {})
+    readiness = report.get("recommendation_readiness", {})
     lines = [
         "# Gene Therapy Design QC Report",
         "",
@@ -311,6 +322,9 @@ def export_qc_report_markdown(report: dict[str, Any]) -> str:
         "## Recommended Candidate",
         f"- Candidate ID: {recommended.get('candidate_id', 'n/a')}",
         *_prefixed_lines(recommended.get("rationale", [])),
+        "",
+        "## Recommendation Readiness",
+        *_recommendation_readiness_lines(readiness),
         "",
         "## Candidate Diagnostics",
         *_candidate_diagnostic_lines(diagnostics),
@@ -625,6 +639,91 @@ def _optimizer_stress_summary(gate: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _recommendation_readiness_summary(
+    recommended: dict[str, Any],
+    recommendation_audit: dict[str, Any],
+    folding_evidence: dict[str, Any],
+    data_quality: dict[str, Any],
+    optimizer_stress: dict[str, Any],
+    validation: dict[str, Any],
+    qc_gate: dict[str, Any],
+) -> dict[str, Any]:
+    risk = recommended.get("constraint_risk") or {}
+    risk_status = risk.get("status")
+    folding_status = folding_evidence.get("status")
+    data_quality_status = data_quality.get("status")
+    optimizer_stress_status = optimizer_stress.get("status")
+    qc_gate_status = qc_gate.get("status")
+    validation_statuses = _validation_statuses(validation)
+
+    blocking_reasons: list[str] = []
+    warning_reasons: list[str] = []
+    if not recommended.get("candidate_id"):
+        blocking_reasons.append("recommended_candidate_missing")
+    if risk_status == "fail" or int(risk.get("fail_count") or 0) > 0:
+        blocking_reasons.append("recommended_candidate_constraint_failures")
+    elif risk_status == "warning" or int(risk.get("warning_count") or 0) > 0:
+        warning_reasons.append("recommended_candidate_constraint_warnings")
+    if recommendation_audit.get("pareto_front_member") is not True:
+        blocking_reasons.append("recommended_candidate_not_on_pareto_front")
+    if folding_status == "fail":
+        blocking_reasons.append("recommended_folding_evidence_failed")
+    elif folding_status == "warning" or folding_evidence.get("fallback_active"):
+        warning_reasons.append("recommended_folding_evidence_warning_or_fallback")
+    if data_quality_status == "fail":
+        blocking_reasons.append("structured_data_quality_failed")
+    elif data_quality_status == "warning":
+        warning_reasons.append("structured_data_quality_warning")
+    if optimizer_stress_status == "fail":
+        blocking_reasons.append("optimizer_stress_failed")
+    elif optimizer_stress_status == "warning":
+        warning_reasons.append("optimizer_stress_warning")
+    if qc_gate_status == "fail":
+        blocking_reasons.append("qc_gate_failed")
+    elif qc_gate_status == "warning":
+        warning_reasons.append("qc_gate_warning")
+    if "fail" in validation_statuses:
+        blocking_reasons.append("validation_failed")
+    elif "warning" in validation_statuses:
+        warning_reasons.append("validation_warning")
+
+    payload = {
+        "readiness_schema": "agentic-rag-recommendation-readiness-v1",
+        "recommended_candidate_id": recommended.get("candidate_id"),
+        "release_ready": not blocking_reasons,
+        "readiness_status": "fail" if blocking_reasons else "warning" if warning_reasons else "pass",
+        "blocking_reasons": sorted(set(blocking_reasons)),
+        "warning_reasons": sorted(set(warning_reasons)),
+        "constraint_risk_status": risk_status,
+        "constraint_fail_count": risk.get("fail_count"),
+        "constraint_warning_count": risk.get("warning_count"),
+        "pareto_front_member": recommendation_audit.get("pareto_front_member"),
+        "pareto_quality_hash": recommendation_audit.get("pareto_quality_hash"),
+        "max_regret": recommendation_audit.get("max_regret"),
+        "tradeoff_count": recommendation_audit.get("tradeoff_count"),
+        "folding_status": folding_status,
+        "folding_backend": folding_evidence.get("active_backend"),
+        "folding_fallback_active": folding_evidence.get("fallback_active"),
+        "folding_evidence_hash": folding_evidence.get("folding_evidence_hash"),
+        "data_quality_status": data_quality_status,
+        "data_quality_manifest_hash": data_quality.get("manifest_hash"),
+        "optimizer_stress_status": optimizer_stress_status,
+        "optimizer_stress_cases_hash": optimizer_stress.get("cases_hash"),
+        "qc_gate_status": qc_gate_status,
+        "validation_statuses": validation_statuses,
+    }
+    payload["readiness_hash"] = _hash_compact(payload)
+    return payload
+
+
+def _validation_statuses(validation: dict[str, Any]) -> list[str]:
+    statuses: list[str] = []
+    for value in validation.values():
+        if isinstance(value, dict) and value.get("status"):
+            statuses.append(str(value.get("status")))
+    return sorted(set(statuses))
+
+
 def _score_table(score_summary: dict[str, Any]) -> str:
     native = score_summary.get("native", {})
     recommended = score_summary.get("recommended", {})
@@ -803,6 +902,21 @@ def _optimizer_stress_lines(summary: dict[str, Any]) -> list[str]:
     for recommendation in summary.get("recommendations") or []:
         lines.append(f"- Recommendation: {recommendation}")
     return lines
+
+
+def _recommendation_readiness_lines(summary: dict[str, Any]) -> list[str]:
+    if not summary:
+        return ["- n/a"]
+    return [
+        f"- Schema: {summary.get('readiness_schema', 'n/a')}",
+        f"- Status: {summary.get('readiness_status', 'n/a')}",
+        f"- Release ready: {summary.get('release_ready', 'n/a')}",
+        f"- Readiness hash: {summary.get('readiness_hash', 'n/a')}",
+        f"- Constraint / Pareto / folding: {summary.get('constraint_risk_status', 'n/a')} / {summary.get('pareto_front_member', 'n/a')} / {summary.get('folding_status', 'n/a')}",
+        f"- Data quality / optimizer stress / QC gate: {summary.get('data_quality_status', 'n/a')} / {summary.get('optimizer_stress_status', 'n/a')} / {summary.get('qc_gate_status', 'n/a')}",
+        f"- Blocking reasons: {', '.join(summary.get('blocking_reasons') or []) or 'none'}",
+        f"- Warning reasons: {', '.join(summary.get('warning_reasons') or []) or 'none'}",
+    ]
 
 
 def _optimizer_reproducibility_lines(manifest: dict[str, Any]) -> list[str]:

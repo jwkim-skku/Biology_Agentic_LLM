@@ -942,6 +942,36 @@
           }
         ]
       },
+      "recommendation_readiness": {
+        "blocking_reasons": [],
+        "constraint_fail_count": "int",
+        "constraint_risk_status": "str",
+        "constraint_warning_count": "int",
+        "data_quality_manifest_hash": "str",
+        "data_quality_status": "str",
+        "folding_backend": "str",
+        "folding_evidence_hash": "str",
+        "folding_fallback_active": "bool",
+        "folding_status": "str",
+        "max_regret": "float",
+        "optimizer_stress_cases_hash": "str",
+        "optimizer_stress_status": "str",
+        "pareto_front_member": "bool",
+        "pareto_quality_hash": "str",
+        "qc_gate_status": "str",
+        "readiness_hash": "str",
+        "readiness_schema": "str",
+        "readiness_status": "str",
+        "recommended_candidate_id": "str",
+        "release_ready": "bool",
+        "tradeoff_count": "int",
+        "validation_statuses": [
+          "str"
+        ],
+        "warning_reasons": [
+          "str"
+        ]
+      },
       "recommended_candidate": {
         "candidate_id": "str",
         "constraint_risk": {
@@ -1998,6 +2028,36 @@
           "recommended_value": "float",
           "regret": "float"
         }
+      ]
+    },
+    "recommendation_readiness": {
+      "blocking_reasons": [],
+      "constraint_fail_count": "int",
+      "constraint_risk_status": "str",
+      "constraint_warning_count": "int",
+      "data_quality_manifest_hash": "str",
+      "data_quality_status": "str",
+      "folding_backend": "str",
+      "folding_evidence_hash": "str",
+      "folding_fallback_active": "bool",
+      "folding_status": "str",
+      "max_regret": "float",
+      "optimizer_stress_cases_hash": "str",
+      "optimizer_stress_status": "str",
+      "pareto_front_member": "bool",
+      "pareto_quality_hash": "str",
+      "qc_gate_status": "str",
+      "readiness_hash": "str",
+      "readiness_schema": "str",
+      "readiness_status": "str",
+      "recommended_candidate_id": "str",
+      "release_ready": "bool",
+      "tradeoff_count": "int",
+      "validation_statuses": [
+        "str"
+      ],
+      "warning_reasons": [
+        "str"
       ]
     },
     "recommended_candidate": {

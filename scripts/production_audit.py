@@ -635,6 +635,7 @@ def api_failures(name: str, details: Any) -> list[str]:
             "report_formats_summary_hash",
             "candidate_ranking_hash",
             "recommendation_audit_hash",
+            "recommendation_readiness_hash",
             "recommended_folding_evidence_hash",
         ]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
@@ -658,6 +659,11 @@ def api_failures(name: str, details: Any) -> list[str]:
             "recommended_folding_evidence_schema",
             "recommended_folding_evidence_report",
             "recommended_folding_evidence_payload_hash",
+            "recommendation_readiness_schema",
+            "recommendation_readiness_report",
+            "recommendation_readiness_payload_hash",
+            "recommendation_readiness_candidate",
+            "recommendation_readiness_status",
         ]
         missing = [check for check in required_qc_explainability if checks.get(check) != "pass"]
         if missing:
@@ -682,11 +688,14 @@ def api_failures(name: str, details: Any) -> list[str]:
             "report_formats_summary_hash",
             "candidate_ranking_hash",
             "recommendation_audit_hash",
+            "recommendation_readiness_hash",
             "recommended_folding_evidence_hash",
             "optimizer_manifest_hash",
         ]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest QC archive is missing {hash_field}")
+        if checked_count and latest.get("recommendation_readiness_status") not in {"pass", "warning"}:
+            failures.append("latest QC archive is missing pass/warning recommendation_readiness_status")
         if checked_count and latest.get("recommended_folding_status") not in {"pass", "warning"}:
             failures.append("latest QC archive is missing pass/warning recommended_folding_status")
         if checked_count and latest.get("retrieval_quality_status") not in {"pass", "warning"}:
