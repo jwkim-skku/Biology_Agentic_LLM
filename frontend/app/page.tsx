@@ -1342,6 +1342,10 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     diagnostics_hash?: string | null;
     case_metrics_hash?: string | null;
     candidate_diagnostics_hash?: string | null;
+    recommendation_summary_hash?: string | null;
+    recommendation_summary_status?: string | null;
+    recommended_on_pareto_front_count?: number | null;
+    recommendation_max_regret?: number | null;
     case_provenance_hash?: string | null;
     case_fingerprint_count?: number | null;
     recommended_folding_evidence_hash?: string | null;
@@ -1832,6 +1836,10 @@ type OptimizerBenchmarkBundleVerification = {
   diagnostics_hash?: string;
   case_metrics_hash?: string;
   candidate_diagnostics_hash?: string;
+  recommendation_summary_hash?: string;
+  recommendation_summary_status?: string;
+  recommended_on_pareto_front_count?: number;
+  recommendation_max_regret?: number;
   case_count?: number;
   structured_manifest_hash?: string;
   semantic_checks?: Record<string, string>;
@@ -4189,6 +4197,7 @@ export default function Dashboard() {
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>Vector fresh {deploymentGateFreshness(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
+              <span>Bench summary {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommendation_summary_hash")}</span>
               <span>Bench folding {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>
@@ -4784,6 +4793,10 @@ export default function Dashboard() {
               <span>
                 Folding hash {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"} / count{" "}
                 {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_folding_evidence_count ?? "n/a"}
+              </span>
+              <span>
+                Recommendation {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommendation_summary_hash?.slice(0, 10) ?? "n/a"} / front{" "}
+                {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_on_pareto_front_count ?? "n/a"}
               </span>
               <span>
                 Case provenance {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.case_provenance_hash?.slice(0, 10) ?? "n/a"} / count{" "}

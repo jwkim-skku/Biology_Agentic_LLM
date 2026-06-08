@@ -25,6 +25,7 @@ REQUIRED_OPTIMIZER_BENCHMARK_FILES = {
     "cases.json",
     "case_metrics.csv",
     "candidate_diagnostics.json",
+    "recommendation_summary.json",
     "stress_gate.json",
     "rna_folding_status.json",
     "search_strategy.json",
@@ -45,6 +46,8 @@ def build_optimizer_benchmark_bundle() -> bytes:
     diagnostics_json = _json(diagnostics)
     case_metrics_csv = _case_metrics_csv(benchmark.get("results") or [])
     candidate_diagnostics_json = _json(_candidate_diagnostics(benchmark.get("results") or []))
+    recommendation_summary = _recommendation_summary(benchmark.get("results") or [])
+    recommendation_summary_json = _json(recommendation_summary)
     folding_evidence_hashes = _recommended_folding_evidence_hashes(benchmark.get("results") or [])
     metadata = {
         "bundle_schema": "agentic-rag-optimizer-benchmark-bundle-v1",
@@ -57,6 +60,10 @@ def build_optimizer_benchmark_bundle() -> bytes:
         "diagnostics_hash": _hash_text(diagnostics_json),
         "case_metrics_hash": _hash_text(case_metrics_csv),
         "candidate_diagnostics_hash": _hash_text(candidate_diagnostics_json),
+        "recommendation_summary_hash": _hash_text(recommendation_summary_json),
+        "recommendation_summary_status": recommendation_summary.get("status"),
+        "recommended_on_pareto_front_count": recommendation_summary.get("recommended_on_pareto_front_count"),
+        "recommendation_max_regret": recommendation_summary.get("max_recommendation_regret"),
         "recommended_folding_evidence_hash": _hash_json(sorted(folding_evidence_hashes)),
         "recommended_folding_evidence_count": len(folding_evidence_hashes),
         "diagnostics_status": diagnostics.get("status"),
@@ -79,6 +86,7 @@ def build_optimizer_benchmark_bundle() -> bytes:
         bundle.writestr("cases.json", _json(cases))
         bundle.writestr("case_metrics.csv", case_metrics_csv)
         bundle.writestr("candidate_diagnostics.json", candidate_diagnostics_json)
+        bundle.writestr("recommendation_summary.json", recommendation_summary_json)
         bundle.writestr("optimizer_config.json", _json(OptimizationConfig().to_dict()))
         bundle.writestr("score_config.json", _json(ScoreConfig().to_dict()))
         bundle.writestr("structured_manifest.json", _json(structured_manifest()))
@@ -113,12 +121,14 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
                 diagnostics_text = ""
                 case_metrics_text = ""
                 candidate_diagnostics_text = ""
+                recommendation_summary_text = ""
             else:
                 semantic_checks["required_files"] = "pass"
                 benchmark_text = archive.read("benchmark.json").decode("utf-8")
                 diagnostics_text = archive.read("diagnostics.json").decode("utf-8")
                 case_metrics_text = archive.read("case_metrics.csv").decode("utf-8")
                 candidate_diagnostics_text = archive.read("candidate_diagnostics.json").decode("utf-8")
+                recommendation_summary_text = archive.read("recommendation_summary.json").decode("utf-8")
                 payloads = {
                     "bundle_manifest": _read_json(archive, "bundle_manifest.json"),
                     "benchmark": _json_from_text(benchmark_text),
@@ -128,6 +138,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
                     "search_strategy": _read_json(archive, "search_strategy.json"),
                     "cases": _read_json(archive, "cases.json"),
                     "candidate_diagnostics": _json_from_text(candidate_diagnostics_text),
+                    "recommendation_summary": _json_from_text(recommendation_summary_text),
                     "optimizer_config": _read_json(archive, "optimizer_config.json"),
                     "score_config": _read_json(archive, "score_config.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
@@ -141,6 +152,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         diagnostics_text = ""
         case_metrics_text = ""
         candidate_diagnostics_text = ""
+        recommendation_summary_text = ""
 
     manifest = payloads.get("bundle_manifest") or {}
     benchmark = payloads.get("benchmark") or {}
@@ -150,6 +162,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
     search_strategy = payloads.get("search_strategy") or {}
     cases = payloads.get("cases") or {}
     candidate_diagnostics = payloads.get("candidate_diagnostics") or {}
+    recommendation_summary = payloads.get("recommendation_summary") or {}
     structured = payloads.get("structured_manifest") or {}
     metadata = base.get("bundle_metadata") or {}
 
@@ -210,6 +223,14 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         manifest.get("candidate_diagnostics_hash"),
         _hash_text(candidate_diagnostics_text),
         "bundle_manifest.json candidate_diagnostics_hash does not match candidate_diagnostics.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_summary_hash",
+        manifest.get("recommendation_summary_hash"),
+        _hash_text(recommendation_summary_text),
+        "bundle_manifest.json recommendation_summary_hash does not match recommendation_summary.json.",
     )
 
     if diagnostics.get("diagnostics_schema") != "agentic-rag-optimizer-diagnostics-v1":
@@ -275,6 +296,23 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["recommendation_audit"] = "fail"
     else:
         semantic_checks["recommendation_audit"] = "pass"
+    if recommendation_summary.get("summary_schema") != "agentic-rag-optimizer-benchmark-recommendation-summary-v1":
+        semantic_errors.append("recommendation_summary.json summary_schema is invalid.")
+        semantic_checks["recommendation_summary_schema"] = "fail"
+    else:
+        semantic_checks["recommendation_summary_schema"] = "pass"
+    expected_recommendation_summary = _recommendation_summary(results)
+    if recommendation_summary != expected_recommendation_summary:
+        semantic_errors.append("recommendation_summary.json does not match benchmark.json results.")
+        semantic_checks["recommendation_summary_consistency"] = "fail"
+    else:
+        semantic_checks["recommendation_summary_consistency"] = "pass"
+    summary_case_count = int(recommendation_summary.get("case_count") or 0)
+    if summary_case_count != len(results):
+        semantic_errors.append("recommendation_summary.json case_count does not match benchmark results.")
+        semantic_checks["recommendation_summary_case_count"] = "fail"
+    else:
+        semantic_checks["recommendation_summary_case_count"] = "pass"
     if any((case.get("pareto_quality") or {}).get("quality_schema") != "agentic-rag-pareto-quality-v1" for case in diag_cases):
         semantic_errors.append("candidate_diagnostics.json is missing Pareto quality metadata.")
         semantic_checks["pareto_quality_schema"] = "fail"
@@ -413,6 +451,10 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "diagnostics_hash": manifest.get("diagnostics_hash"),
         "case_metrics_hash": manifest.get("case_metrics_hash"),
         "candidate_diagnostics_hash": manifest.get("candidate_diagnostics_hash"),
+        "recommendation_summary_hash": manifest.get("recommendation_summary_hash"),
+        "recommendation_summary_status": recommendation_summary.get("status"),
+        "recommended_on_pareto_front_count": recommendation_summary.get("recommended_on_pareto_front_count"),
+        "recommendation_max_regret": recommendation_summary.get("max_recommendation_regret"),
         "case_provenance_hash": _hash_json(sorted(case_fingerprints)),
         "case_fingerprint_count": len(case_fingerprints),
         "recommended_folding_evidence_hash": folding_manifest_hash,
@@ -533,6 +575,58 @@ def _candidate_diagnostics(results: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _recommendation_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    cases = []
+    for result in results:
+        metrics = result.get("metrics") or {}
+        folding = result.get("recommended_folding_evidence") or {}
+        case_item = {
+            "case_id": result.get("case_id"),
+            "status": result.get("status"),
+            "recommended_candidate_id": result.get("recommended_candidate_id"),
+            "recommendation_best_metric_count": int(metrics.get("recommendation_best_metric_count") or 0),
+            "recommendation_tradeoff_count": int(metrics.get("recommendation_tradeoff_count") or 0),
+            "recommendation_max_regret": _float(metrics.get("recommendation_max_regret")),
+            "recommended_on_pareto_front": bool(metrics.get("recommended_on_pareto_front")),
+            "feasible_pareto_front_count": int(metrics.get("feasible_pareto_front_count") or 0),
+            "recommended_composite_delta": _float(metrics.get("recommended_composite_delta")),
+            "recommended_policy_violation_delta": _float(metrics.get("recommended_policy_violation_delta")),
+            "recommended_thermodynamic_risk_score": _float(metrics.get("recommended_thermodynamic_risk_score")),
+            "recommended_folding_status": folding.get("status") or metrics.get("recommended_folding_status"),
+            "recommended_folding_backend": folding.get("active_backend") or metrics.get("recommended_folding_backend"),
+            "recommended_folding_evidence_hash": folding.get("folding_evidence_hash") or metrics.get("recommended_folding_evidence_hash"),
+        }
+        case_item["recommendation_summary_hash"] = _hash_json({key: value for key, value in case_item.items() if key != "recommendation_summary_hash"})
+        cases.append(case_item)
+
+    case_count = len(cases)
+    front_count = sum(1 for case in cases if case["recommended_on_pareto_front"])
+    pass_count = sum(1 for case in cases if case["status"] == "pass")
+    warning_count = sum(1 for case in cases if case["status"] == "warning")
+    fail_count = sum(1 for case in cases if case["status"] == "fail")
+    max_regret = max((float(case["recommendation_max_regret"]) for case in cases), default=0.0)
+    mean_regret = round(sum(float(case["recommendation_max_regret"]) for case in cases) / max(case_count, 1), 6)
+    folding_evidence_count = sum(1 for case in cases if case.get("recommended_folding_evidence_hash"))
+    status = "fail" if fail_count else "warning" if warning_count or front_count < case_count else "pass"
+    return {
+        "summary_schema": "agentic-rag-optimizer-benchmark-recommendation-summary-v1",
+        "status": status,
+        "case_count": case_count,
+        "pass_count": pass_count,
+        "warning_count": warning_count,
+        "fail_count": fail_count,
+        "recommended_on_pareto_front_count": front_count,
+        "recommended_on_pareto_front_fraction": round(front_count / max(case_count, 1), 6),
+        "recommended_folding_evidence_count": folding_evidence_count,
+        "max_recommendation_regret": round(max_regret, 6),
+        "mean_recommendation_regret": mean_regret,
+        "tradeoff_case_count": sum(1 for case in cases if int(case["recommendation_tradeoff_count"]) > 0),
+        "best_metric_case_count": sum(1 for case in cases if int(case["recommendation_best_metric_count"]) > 0),
+        "cases_hash": _hash_json(cases),
+        "cases": cases,
+    }
+
+
 def _recommended_folding_evidence_hashes(results: list[dict[str, Any]]) -> list[str]:
     return [
         str((result.get("recommended_folding_evidence") or {}).get("folding_evidence_hash") or "")
@@ -565,6 +659,13 @@ def _hash_json(payload: Any) -> str:
 
 def _hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _float(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _folding_evidence_hash_matches(evidence: dict[str, Any]) -> bool:

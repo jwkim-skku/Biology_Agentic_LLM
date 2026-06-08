@@ -563,6 +563,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             "recommendation_audit",
             "pareto_quality_schema",
             "pareto_quality_hash",
+            "recommendation_summary_schema",
+            "recommendation_summary_consistency",
+            "recommendation_summary_case_count",
+            "recommendation_summary_hash",
             "case_metric_columns",
             "benchmark_hash",
             "diagnostics_hash",
@@ -583,6 +587,7 @@ def api_failures(name: str, details: Any) -> list[str]:
             "diagnostics_hash",
             "case_metrics_hash",
             "candidate_diagnostics_hash",
+            "recommendation_summary_hash",
             "recommended_folding_evidence_hash",
         ]:
             if not payload.get(hash_check):
@@ -763,11 +768,23 @@ def api_failures(name: str, details: Any) -> list[str]:
             "diagnostics_hash",
             "case_metrics_hash",
             "candidate_diagnostics_hash",
+            "recommendation_summary_hash",
             "case_provenance_hash",
             "recommended_folding_evidence_hash",
         ]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest optimizer benchmark archive is missing {hash_field}")
+        if checked_count and (
+            latest.get("recommendation_summary_status") not in {"pass", "warning"}
+        ):
+            failures.append("latest optimizer benchmark archive is missing pass/warning recommendation_summary_status")
+        if checked_count and (
+            latest.get("recommended_on_pareto_front_count") is None
+            or int(latest.get("recommended_on_pareto_front_count") or 0) < 1
+        ):
+            failures.append("latest optimizer benchmark archive is missing recommended_on_pareto_front_count")
+        if checked_count and latest.get("recommendation_max_regret") is None:
+            failures.append("latest optimizer benchmark archive is missing recommendation_max_regret")
         if checked_count and (
             not latest.get("case_fingerprint_count")
             or int(latest.get("case_fingerprint_count") or 0) < int(latest.get("case_count") or 0)

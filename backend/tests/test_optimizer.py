@@ -649,10 +649,19 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
         "latest_diagnostics_hash",
         "latest_case_metrics_hash",
         "latest_candidate_diagnostics_hash",
+        "latest_recommendation_summary_hash",
         "latest_case_provenance_hash",
         "latest_recommended_folding_evidence_hash",
     ]:
         assert optimizer_archive_gate["details"][field] is None or len(optimizer_archive_gate["details"][field]) == 64
+    assert (
+        optimizer_archive_gate["details"]["latest_recommendation_summary_status"] is None
+        or optimizer_archive_gate["details"]["latest_recommendation_summary_status"] in {"pass", "warning"}
+    )
+    assert (
+        optimizer_archive_gate["details"]["latest_recommended_on_pareto_front_count"] is None
+        or optimizer_archive_gate["details"]["latest_recommended_on_pareto_front_count"] >= 1
+    )
     assert (
         optimizer_archive_gate["details"]["latest_case_fingerprint_count"] is None
         or optimizer_archive_gate["details"]["latest_case_fingerprint_count"] >= 1
@@ -968,6 +977,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "recommendation_audit": "pass",
                     "pareto_quality_schema": "pass",
                     "pareto_quality_hash": "pass",
+                    "recommendation_summary_schema": "pass",
+                    "recommendation_summary_consistency": "pass",
+                    "recommendation_summary_case_count": "pass",
+                    "recommendation_summary_hash": "pass",
                     "case_metric_columns": "pass",
                     "results_hash": "pass",
                     "benchmark_hash": "pass",
@@ -984,6 +997,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 "diagnostics_hash": valid_hash,
                 "case_metrics_hash": valid_hash,
                 "candidate_diagnostics_hash": valid_hash,
+                "recommendation_summary_hash": valid_hash,
                 "recommended_folding_evidence_hash": valid_hash,
             }
         },
@@ -1294,6 +1308,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "diagnostics_hash": valid_hash,
                         "case_metrics_hash": valid_hash,
                         "candidate_diagnostics_hash": valid_hash,
+                        "recommendation_summary_hash": valid_hash,
+                        "recommendation_summary_status": "pass",
+                        "recommended_on_pareto_front_count": 3,
+                        "recommendation_max_regret": 0.0,
                         "case_provenance_hash": valid_hash,
                         "case_fingerprint_count": 3,
                         "recommended_folding_evidence_hash": valid_hash,
@@ -1316,6 +1334,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "diagnostics_hash" in " ".join(optimizer_archive_failures)
     assert "case_metrics_hash" in " ".join(optimizer_archive_failures)
     assert "candidate_diagnostics_hash" in " ".join(optimizer_archive_failures)
+    assert "recommendation_summary_hash" in " ".join(optimizer_archive_failures)
+    assert "recommendation_summary_status" in " ".join(optimizer_archive_failures)
+    assert "recommended_on_pareto_front_count" in " ".join(optimizer_archive_failures)
+    assert "recommendation_max_regret" in " ".join(optimizer_archive_failures)
     assert "case_provenance_hash" in " ".join(optimizer_archive_failures)
     assert "case_fingerprint_count" in " ".join(optimizer_archive_failures)
     assert "recommended_folding_evidence_hash" in " ".join(optimizer_archive_failures)
@@ -1622,6 +1644,10 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["diagnostics_hash"] == "pass"
     assert verification["semantic_checks"]["case_metrics_hash"] == "pass"
     assert verification["semantic_checks"]["candidate_diagnostics_hash"] == "pass"
+    assert verification["semantic_checks"]["recommendation_summary_hash"] == "pass"
+    assert verification["semantic_checks"]["recommendation_summary_schema"] == "pass"
+    assert verification["semantic_checks"]["recommendation_summary_consistency"] == "pass"
+    assert verification["semantic_checks"]["recommendation_summary_case_count"] == "pass"
     assert verification["semantic_checks"]["pareto_quality_schema"] == "pass"
     assert verification["semantic_checks"]["pareto_quality_hash"] == "pass"
     assert verification["semantic_checks"]["case_provenance_schema"] == "pass"
@@ -1638,6 +1664,10 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert len(verification["diagnostics_hash"]) == 64
     assert len(verification["case_metrics_hash"]) == 64
     assert len(verification["candidate_diagnostics_hash"]) == 64
+    assert len(verification["recommendation_summary_hash"]) == 64
+    assert verification["recommendation_summary_status"] in {"pass", "warning"}
+    assert verification["recommended_on_pareto_front_count"] >= 1
+    assert verification["recommendation_max_regret"] >= 0
     assert len(verification["case_provenance_hash"]) == 64
     assert verification["case_fingerprint_count"] == verification["case_count"]
     assert len(verification["recommended_folding_evidence_hash"]) == 64
@@ -1651,6 +1681,7 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         manifest = json.loads(archive.read("bundle_manifest.json"))
         benchmark = json.loads(archive.read("benchmark.json"))
         candidate_diagnostics = json.loads(archive.read("candidate_diagnostics.json"))
+        recommendation_summary = json.loads(archive.read("recommendation_summary.json"))
         case_metrics = archive.read("case_metrics.csv").decode("utf-8")
         assert search_strategy["strategy_schema"] == "agentic-rag-optimizer-search-strategy-v1"
         assert search_strategy["algorithm"] == manifest["optimizer_algorithm"]
@@ -1661,8 +1692,16 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert manifest["diagnostics_hash"] == verification["diagnostics_hash"]
         assert manifest["case_metrics_hash"] == verification["case_metrics_hash"]
         assert manifest["candidate_diagnostics_hash"] == verification["candidate_diagnostics_hash"]
+        assert manifest["recommendation_summary_hash"] == verification["recommendation_summary_hash"]
+        assert manifest["recommendation_summary_status"] == verification["recommendation_summary_status"]
+        assert manifest["recommended_on_pareto_front_count"] == verification["recommended_on_pareto_front_count"]
         assert manifest["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
         assert manifest["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
+        assert recommendation_summary["summary_schema"] == "agentic-rag-optimizer-benchmark-recommendation-summary-v1"
+        assert recommendation_summary["case_count"] == verification["case_count"]
+        assert recommendation_summary["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
+        assert recommendation_summary["recommended_on_pareto_front_count"] == verification["recommended_on_pareto_front_count"]
+        assert len(recommendation_summary["cases_hash"]) == 64
         first_case = candidate_diagnostics["cases"][0]
         assert first_case["pareto_quality"]["quality_schema"] == "agentic-rag-pareto-quality-v1"
         assert first_case["case_provenance"]["provenance_schema"] == "agentic-rag-optimizer-benchmark-case-provenance-v1"
@@ -1691,6 +1730,10 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     semantic = archived["metadata"]["optimizer_benchmark_semantic_verification"]
     assert semantic["stress_status"] == verification["stress_status"]
     assert semantic["case_metrics_hash"] == verification["case_metrics_hash"]
+    assert semantic["recommendation_summary_hash"] == verification["recommendation_summary_hash"]
+    assert semantic["recommendation_summary_status"] == verification["recommendation_summary_status"]
+    assert semantic["recommended_on_pareto_front_count"] == verification["recommended_on_pareto_front_count"]
+    assert semantic["recommendation_max_regret"] == verification["recommendation_max_regret"]
     assert semantic["case_provenance_hash"] == verification["case_provenance_hash"]
     assert semantic["case_fingerprint_count"] == verification["case_fingerprint_count"]
     assert semantic["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
@@ -1701,6 +1744,9 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         and item["stress_status"] == verification["stress_status"]
         and item["case_count"] == verification["case_count"]
         and item["case_metrics_hash"] == verification["case_metrics_hash"]
+        and item["recommendation_summary_hash"] == verification["recommendation_summary_hash"]
+        and item["recommendation_summary_status"] == verification["recommendation_summary_status"]
+        and item["recommended_on_pareto_front_count"] == verification["recommended_on_pareto_front_count"]
         and item["case_provenance_hash"] == verification["case_provenance_hash"]
         and item["case_fingerprint_count"] == verification["case_fingerprint_count"]
         and item["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
