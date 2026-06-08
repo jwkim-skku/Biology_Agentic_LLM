@@ -414,6 +414,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "data_refresh_plan_archive_semantics" in audit["evidence"]
     assert "rag_vector_index_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "rag_vector_index_archive_semantics" in audit["evidence"]
+    assert "optimizer_benchmark_archive_semantics" in {item["name"] for item in audit["checks"]}
+    assert "optimizer_benchmark_archive_semantics" in audit["evidence"]
     assert "workflow_trace_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "workflow_trace_archive_semantics" in audit["evidence"]
     assert "promotion_summary" in audit["evidence"]
@@ -450,6 +452,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/data_release_archive_semantics.json" in names
         assert "evidence/data_snapshot_archive_semantics.json" in names
         assert "evidence/rag_vector_index_archive_semantics.json" in names
+        assert "evidence/optimizer_benchmark_archive_semantics.json" in names
         assert "evidence/structured_import_archive_semantics.json" in names
         assert "evidence/workflow_trace_archive_semantics.json" in names
         bundled_markdown = archive.read("production_audit.md").decode("utf-8")
@@ -686,6 +689,7 @@ def test_deployment_readiness_archive_actions_are_specific() -> None:
     assert "data snapshot bundle" in actions["data_snapshot_archive_semantics"]
     assert "vector index bundle" in actions["rag_vector_index_archive_semantics"]
     assert "optimizer benchmark bundle" in actions["optimizer_benchmark_archive_semantics"]
+    assert "recommendation-summary" in actions["optimizer_benchmark_archive_semantics"]
     assert len(set(actions.values())) == len(actions)
     assert all(len(value) == 64 for value in action_hashes.values())
 

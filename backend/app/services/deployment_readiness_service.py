@@ -723,7 +723,7 @@ def _gate_action(gate: dict[str, Any]) -> str:
     if name == "workflow_trace_archive_semantics":
         return "Export and archive workflow trace evidence with task plan, role contract, trace hash, and structured-manifest hash."
     if name == "optimizer_benchmark_archive_semantics":
-        return "Export and archive an optimizer benchmark bundle with result, diagnostics, stress, case, Pareto, and candidate-diagnostics hashes."
+        return "Export and archive an optimizer benchmark bundle with result, diagnostics, stress, case, Pareto, candidate-diagnostics, recommendation-summary, and folding-evidence hashes."
     if name.endswith("_archive_semantics"):
         return "Export a fresh semantic artifact bundle and verify archive freshness before promotion."
     if name == "agent_memory":

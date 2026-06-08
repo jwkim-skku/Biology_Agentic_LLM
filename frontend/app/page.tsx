@@ -985,6 +985,32 @@ type ProductionAuditStatus = {
         structured_manifest_hash?: string | null;
       }>;
     };
+    optimizer_benchmark_archive_semantics?: ArchiveSemanticFreshness & {
+      status: string;
+      checked_count: number;
+      semantic_pass_count: number;
+      semantic_warning_count: number;
+      semantic_fail_count: number;
+      latest_artifacts?: Array<{
+        artifact_id: string;
+        semantic_status?: string;
+        benchmark_status?: string | null;
+        diagnostics_status?: string | null;
+        stress_status?: string | null;
+        case_count?: number | null;
+        results_hash?: string | null;
+        benchmark_hash?: string | null;
+        candidate_diagnostics_hash?: string | null;
+        recommendation_summary_hash?: string | null;
+        recommendation_summary_status?: string | null;
+        recommended_on_pareto_front_count?: number | null;
+        recommendation_max_regret?: number | null;
+        case_provenance_hash?: string | null;
+        case_fingerprint_count?: number | null;
+        recommended_folding_evidence_hash?: string | null;
+        recommended_folding_evidence_count?: number | null;
+      }>;
+    };
     workflow_trace_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
@@ -4250,6 +4276,8 @@ export default function Dashboard() {
               <span>Vector index {productionAudit?.evidence?.rag_vector_index_archive_semantics?.status ?? "n/a"}</span>
               <span>Vector checked {productionAudit?.evidence?.rag_vector_index_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Vector fresh {formatArchiveFreshness(productionAudit?.evidence?.rag_vector_index_archive_semantics)}</span>
+              <span>Optimizer archive {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.status ?? "n/a"}</span>
+              <span>Optimizer checked {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Workflow trace {productionAudit?.evidence?.workflow_trace_archive_semantics?.status ?? "n/a"}</span>
               <span>Trace checked {productionAudit?.evidence?.workflow_trace_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Trace fresh {formatArchiveFreshness(productionAudit?.evidence?.workflow_trace_archive_semantics)}</span>
@@ -4372,6 +4400,29 @@ export default function Dashboard() {
               <span>
                 Vector parity {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.parity_status ?? "n/a"} /
                 row {productionAudit?.evidence?.rag_vector_index_archive_semantics?.latest_artifacts?.[0]?.vector_row_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Bench result {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.results_hash?.slice(0, 10) ?? "n/a"} /
+                cases {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.case_count ?? "n/a"}
+              </span>
+              <span>
+                Bench recommendation{" "}
+                {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommendation_summary_hash?.slice(0, 10) ?? "n/a"} /
+                front {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommended_on_pareto_front_count ?? "n/a"}
+              </span>
+              <span>
+                Bench regret {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommendation_max_regret ?? "n/a"} /
+                status {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommendation_summary_status ?? "n/a"}
+              </span>
+              <span>
+                Bench provenance{" "}
+                {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.case_provenance_hash?.slice(0, 10) ?? "n/a"} /
+                fingerprints {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.case_fingerprint_count ?? "n/a"}
+              </span>
+              <span>
+                Bench folding{" "}
+                {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"} /
+                count {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_evidence_count ?? "n/a"}
               </span>
               <span>
                 Trace steps {productionAudit?.evidence?.workflow_trace_archive_semantics?.latest_artifacts?.[0]?.trace_step_count ?? "n/a"} /
