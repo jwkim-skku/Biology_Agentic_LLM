@@ -24,6 +24,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - Optimizer diagnostics for objective inventory, benchmark quality bands, weak-case surfacing, and tuning recommendations.
 - Manifested optimizer benchmark ZIP bundles with benchmark metrics, case provenance fingerprints, recommended-candidate folding evidence, diagnostics, case catalog, candidate diagnostics, config snapshots, artifact verification, archive storage, readiness/audit evidence, and semantic cross-checks.
 - ORF validation and QC gate checks for CDS inputs and recommended candidates.
+- QC report bundles preserve recommended-candidate RNA folding/proxy evidence with stable hashes for archive and audit review.
 - Candidate diagnostics for feasible-set counts, Pareto-front representatives, score ranges, codon-level diversity, and recommendation-audit trade-off regret against best-by-metric alternatives.
 - Optimizer reproducibility manifests with canonical config hashes, score-config hashes, objective inventory, seed, repair policy, target hash, and source CDS hash.
 - CUSTOM-style tissue-aware codon multipliers from structured priors.

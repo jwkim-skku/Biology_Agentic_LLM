@@ -128,6 +128,7 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
     best = design.get("recommended_candidate") or {}
     native_scores = (design.get("native") or {}).get("scores", {})
     best_scores = best.get("scores", {})
+    folding_evidence = design.get("recommended_folding_evidence") or {}
     evidence_summary = synthesize_evidence(design.get("evidence", {}))
     source_cds = design.get("source_cds", {})
     score_config = _score_config_from_design(design)
@@ -173,6 +174,7 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
             "native": audit_sequence_policy((design.get("native") or {}).get("cds", ""), score_config),
             "recommended": audit_sequence_policy(best.get("cds", ""), score_config) if best else {},
         },
+        "recommended_folding_evidence": folding_evidence,
         "candidate_ranking": [
             {
                 "candidate_id": candidate.get("candidate_id"),
@@ -206,6 +208,12 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
                 "hairpin_proxy_score": best_scores.get("hairpin_proxy_score"),
                 "secondary_structure_proxy_score": best_scores.get("secondary_structure_proxy_score"),
                 "mfe_proxy_delta_g": best_scores.get("mfe_proxy_delta_g"),
+                "folding_evidence_hash": folding_evidence.get("folding_evidence_hash"),
+                "folding_backend": folding_evidence.get("active_backend"),
+                "folding_status": folding_evidence.get("status"),
+                "folding_fallback_active": folding_evidence.get("fallback_active"),
+                "thermodynamic_mfe_delta_g": folding_evidence.get("thermodynamic_mfe_delta_g"),
+                "thermodynamic_risk_score": folding_evidence.get("thermodynamic_risk_score"),
                 "codon_pair_risk": best_scores.get("codon_pair_risk"),
                 "low_complexity_penalty": best_scores.get("low_complexity_penalty"),
                 "cpg_density_per_100nt": best_scores.get("cpg_density_per_100nt"),

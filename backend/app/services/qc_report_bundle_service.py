@@ -28,6 +28,7 @@ REQUIRED_QC_BUNDLE_FILES = {
     "qc_report.pdf",
     "optimizer_reproducibility.json",
     "recommendation_audit.json",
+    "recommended_folding_evidence.json",
     "data_quality.json",
     "optimizer_stress.json",
     "candidate_ranking.csv",
@@ -56,6 +57,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
     request_json = _json(request_payload)
     candidate_csv = _candidate_csv(design.get("candidates") or [])
     recommendation_audit = _recommendation_audit_payload(design, report)
+    folding_evidence = _recommended_folding_evidence_payload(design, report)
     manifest = {
         "bundle_schema": "agentic-rag-qc-report-bundle-v1",
         "bundle_type": bundle_type,
@@ -68,6 +70,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         "qc_report_hash": _hash_payload(report),
         "candidate_ranking_hash": _hash_text(candidate_csv),
         "recommendation_audit_hash": _hash_payload(recommendation_audit),
+        "recommended_folding_evidence_hash": _hash_payload(folding_evidence),
         "recommended_candidate_id": (design.get("recommended_candidate") or {}).get("candidate_id"),
     }
     data_quality = structured_quality_gate()
@@ -85,6 +88,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         bundle.writestr("candidate_diagnostics.json", _json(design.get("candidate_diagnostics") or report.get("candidate_diagnostics") or {}))
         bundle.writestr("optimizer_reproducibility.json", _json(report.get("optimizer_reproducibility") or optimizer_reproducibility_manifest(design)))
         bundle.writestr("recommendation_audit.json", _json(recommendation_audit))
+        bundle.writestr("recommended_folding_evidence.json", _json(folding_evidence))
         bundle.writestr("data_quality.json", _json(data_quality))
         bundle.writestr("optimizer_stress.json", _json(optimizer_stress))
         bundle.writestr("candidate_ranking.csv", candidate_csv)
@@ -122,6 +126,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             qc_report = _read_json_member(archive, "qc_report.json")
             optimizer_manifest = _read_json_member(archive, "optimizer_reproducibility.json")
             recommendation_audit_file = _read_json_member(archive, "recommendation_audit.json")
+            recommended_folding_evidence_file = _read_json_member(archive, "recommended_folding_evidence.json")
             data_quality = _read_json_member(archive, "data_quality.json")
             optimizer_stress = _read_json_member(archive, "optimizer_stress.json")
             candidate_diagnostics = _read_json_member(archive, "candidate_diagnostics.json")
@@ -143,6 +148,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     optimizer_stress_summary = qc_report.get("optimizer_stress") or {}
     target_definition = qc_report.get("target_definition") or {}
     evidence_summary = qc_report.get("evidence_summary") or {}
+    report_folding_evidence = qc_report.get("recommended_folding_evidence") or {}
     retrieval_quality = evidence_summary.get("retrieval_quality") or {}
     report_candidate_rows = qc_report.get("candidate_ranking") or []
     run_id = project_metadata.get("run_id")
@@ -156,6 +162,10 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "qc_report_hash": _hash_payload(qc_report),
             "candidate_ranking_hash": _hash_text(candidate_csv_text),
             "recommendation_audit_hash": _hash_payload(recommendation_audit_file),
+            "recommended_folding_evidence_hash": _hash_payload(recommended_folding_evidence_file),
+            "recommended_folding_status": recommended_folding_evidence_file.get("status"),
+            "recommended_folding_backend": recommended_folding_evidence_file.get("active_backend"),
+            "recommended_folding_fallback_active": recommended_folding_evidence_file.get("fallback_active"),
             "data_quality_status": data_quality.get("status"),
             "optimizer_stress_status": optimizer_stress.get("status"),
             "objective_count": len(optimizer_manifest.get("objective_inventory") or []),
@@ -303,6 +313,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         _hash_payload(recommendation_audit_file),
         "bundle_manifest.json recommendation_audit_hash does not match recommendation_audit.json.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommended_folding_evidence_hash",
+        bundle_manifest.get("recommended_folding_evidence_hash"),
+        _hash_payload(recommended_folding_evidence_file),
+        "bundle_manifest.json recommended_folding_evidence_hash does not match recommended_folding_evidence.json.",
+    )
     for key in ["gene", "species", "brain_region", "cell_type", "modality"]:
         if key not in request or key not in target_definition:
             continue
@@ -377,6 +395,30 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         design_summary.get("recommended_candidate_id"),
         recommended_candidate_id,
         "design_summary.json recommended_candidate_id does not match qc_report.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommended_folding_evidence_schema",
+        recommended_folding_evidence_file.get("folding_schema"),
+        "agentic-rag-rna-folding-v1",
+        "recommended_folding_evidence.json folding_schema is not recognized.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommended_folding_evidence_report",
+        _hash_payload(recommended_folding_evidence_file),
+        _hash_payload(report_folding_evidence),
+        "recommended_folding_evidence.json does not match qc_report.json recommended_folding_evidence.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommended_folding_evidence_payload_hash",
+        recommended_folding_evidence_file.get("folding_evidence_hash"),
+        _hash_payload_compact(_without_key(recommended_folding_evidence_file, "folding_evidence_hash")),
+        "recommended_folding_evidence.json folding_evidence_hash does not match its payload.",
     )
 
     missing_columns = sorted(REQUIRED_CANDIDATE_COLUMNS - set(candidate_headers))
@@ -526,6 +568,9 @@ def _design_summary(design: dict[str, Any]) -> dict[str, Any]:
         "target": design.get("target"),
         "recommended_candidate_id": recommended.get("candidate_id"),
         "recommended_scores": recommended.get("scores"),
+        "recommended_folding_evidence": design.get("recommended_folding_evidence")
+        or (design.get("qc_report") or {}).get("recommended_folding_evidence")
+        or {},
         "recommended_selection_trace": recommended.get("selection_trace", []),
         "recommended_constraint_risk": recommended.get("constraint_risk", {}),
         "qc_gate": design.get("qc_gate"),
@@ -594,6 +639,10 @@ def _recommendation_audit_payload(design: dict[str, Any], report: dict[str, Any]
         or (report.get("candidate_diagnostics") or {}).get("recommendation_audit")
         or {}
     )
+
+
+def _recommended_folding_evidence_payload(design: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
+    return design.get("recommended_folding_evidence") or report.get("recommended_folding_evidence") or {}
 
 
 def _json(payload: Any) -> str:
@@ -677,8 +726,18 @@ def _hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
 
 
+def _hash_payload_compact(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
 def _hash_text(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
+
+
+def _without_key(payload: dict[str, Any], key: str) -> dict[str, Any]:
+    clone = dict(payload)
+    clone.pop(key, None)
+    return clone
 
 
 def _expect_equal(

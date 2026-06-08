@@ -9,6 +9,7 @@ from app.optimizer.codon_table import normalize_dna, split_codons, translate
 from app.optimizer.nsga2 import OptimizationConfig, optimize_cds
 from app.optimizer.scoring import ScoreConfig, score_sequence
 from app.services.sequence_policy_service import audit_sequence_policy
+from app.services.rna_folding_service import evaluate_rna_folding
 from app.services.structured_data_service import codon_availability_weights, codon_weight_multipliers, structured_manifest_hash
 from app.services.validation_service import qc_gate_for_design, validate_cds
 
@@ -47,6 +48,7 @@ def optimize_design(
     _annotate_candidate_selection(candidate_payloads, recommended)
     candidate_diagnostics = _candidate_diagnostics(candidate_payloads, recommended, optimization_config.score_config)
     recommendation_audit = _recommendation_audit(candidate_payloads, recommended, candidate_diagnostics)
+    recommended_folding_evidence = _recommended_folding_evidence(recommended)
     run_id = build_run_id(normalized, optimization_config.seed)
     design = {
         "run_id": run_id,
@@ -59,6 +61,7 @@ def optimize_design(
         "recommended_candidate": recommended,
         "candidate_diagnostics": candidate_diagnostics,
         "recommendation_audit": recommendation_audit,
+        "recommended_folding_evidence": recommended_folding_evidence,
         "warnings": _warnings(native["scores"], candidate_payloads, evidence_used),
         "provenance": {
             "input_source": "user_supplied_cds",
@@ -74,6 +77,21 @@ def optimize_design(
     }
     design["qc_gate"] = qc_gate_for_design(design)
     return design
+
+
+def _recommended_folding_evidence(recommended: dict | None) -> dict:
+    cds = (recommended or {}).get("cds")
+    if not cds:
+        payload = {
+            "folding_schema": "agentic-rag-rna-folding-v1",
+            "status": "warning",
+            "active_backend": "missing_recommended_candidate",
+            "fallback_active": True,
+            "warnings": ["No recommended candidate was available for folding evidence."],
+        }
+        return {**payload, "folding_evidence_hash": _hash_payload(payload)}
+    payload = evaluate_rna_folding(str(cds))
+    return {**payload, "folding_evidence_hash": _hash_payload(payload)}
 
 
 def _warnings(native_scores: dict, candidates: list[dict], evidence_used: bool) -> list[str]:

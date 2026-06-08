@@ -570,7 +570,13 @@ def api_failures(name: str, details: Any) -> list[str]:
         checks = payload.get("semantic_checks") or {}
         if checks.get("request_payload") != "pass":
             failures.append("QC report bundle does not verify request_payload.")
-        for hash_check in ["request_hash", "qc_report_hash", "candidate_ranking_hash", "recommendation_audit_hash"]:
+        for hash_check in [
+            "request_hash",
+            "qc_report_hash",
+            "candidate_ranking_hash",
+            "recommendation_audit_hash",
+            "recommended_folding_evidence_hash",
+        ]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"QC report bundle does not verify {hash_check}.")
         required_qc_explainability = [
@@ -586,6 +592,9 @@ def api_failures(name: str, details: Any) -> list[str]:
             "evidence_retrieval_quality_schema",
             "evidence_retrieval_quality_sources",
             "recommendation_audit",
+            "recommended_folding_evidence_schema",
+            "recommended_folding_evidence_report",
+            "recommended_folding_evidence_payload_hash",
         ]
         missing = [check for check in required_qc_explainability if checks.get(check) != "pass"]
         if missing:
@@ -604,9 +613,18 @@ def api_failures(name: str, details: Any) -> list[str]:
         checked_count = int(payload.get("checked_count") or 0)
         if checked_count and latest.get("request_payload_status") != "pass":
             failures.append("latest QC archive request_payload_status is not pass")
-        for hash_field in ["request_hash", "qc_report_hash", "candidate_ranking_hash", "recommendation_audit_hash", "optimizer_manifest_hash"]:
+        for hash_field in [
+            "request_hash",
+            "qc_report_hash",
+            "candidate_ranking_hash",
+            "recommendation_audit_hash",
+            "recommended_folding_evidence_hash",
+            "optimizer_manifest_hash",
+        ]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest QC archive is missing {hash_field}")
+        if checked_count and latest.get("recommended_folding_status") not in {"pass", "warning"}:
+            failures.append("latest QC archive is missing pass/warning recommended_folding_status")
         if checked_count and latest.get("retrieval_quality_status") not in {"pass", "warning"}:
             failures.append("latest QC archive is missing pass/warning retrieval_quality_status")
         if checked_count and int(latest.get("retrieval_quality_source_count") or 0) < 1:
