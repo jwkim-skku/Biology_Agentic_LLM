@@ -1527,6 +1527,9 @@ def test_optimizer_benchmark_suite_tracks_quality_and_constraints() -> None:
     assert result["macro"]["unique_cds_count"] >= 2
     assert result["macro"]["approx_hypervolume_2d"] > 0
     assert all(item["metrics"]["protein_preservation_failures"] == 0 for item in result["results"])
+    assert all(item["case_provenance"]["provenance_schema"] == "agentic-rag-optimizer-benchmark-case-provenance-v1" for item in result["results"])
+    assert all(len(item["case_provenance"]["case_fingerprint"]) == 64 for item in result["results"])
+    assert all(len(item["case_provenance"]["target_hash"]) == 64 for item in result["results"])
 
 
 def test_optimizer_diagnostics_reports_operational_quality_bands() -> None:
@@ -1558,6 +1561,7 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["candidate_diagnostics_hash"] == "pass"
     assert verification["semantic_checks"]["pareto_quality_schema"] == "pass"
     assert verification["semantic_checks"]["pareto_quality_hash"] == "pass"
+    assert verification["semantic_checks"]["case_provenance_schema"] == "pass"
     assert verification["semantic_checks"]["case_metric_columns"] == "pass"
     assert verification["semantic_checks"]["stress_schema"] == "pass"
     assert verification["stress_status"] in {"pass", "warning"}
@@ -1587,7 +1591,13 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert manifest["candidate_diagnostics_hash"] == verification["candidate_diagnostics_hash"]
         first_case = candidate_diagnostics["cases"][0]
         assert first_case["pareto_quality"]["quality_schema"] == "agentic-rag-pareto-quality-v1"
+        assert first_case["case_provenance"]["provenance_schema"] == "agentic-rag-optimizer-benchmark-case-provenance-v1"
+        assert len(first_case["case_provenance"]["case_fingerprint"]) == 64
         assert first_case["recommendation_audit"]["pareto_quality_hash"] == first_case["pareto_quality"]["quality_hash"]
+        assert "case_fingerprint" in case_metrics
+        assert "target_hash" in case_metrics
+        assert "cds_sha256" in case_metrics
+        assert "protein_sha256" in case_metrics
         assert "recommendation_max_regret" in case_metrics
         assert "recommendation_tradeoff_count" in case_metrics
         assert "pareto_quality_hash" in case_metrics

@@ -286,6 +286,11 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["pareto_quality_hash"] = "fail"
     else:
         semantic_checks["pareto_quality_hash"] = "pass"
+    if any((case.get("case_provenance") or {}).get("provenance_schema") != "agentic-rag-optimizer-benchmark-case-provenance-v1" for case in diag_cases):
+        semantic_errors.append("candidate_diagnostics.json is missing benchmark case provenance metadata.")
+        semantic_checks["case_provenance_schema"] = "fail"
+    else:
+        semantic_checks["case_provenance_schema"] = "pass"
 
     if any(row.get("status") not in {"pass", "warning", "fail"} for row in metric_rows):
         semantic_errors.append("case_metrics.csv contains invalid case status values.")
@@ -298,6 +303,10 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
 
     required_metric_columns = {
         "case_id",
+        "case_fingerprint",
+        "target_hash",
+        "cds_sha256",
+        "protein_sha256",
         "status",
         "candidate_count",
         "unique_cds_count",
@@ -365,6 +374,10 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
 def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
     fields = [
         "case_id",
+        "case_fingerprint",
+        "target_hash",
+        "cds_sha256",
+        "protein_sha256",
         "status",
         "candidate_count",
         "feasible_count",
@@ -391,9 +404,14 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
     writer.writeheader()
     for result in results:
         metrics = result.get("metrics") or {}
+        provenance = result.get("case_provenance") or {}
         writer.writerow(
             {
                 "case_id": result.get("case_id"),
+                "case_fingerprint": provenance.get("case_fingerprint"),
+                "target_hash": provenance.get("target_hash"),
+                "cds_sha256": provenance.get("cds_sha256"),
+                "protein_sha256": provenance.get("protein_sha256"),
                 "status": result.get("status"),
                 "candidate_count": metrics.get("candidate_count"),
                 "feasible_count": metrics.get("feasible_count"),
@@ -426,6 +444,7 @@ def _candidate_diagnostics(results: list[dict[str, Any]]) -> dict[str, Any]:
         cases.append(
             {
                 "case_id": result.get("case_id"),
+                "case_provenance": result.get("case_provenance") or {},
                 "status": result.get("status"),
                 "run_id": result.get("run_id"),
                 "recommended_candidate_id": result.get("recommended_candidate_id"),

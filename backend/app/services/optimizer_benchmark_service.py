@@ -60,11 +60,47 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         "errors": errors,
         "warnings": warnings,
         "thresholds": thresholds,
+        "case_provenance": _case_provenance(case),
         "metrics": metrics,
         "run_id": design["run_id"],
         "recommended_candidate_id": (design.get("recommended_candidate") or {}).get("candidate_id"),
         "candidate_diagnostics": design.get("candidate_diagnostics", {}),
     }
+
+
+def _case_provenance(case: dict[str, Any]) -> dict[str, Any]:
+    cds = str(case.get("cds") or "")
+    target = case.get("target") or {}
+    thresholds = _thresholds(case)
+    optimization_settings = case.get("optimization_settings") or {}
+    provenance = {
+        "provenance_schema": "agentic-rag-optimizer-benchmark-case-provenance-v1",
+        "case_id": case.get("case_id"),
+        "description_hash": _hash_payload(case.get("description") or ""),
+        "cds_sha256": sha256(cds.encode("utf-8")).hexdigest(),
+        "protein_sha256": sha256(translate(cds).encode("utf-8")).hexdigest() if cds else None,
+        "target_hash": _hash_payload(target),
+        "thresholds_hash": _hash_payload(thresholds),
+        "optimization_settings_hash": _hash_payload(optimization_settings),
+        "target": {
+            "gene": target.get("gene"),
+            "species": target.get("species"),
+            "brain_region": target.get("brain_region"),
+            "cell_type": target.get("cell_type"),
+            "modality": target.get("modality"),
+        },
+    }
+    provenance["case_fingerprint"] = _hash_payload(
+        {
+            "case_id": provenance["case_id"],
+            "cds_sha256": provenance["cds_sha256"],
+            "protein_sha256": provenance["protein_sha256"],
+            "target_hash": provenance["target_hash"],
+            "thresholds_hash": provenance["thresholds_hash"],
+            "optimization_settings_hash": provenance["optimization_settings_hash"],
+        }
+    )
+    return provenance
 
 
 def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float) -> dict[str, Any]:
@@ -298,6 +334,7 @@ def _semantic_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "errors": result.get("errors") or [],
                 "warnings": result.get("warnings") or [],
                 "thresholds": result.get("thresholds") or {},
+                "case_provenance": result.get("case_provenance") or {},
                 "metrics": metrics,
                 "recommended_candidate_id": result.get("recommended_candidate_id"),
                 "candidate_diagnostics": result.get("candidate_diagnostics") or {},

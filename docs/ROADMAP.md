@@ -33,7 +33,7 @@ Implemented:
 - fixed optimizer benchmark suite for constraint violation rate, codon diversity, protein preservation, composite-quality delta, and approximate hypervolume
 - optimizer stress gates for AAV budget, sequence-policy motifs, secondary-structure proxy, low complexity, rare-codon clusters, diversity, and recommendation regret
 - optimizer diagnostics for objective inventory, benchmark quality bands, weak cases, runtime, and tuning recommendations
-- optimizer benchmark audit bundles with case metrics CSV, candidate diagnostics, config snapshots, structured manifest, archive storage, and semantic cross-checks
+- optimizer benchmark audit bundles with case metrics CSV, benchmark case provenance fingerprints, candidate diagnostics, config snapshots, structured manifest, archive storage, and semantic cross-checks
 - configurable RNA folding backend boundary with ViennaRNA RNAfold status/evaluation endpoints, optimizer diagnostics evidence, benchmark ZIP evidence, and deployment audit gates
 - detailed sequence-policy audit for polyA signal, restriction-site, and splice donor/acceptor proxy findings
 - file-level SHA-256 artifact manifests for run, job, and data snapshot exports
