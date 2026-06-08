@@ -500,6 +500,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert len(audit["evidence"]["optimizer_diagnostics"]["benchmark"]["results_hash"]) == 64
     assert verification["status"] in {"pass", "warning"}
     assert verification["semantic_checks"]["summary_recomputed"] == "pass"
+    assert verification["semantic_checks"]["markdown_recomputed"] == "pass"
     assert verification["semantic_checks"]["check_detail_hashes"] == "pass"
     assert verification["semantic_checks"]["deployment_readiness_evidence"] == "pass"
     assert verification["semantic_checks"]["promotion_summary_evidence"] == "pass"
@@ -578,6 +579,27 @@ def test_production_audit_bundle_rejects_tampered_action_detail_hash() -> None:
     verification = verify_production_audit_bundle(buffer.getvalue())
     assert verification["semantic_checks"]["required_action_detail_hashes"] == "fail"
     assert "detail_hash" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_tampered_markdown() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.md":
+                tampered.writestr(item, "# Tampered Production Audit Report\n")
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["markdown_recomputed"] == "fail"
+    assert "production_audit.md" in " ".join(verification["errors"])
 
 
 def test_production_audit_bundle_rejects_tampered_check_detail_hash() -> None:

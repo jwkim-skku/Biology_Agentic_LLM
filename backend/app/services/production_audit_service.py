@@ -403,6 +403,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
     try:
         with ZipFile(BytesIO(bundle), "r") as archive:
             audit = json.loads(archive.read("production_audit.json").decode("utf-8"))
+            markdown = archive.read("production_audit.md").decode("utf-8")
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
             production_gap_summary = json.loads(archive.read("evidence/production_gap_summary.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
@@ -431,6 +432,13 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 not check_detail_mismatches,
                 "production audit check detail_hash values do not match embedded evidence: "
                 + ", ".join(check_detail_mismatches[:8]),
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "markdown_recomputed",
+                markdown == render_production_audit_markdown(audit),
+                "production_audit.md does not match the rendered production audit payload.",
             )
             _record_semantic_check(
                 semantic_checks,
