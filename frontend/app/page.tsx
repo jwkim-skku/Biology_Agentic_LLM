@@ -1570,6 +1570,16 @@ type RagDiagnosticsStatus = {
     fallback_active: boolean;
     embedding_model: string;
     embedding_dimensions: number;
+    model_fingerprint_hash?: string | null;
+    model_fingerprint?: {
+      fingerprint_schema: string;
+      requested_backend: string;
+      active_backend: string;
+      fallback_active: boolean;
+      embedding_model: string;
+      embedding_dimensions: number;
+      production_candidate: boolean;
+    };
     production_ready: boolean;
     recommendation?: string;
     warnings?: string[];
@@ -3950,6 +3960,10 @@ export default function Dashboard() {
                 Embed request {ragDiagnostics?.embedding_backend?.requested_backend ?? "n/a"} -&gt;{" "}
                 {ragDiagnostics?.embedding_backend?.active_backend ?? "n/a"} / fallback{" "}
                 {ragDiagnostics?.embedding_backend?.fallback_active ? "yes" : "no"}
+              </span>
+              <span>
+                Embed fingerprint {(ragDiagnostics?.embedding_backend?.model_fingerprint_hash ?? "").slice(0, 10) || "n/a"} /{" "}
+                {ragDiagnostics?.embedding_backend?.model_fingerprint?.production_candidate ? "candidate" : "dev"}
               </span>
               <span>
                 OpenAI key {ragDiagnostics?.embedding_backend?.openai?.api_key_configured ? "set" : "not set"} / dims{" "}

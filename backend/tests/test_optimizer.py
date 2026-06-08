@@ -286,6 +286,9 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         configured = embeddings.rag_embedding_status()
         assert configured["active_backend"] == "openai"
         assert configured["production_ready"] is True
+        assert configured["model_fingerprint"]["active_backend"] == "openai"
+        assert configured["model_fingerprint"]["embedding_model"] == "text-embedding-3-small"
+        assert len(configured["model_fingerprint_hash"]) == 64
         assert configured["openai"]["budget"]["budget_usd"] == 100.0
         assert configured["openai"]["budget"]["price_configured"] is True
         cache_path = embeddings._openai_cache_path()
@@ -311,6 +314,10 @@ def test_openai_embedding_backend_is_opt_in_and_mockable() -> None:
         assert cache_status["estimated_cost_usd"] > 0
         assert cache_status["missing_usage_entries"] == 0
         assert cache_status["invalid_entries"] == 0
+        refreshed_status = embeddings.rag_embedding_status()
+        assert refreshed_status["model_fingerprint"]["openai"]["cache_entries"] == 1
+        assert refreshed_status["model_fingerprint"]["openai"]["cache_entry_keys_hash"] == cache_status["entry_keys_hash"]
+        assert len(refreshed_status["model_fingerprint_hash"]) == 64
         budget = embeddings.rag_embedding_status()["openai"]["budget"]
         assert budget["estimated_spend_usd"] == cache_status["estimated_cost_usd"]
         assert budget["estimated_remaining_usd"] < 100.0
@@ -545,6 +552,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "## Readiness Evidence" in bundled_markdown
         assert "Agent memory aggregate" in bundled_markdown
         assert "Object-store lifecycle" in bundled_markdown
+        assert "RAG embedding fingerprint" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))

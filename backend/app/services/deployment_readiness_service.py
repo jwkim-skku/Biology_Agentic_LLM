@@ -193,6 +193,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "fallback_active": embedding["fallback_active"],
                 "embedding_model": embedding["embedding_model"],
                 "embedding_dimensions": embedding["embedding_dimensions"],
+                "model_fingerprint_hash": embedding.get("model_fingerprint_hash"),
+                "model_fingerprint": embedding.get("model_fingerprint", {}),
                 "production_requirements": {
                     "accepted_backends": ["sentence_transformers", "openai"],
                     "sentence_transformers": {

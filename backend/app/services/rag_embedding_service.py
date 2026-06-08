@@ -53,6 +53,18 @@ def rag_embedding_status() -> dict[str, Any]:
     production_ready = active == "sentence_transformers" and not fallback_active
     if active == "openai":
         production_ready = not fallback_active and openai_budget["price_configured"] and openai_budget["budget_configured"] and openai_budget["within_budget"]
+    model_fingerprint = _model_fingerprint(
+        settings=settings,
+        requested=requested,
+        active=active,
+        fallback_active=fallback_active,
+        model=model,
+        dimensions=dimensions,
+        sentence_transformers_available=sentence_transformers_available,
+        openai_configured=openai_configured,
+        openai_budget=openai_budget,
+        openai_cache=openai_cache,
+    )
     return {
         "embedding_schema": RAG_EMBEDDING_SCHEMA,
         "status": "warning" if warnings else "pass",
@@ -61,6 +73,8 @@ def rag_embedding_status() -> dict[str, Any]:
         "fallback_active": fallback_active,
         "embedding_model": model,
         "embedding_dimensions": dimensions,
+        "model_fingerprint": model_fingerprint,
+        "model_fingerprint_hash": _hash_json(model_fingerprint),
         "sentence_transformers": {
             "package_available": sentence_transformers_available,
             "configured_model": settings.rag_embedding_model,
@@ -334,6 +348,46 @@ def _openai_cache_key(text: str, *, model: str, dimensions: int) -> str:
 def _hash_json(payload: Any) -> str:
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _model_fingerprint(
+    *,
+    settings: Any,
+    requested: str,
+    active: str,
+    fallback_active: bool,
+    model: str,
+    dimensions: int,
+    sentence_transformers_available: bool,
+    openai_configured: bool,
+    openai_budget: dict[str, Any],
+    openai_cache: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "fingerprint_schema": "agentic-rag-embedding-model-fingerprint-v1",
+        "requested_backend": requested,
+        "active_backend": active,
+        "fallback_active": fallback_active,
+        "embedding_model": model,
+        "embedding_dimensions": dimensions,
+        "production_candidate": active in {"sentence_transformers", "openai"} and not fallback_active,
+        "sentence_transformers": {
+            "package_available": sentence_transformers_available,
+            "configured_model": settings.rag_embedding_model,
+            "model_load_policy": "local_files_only",
+        },
+        "openai": {
+            "api_key_configured": openai_configured,
+            "base_url": settings.openai_embedding_base_url,
+            "configured_model": settings.rag_embedding_model,
+            "price_configured": openai_budget.get("price_configured"),
+            "budget_configured": openai_budget.get("budget_configured"),
+            "within_budget": openai_budget.get("within_budget"),
+            "cache_file_sha256": openai_cache.get("file_sha256"),
+            "cache_entry_keys_hash": openai_cache.get("entry_keys_hash"),
+            "cache_entries": openai_cache.get("entries"),
+        },
+    }
 
 
 def _openai_budget_status(settings: Any, cache: dict[str, Any]) -> dict[str, Any]:
