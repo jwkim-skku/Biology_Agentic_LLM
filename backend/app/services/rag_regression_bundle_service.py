@@ -29,6 +29,24 @@ REQUIRED_RAG_REGRESSION_FILES = {
     "structured_manifest.json",
 }
 
+REQUIRED_CASE_METRIC_COLUMNS = {
+    "case_id",
+    "status",
+    "result_count",
+    "recall_at_k",
+    "ndcg_at_k",
+    "source_coverage",
+    "collection_coverage",
+    "missing_documents",
+    "missing_collections",
+    "missing_sources",
+    "missing_terms",
+    "top_document_id",
+    "top_score",
+    "errors",
+    "warnings",
+}
+
 
 def build_rag_regression_bundle() -> bytes:
     regression = evaluate_rag_regression()
@@ -37,6 +55,7 @@ def build_rag_regression_bundle() -> bytes:
     rag = rag_status()
     source_provenance = _source_provenance_summary(regression.get("results") or [])
     source_provenance_json = _json(source_provenance)
+    case_metrics_csv = _case_metrics_csv(regression.get("results") or [])
     metadata = {
         "bundle_schema": "agentic-rag-regression-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -45,6 +64,7 @@ def build_rag_regression_bundle() -> bytes:
         "cases_hash": regression.get("cases_hash"),
         "results_hash": regression.get("results_hash"),
         "quality_summary_hash": regression.get("quality_summary_hash"),
+        "case_metrics_hash": _hash_text(case_metrics_csv),
         "quality_status": (regression.get("quality_summary") or {}).get("status"),
         "source_provenance_summary_hash": _hash_payload(source_provenance),
         "source_provenance_case_count": source_provenance.get("case_count"),
@@ -59,7 +79,7 @@ def build_rag_regression_bundle() -> bytes:
         bundle.writestr("bundle_manifest.json", _json(metadata))
         bundle.writestr("regression.json", _json(regression))
         bundle.writestr("cases.json", _json(cases))
-        bundle.writestr("case_metrics.csv", _case_metrics_csv(regression.get("results") or []))
+        bundle.writestr("case_metrics.csv", case_metrics_csv)
         bundle.writestr("weak_cases.json", _json(_weak_cases(regression.get("results") or [])))
         bundle.writestr("quality_summary.json", _json(regression.get("quality_summary") or {}))
         bundle.writestr("source_provenance_summary.json", source_provenance_json)
@@ -108,11 +128,16 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
                     "rag_status": _read_json(archive, "rag_status.json"),
                     "structured_manifest": _read_json(archive, "structured_manifest.json"),
                 }
-                metric_rows = list(csv.DictReader(StringIO(archive.read("case_metrics.csv").decode("utf-8"))))
+                case_metrics_text = archive.read("case_metrics.csv").decode("utf-8")
+                metric_reader = csv.DictReader(StringIO(case_metrics_text))
+                metric_rows = list(metric_reader)
+                metric_columns = set(metric_reader.fieldnames or [])
     except (BadZipFile, json.JSONDecodeError, UnicodeDecodeError, csv.Error) as exc:
         semantic_errors.append(f"Invalid RAG regression bundle: {exc}")
         payloads = {}
         metric_rows = []
+        metric_columns = set()
+        case_metrics_text = ""
 
     manifest = payloads.get("bundle_manifest") or {}
     regression = payloads.get("regression") or {}
@@ -125,6 +150,8 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
     quality_summary = payloads.get("quality_summary") or {}
     source_provenance = payloads.get("source_provenance_summary") or {}
     metadata = base.get("bundle_metadata") or {}
+    case_metrics_text = locals().get("case_metrics_text", "")
+    metric_columns = locals().get("metric_columns", set())
 
     _expect_equal(
         semantic_checks,
@@ -151,6 +178,22 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
         case_count,
         "case_metrics.csv row count does not match regression.json case_count.",
     )
+    missing_metric_columns = sorted(REQUIRED_CASE_METRIC_COLUMNS - set(metric_columns))
+    if missing_metric_columns:
+        semantic_errors.append(f"case_metrics.csv is missing required columns: {', '.join(missing_metric_columns)}.")
+        semantic_checks["case_metric_columns"] = "fail"
+    else:
+        semantic_checks["case_metric_columns"] = "pass"
+    case_metric_hashes = {
+        str(value)
+        for value in [manifest.get("case_metrics_hash"), metadata.get("case_metrics_hash"), _hash_text(case_metrics_text)]
+        if value
+    }
+    if len(case_metric_hashes) != 1:
+        semantic_errors.append("RAG regression case_metrics_hash values are missing or disagree.")
+        semantic_checks["case_metrics_hash"] = "fail"
+    else:
+        semantic_checks["case_metrics_hash"] = "pass"
 
     case_hashes = {
         str(value)
@@ -300,6 +343,7 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
         "cases_hash": next(iter(case_hashes), None),
         "results_hash": next(iter(result_hashes), None),
         "quality_summary_hash": next(iter(quality_hashes), None),
+        "case_metrics_hash": next(iter(case_metric_hashes), None),
         "quality_status": quality_summary.get("status"),
         "source_provenance_summary_hash": next(iter(source_provenance_hashes), None),
         "source_provenance_case_count": source_provenance.get("case_count"),
@@ -459,3 +503,7 @@ def _json(payload: Any) -> str:
 
 def _hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _hash_text(text: str) -> str:
+    return sha256(text.encode("utf-8")).hexdigest()

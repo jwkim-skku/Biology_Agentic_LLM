@@ -572,6 +572,8 @@ def api_failures(name: str, details: Any) -> list[str]:
             "quality_summary_schema",
             "quality_summary_case_count",
             "quality_summary_status",
+            "case_metric_columns",
+            "case_metrics_hash",
             "source_provenance_summary_schema",
             "source_provenance_summary_consistency",
             "source_provenance_summary_hash",
@@ -581,6 +583,8 @@ def api_failures(name: str, details: Any) -> list[str]:
                 failures.append(f"RAG regression bundle does not verify {check}.")
         if not payload.get("quality_summary_hash"):
             failures.append("RAG regression bundle is missing quality_summary_hash.")
+        if not payload.get("case_metrics_hash"):
+            failures.append("RAG regression bundle is missing case_metrics_hash.")
         if not payload.get("source_provenance_summary_hash"):
             failures.append("RAG regression bundle is missing source_provenance_summary_hash.")
     if name == "optimizer_benchmark_bundle_verify":
@@ -834,7 +838,14 @@ def api_failures(name: str, details: Any) -> list[str]:
         checked_count = int(payload.get("checked_count") or 0)
         if checked_count and int(latest.get("case_count") or 0) < 1:
             failures.append("latest RAG regression archive is missing case_count")
-        for hash_field in ["cases_hash", "results_hash", "quality_summary_hash", "source_provenance_summary_hash", "structured_manifest_hash"]:
+        for hash_field in [
+            "cases_hash",
+            "results_hash",
+            "quality_summary_hash",
+            "case_metrics_hash",
+            "source_provenance_summary_hash",
+            "structured_manifest_hash",
+        ]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest RAG regression archive is missing {hash_field}")
         if checked_count and latest.get("quality_status") not in {"pass", "warning", "fail"}:

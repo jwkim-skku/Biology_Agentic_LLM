@@ -44,6 +44,7 @@ from app.services.artifact_archive_service import (
     optimizer_benchmark_archive_summary,
     plan_artifact_retention,
     qc_bundle_archive_semantic_summary,
+    rag_regression_archive_summary,
     rag_vector_index_archive_summary,
     structured_import_archive_summary,
     verify_archived_artifact,
@@ -1101,6 +1102,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "quality_summary_schema": "pass",
                     "quality_summary_case_count": "pass",
                     "quality_summary_status": "pass",
+                    "case_metric_columns": "pass",
+                    "case_metrics_hash": "pass",
                     "source_provenance_summary_schema": "pass",
                     "source_provenance_summary_consistency": "pass",
                     "source_provenance_summary_hash": "pass",
@@ -1108,6 +1111,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 },
                 "results_hash": valid_hash,
                 "quality_summary_hash": valid_hash,
+                "case_metrics_hash": valid_hash,
                 "source_provenance_summary_hash": valid_hash,
             }
         },
@@ -1207,6 +1211,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     )
     assert "quality_summary_hash" in " ".join(rag_regression_failures)
     assert "quality_summary_schema" in " ".join(rag_regression_failures)
+    assert "case_metric_columns" in " ".join(rag_regression_failures)
+    assert "case_metrics_hash" in " ".join(rag_regression_failures)
     rag_eval_failures = module.api_failures(
         "rag_evaluation_bundle_verify",
         {"data": {"status": "pass", "semantic_status": "pass", "semantic_checks": {"evidence_sufficiency_schema": "pass"}}},
@@ -1414,6 +1420,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "cases_hash": valid_hash,
                         "results_hash": valid_hash,
                         "quality_summary_hash": valid_hash,
+                        "case_metrics_hash": valid_hash,
                         "source_provenance_summary_hash": valid_hash,
                         "source_provenance_case_count": 5,
                         "source_provenance_source_count": 4,
@@ -1434,6 +1441,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "cases_hash" in " ".join(rag_regression_archive_failures)
     assert "results_hash" in " ".join(rag_regression_archive_failures)
     assert "quality_summary_hash" in " ".join(rag_regression_archive_failures)
+    assert "case_metrics_hash" in " ".join(rag_regression_archive_failures)
     assert "source_provenance_summary_hash" in " ".join(rag_regression_archive_failures)
     assert "top_source_count" in " ".join(rag_regression_archive_failures)
     vector_index_failures = module.api_failures(
@@ -2264,12 +2272,15 @@ def test_rag_regression_bundle_verifies_result_hash() -> None:
     assert verification["semantic_checks"]["quality_summary_schema"] == "pass"
     assert verification["semantic_checks"]["quality_summary_case_count"] == "pass"
     assert verification["semantic_checks"]["quality_summary_status"] == "pass"
+    assert verification["semantic_checks"]["case_metric_columns"] == "pass"
+    assert verification["semantic_checks"]["case_metrics_hash"] == "pass"
     assert verification["semantic_checks"]["source_provenance_summary_schema"] == "pass"
     assert verification["semantic_checks"]["source_provenance_summary_consistency"] == "pass"
     assert verification["semantic_checks"]["source_provenance_summary_hash"] == "pass"
     assert verification["semantic_checks"]["source_provenance_case_count"] == "pass"
     assert len(verification["results_hash"]) == 64
     assert len(verification["quality_summary_hash"]) == 64
+    assert len(verification["case_metrics_hash"]) == 64
     assert len(verification["source_provenance_summary_hash"]) == 64
     assert verification["quality_status"] == "pass"
     assert verification["source_provenance_case_count"] == verification["case_count"]
@@ -2282,8 +2293,10 @@ def test_rag_regression_bundle_verifies_result_hash() -> None:
         regression = json.loads(archive.read("regression.json"))
         quality = json.loads(archive.read("quality_summary.json"))
         source_provenance = json.loads(archive.read("source_provenance_summary.json"))
+        case_metrics = archive.read("case_metrics.csv").decode("utf-8")
         assert manifest["results_hash"] == regression["results_hash"] == verification["results_hash"]
         assert manifest["quality_summary_hash"] == regression["quality_summary_hash"] == verification["quality_summary_hash"]
+        assert manifest["case_metrics_hash"] == verification["case_metrics_hash"]
         assert manifest["source_provenance_summary_hash"] == verification["source_provenance_summary_hash"]
         assert manifest["source_provenance_case_count"] == verification["source_provenance_case_count"]
         assert quality["quality_summary_schema"] == "agentic-rag-regression-quality-summary-v1"
@@ -2291,6 +2304,24 @@ def test_rag_regression_bundle_verifies_result_hash() -> None:
         assert source_provenance["provenance_schema"] == "agentic-rag-regression-source-provenance-summary-v1"
         assert source_provenance["case_count"] == verification["case_count"]
         assert source_provenance["cases"]
+        assert "missing_terms" in case_metrics
+        assert "top_document_id" in case_metrics
+    archived = archive_artifact_bundle(
+        bundle,
+        action="unit_test_rag_regression_bundle",
+        resource_type="rag_regression",
+        resource_id=str(verification.get("results_hash") or "rag_regression"),
+        filename="unit_test_rag_regression_bundle.zip",
+        metadata={"verification_status": verification["status"]},
+    )
+    semantic = archived["metadata"]["rag_regression_semantic_verification"]
+    assert semantic["case_metrics_hash"] == verification["case_metrics_hash"]
+    summary = rag_regression_archive_summary(limit=5, verify_files=False)
+    assert any(
+        item["artifact_id"] == archived["artifact_id"]
+        and item["case_metrics_hash"] == verification["case_metrics_hash"]
+        for item in summary["latest_artifacts"]
+    )
 
 
 def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
