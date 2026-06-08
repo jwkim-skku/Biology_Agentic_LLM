@@ -765,6 +765,11 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert rag_evaluation_archive_gate["details"]["status"] in {"pass", "warning"}
     assert rag_evaluation_archive_gate["details"]["latest_source_provenance_hash"] is None or len(rag_evaluation_archive_gate["details"]["latest_source_provenance_hash"]) == 64
     assert rag_evaluation_archive_gate["details"]["latest_source_provenance_count"] is None or rag_evaluation_archive_gate["details"]["latest_source_provenance_count"] >= 1
+    workflow_trace_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "workflow_trace_archive_semantics")
+    assert workflow_trace_archive_gate["details"]["status"] in {"pass", "warning"}
+    assert workflow_trace_archive_gate["details"]["latest_trace_step_count"] is None or workflow_trace_archive_gate["details"]["latest_trace_step_count"] >= 1
+    assert workflow_trace_archive_gate["details"]["latest_trace_hash"] is None or len(workflow_trace_archive_gate["details"]["latest_trace_hash"]) == 64
+    assert workflow_trace_archive_gate["details"]["latest_task_type"] is None or workflow_trace_archive_gate["details"]["latest_task_type"]
     vector_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_vector_index_archive_semantics")
     assert vector_archive_gate["details"]["status"] in {"pass", "warning"}
     assert vector_archive_gate["details"]["latest_chunk_count"] is None or vector_archive_gate["details"]["latest_chunk_count"] >= 1

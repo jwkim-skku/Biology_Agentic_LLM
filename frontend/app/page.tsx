@@ -4304,6 +4304,11 @@ export default function Dashboard() {
               <span>RAG metrics {deploymentGateHash(deploymentReadiness, "rag_regression_archive_semantics", "latest_case_metrics_hash")}</span>
               <span>Bench summary {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommendation_summary_hash")}</span>
               <span>Bench folding {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
+              <span>
+                Trace steps {deploymentGateDetail(deploymentReadiness, "workflow_trace_archive_semantics", "latest_trace_step_count")} /
+                task {deploymentGateDetail(deploymentReadiness, "workflow_trace_archive_semantics", "latest_task_type")}
+              </span>
+              <span>Trace hash {deploymentGateHash(deploymentReadiness, "workflow_trace_archive_semantics", "latest_trace_hash")}</span>
               <span>tRNA prior {deploymentTrnaCaveatCount(deploymentReadiness)}</span>
             </div>
             <div className="metrics-list">
