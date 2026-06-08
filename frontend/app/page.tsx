@@ -89,6 +89,7 @@ type EvidenceRecord = {
     facet_score?: number;
     field_match_score?: number;
     source_priority_score?: number;
+    rank_evidence_hash?: string;
     embedding_model: string;
     retrieval_model?: string;
   };
@@ -214,6 +215,8 @@ type QcReport = {
       source_count: number;
       collection_count: number;
       high_confidence_count: number;
+      rank_evidence_count?: number | null;
+      rank_evidence_hash?: string | null;
       retrieval_model?: string | null;
       embedding_model?: string | null;
       top_sources?: Array<{ source: string; records: number }>;
@@ -894,6 +897,8 @@ type ProductionAuditStatus = {
         retrieval_quality_source_count?: number | null;
         retrieval_quality_collection_count?: number | null;
         retrieval_quality_high_confidence_count?: number | null;
+        retrieval_quality_rank_evidence_count?: number | null;
+        retrieval_quality_rank_evidence_hash?: string | null;
         retrieval_model?: string | null;
         embedding_model?: string | null;
         checked_files?: number;
@@ -1249,6 +1254,8 @@ type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     retrieval_quality_source_count?: number | null;
     retrieval_quality_collection_count?: number | null;
     retrieval_quality_high_confidence_count?: number | null;
+    retrieval_quality_rank_evidence_count?: number | null;
+    retrieval_quality_rank_evidence_hash?: string | null;
     retrieval_model?: string | null;
     embedding_model?: string | null;
     request_payload_status?: string | null;
@@ -4232,6 +4239,10 @@ export default function Dashboard() {
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
               <span>QC folding {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_status")}</span>
               <span>QC fold hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
+              <span>
+                QC rank evidence {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_retrieval_quality_rank_evidence_count")} /
+                hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_retrieval_quality_rank_evidence_hash")}
+              </span>
               <span>QC formats {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_report_formats_summary_hash")}</span>
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>
@@ -4345,6 +4356,12 @@ export default function Dashboard() {
               <span>
                 QC retrieval {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_status ?? "n/a"} /
                 sources {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_source_count ?? "n/a"}
+              </span>
+              <span>
+                QC rank evidence {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_rank_evidence_count ?? "n/a"} /
+                hash{" "}
+                {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_rank_evidence_hash?.slice(0, 10) ??
+                  "n/a"}
               </span>
               <span>
                 QC data {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.data_quality_status ?? "n/a"} /
@@ -4648,6 +4665,10 @@ export default function Dashboard() {
                 Retrieval {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_status ?? "n/a"} / sources{" "}
                 {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_source_count ?? "n/a"} / high{" "}
                 {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_high_confidence_count ?? "n/a"}
+              </span>
+              <span>
+                Rank evidence {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_rank_evidence_count ?? "n/a"} / hash{" "}
+                {qcBundleSemantics?.latest_artifacts?.[0]?.retrieval_quality_rank_evidence_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Data {qcBundleSemantics?.latest_artifacts?.[0]?.data_quality_status ?? "n/a"} / stress{" "}
@@ -5187,6 +5208,14 @@ function QcReportPanel({ report }: { report: QcReport }) {
           <div>
             <span>High confidence</span>
             <strong>{retrievalQuality.high_confidence_count ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Rank evidence</span>
+            <strong>{retrievalQuality.rank_evidence_count ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Rank hash</span>
+            <strong>{retrievalQuality.rank_evidence_hash?.slice(0, 10) ?? "n/a"}</strong>
           </div>
           <div>
             <span>Top source</span>

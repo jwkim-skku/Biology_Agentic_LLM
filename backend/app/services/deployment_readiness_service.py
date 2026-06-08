@@ -414,6 +414,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_recommended_folding_backend": (qc_archive.get("latest_artifacts") or [{}])[0].get("recommended_folding_backend"),
                 "latest_retrieval_quality_status": (qc_archive.get("latest_artifacts") or [{}])[0].get("retrieval_quality_status"),
                 "latest_retrieval_quality_source_count": (qc_archive.get("latest_artifacts") or [{}])[0].get("retrieval_quality_source_count"),
+                "latest_retrieval_quality_rank_evidence_count": (qc_archive.get("latest_artifacts") or [{}])[0].get("retrieval_quality_rank_evidence_count"),
+                "latest_retrieval_quality_rank_evidence_hash": (qc_archive.get("latest_artifacts") or [{}])[0].get("retrieval_quality_rank_evidence_hash"),
                 "latest_data_quality_status": (qc_archive.get("latest_artifacts") or [{}])[0].get("data_quality_status"),
                 "latest_optimizer_stress_status": (qc_archive.get("latest_artifacts") or [{}])[0].get("optimizer_stress_status"),
                 "latest_objective_count": (qc_archive.get("latest_artifacts") or [{}])[0].get("objective_count"),

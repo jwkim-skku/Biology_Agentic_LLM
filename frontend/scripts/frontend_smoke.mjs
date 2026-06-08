@@ -175,6 +175,7 @@ async function main() {
     assert(/QC archive\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC archive gate was not rendered: ${deploymentText}`);
     assert(/QC folding\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC folding status was not rendered: ${deploymentText}`);
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC folding hash was not rendered: ${deploymentText}`);
+    assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC rank evidence was not rendered: ${deploymentText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness import audit gate was not rendered: ${deploymentText}`);
     assert(/tRNA prior\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness tRNA prior caveat count was not rendered: ${deploymentText}`);
     const deploymentResponse = apiResponses.find((item) => item.url === `${API_BASE}/deployment/readiness`);
@@ -185,6 +186,7 @@ async function main() {
     assert(/QC archive\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit QC archive status was not rendered: ${productionAuditText}`);
     assert(/QC folding\s+(pass|warning|fail|n\/a)\s+\/\s+(\w+|n\/a)/.test(productionAuditText), `Production audit QC folding status was not rendered: ${productionAuditText}`);
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC folding hash was not rendered: ${productionAuditText}`);
+    assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC rank evidence was not rendered: ${productionAuditText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit import archive status was not rendered: ${productionAuditText}`);
     assert(/QC semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit QC semantic counts were not rendered: ${productionAuditText}`);
     assert(/Import semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit import semantic counts were not rendered: ${productionAuditText}`);
@@ -199,6 +201,7 @@ async function main() {
     assert(/Request\s+(pass|fail|n\/a)\s+\/\s+target\s+(\d+\s+pass\s+\/\s+\d+\s+fail|n\/a)/.test(archiveText), `QC request provenance summary was not rendered: ${archiveText}`);
     assert(/Folding\s+(pass|warning|fail|n\/a)\s+\/\s+(\w+|n\/a)/.test(archiveText), `QC archive folding status was not rendered: ${archiveText}`);
     assert(/Folding hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `QC archive folding hash was not rendered: ${archiveText}`);
+    assert(/Rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `QC archive rank evidence was not rendered: ${archiveText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `Structured import audit summary was not rendered: ${archiveText}`);
     assert(/RAG eval archive\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `RAG evaluation archive summary was not rendered: ${archiveText}`);
     assert(/Source prov\s+([a-f0-9]{10}|n\/a)\s+\/\s+sources\s+(\d+|n\/a)\s+\/\s+snapshots\s+(\d+|n\/a)/.test(archiveText), `RAG source provenance archive summary was not rendered: ${archiveText}`);

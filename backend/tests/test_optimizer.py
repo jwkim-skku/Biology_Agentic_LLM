@@ -704,6 +704,8 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     ]:
         assert qc_archive_gate["details"][field] is None or len(qc_archive_gate["details"][field]) == 64
     assert qc_archive_gate["details"]["latest_retrieval_quality_status"] in {None, "pass", "warning"}
+    assert qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_count"] is None or qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_count"] >= 1
+    assert qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_hash"] is None or len(qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_hash"]) == 64
     assert qc_archive_gate["details"]["latest_data_quality_status"] in {None, "pass", "warning"}
     assert qc_archive_gate["details"]["latest_optimizer_stress_status"] in {None, "pass", "warning"}
     assert qc_archive_gate["details"]["latest_objective_count"] is None or qc_archive_gate["details"]["latest_objective_count"] >= 1
