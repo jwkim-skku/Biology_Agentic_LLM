@@ -896,6 +896,10 @@ type ProductionAuditStatus = {
         record_count?: number | null;
         records_hash?: string | null;
         records_csv_hash?: string | null;
+        record_source_summary_hash?: string | null;
+        dataset_count?: number | null;
+        release_count?: number | null;
+        source_file_count?: number | null;
         release_handoff_hash?: string | null;
         structured_manifest_hash?: string | null;
         rag_structured_manifest_hash?: string | null;
@@ -1238,6 +1242,10 @@ type DataReleaseArchiveSemanticSummary = ArchiveSemanticFreshness & {
     record_count?: number | null;
     records_hash?: string | null;
     records_csv_hash?: string | null;
+    record_source_summary_hash?: string | null;
+    dataset_count?: number | null;
+    release_count?: number | null;
+    source_file_count?: number | null;
     release_handoff_hash?: string | null;
     structured_manifest_hash?: string | null;
     rag_structured_manifest_hash?: string | null;
@@ -4285,6 +4293,12 @@ export default function Dashboard() {
                 CSV {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
+                Release source{" "}
+                {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.record_source_summary_hash?.slice(0, 10) ?? "n/a"} /
+                datasets {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.dataset_count ?? "n/a"} / files{" "}
+                {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.source_file_count ?? "n/a"}
+              </span>
+              <span>
                 Release handoff{" "}
                 {productionAudit?.evidence?.data_release_archive_semantics?.latest_artifacts?.[0]?.release_handoff_hash?.slice(0, 10) ?? "n/a"}
               </span>
@@ -4582,6 +4596,11 @@ export default function Dashboard() {
               <span>
                 Record hash {dataReleaseSemantics?.latest_artifacts?.[0]?.records_hash?.slice(0, 10) ?? "n/a"} / CSV{" "}
                 {dataReleaseSemantics?.latest_artifacts?.[0]?.records_csv_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Source summary {dataReleaseSemantics?.latest_artifacts?.[0]?.record_source_summary_hash?.slice(0, 10) ?? "n/a"} / datasets{" "}
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.dataset_count ?? "n/a"} / files{" "}
+                {dataReleaseSemantics?.latest_artifacts?.[0]?.source_file_count ?? "n/a"}
               </span>
               <span>Handoff hash {dataReleaseSemantics?.latest_artifacts?.[0]?.release_handoff_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>

@@ -12,7 +12,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - RAG diagnostics for corpus/source distribution, reproducible chunking policy, token and embedding health, regression macro metrics, source-provenance regression evidence, weak-case surfacing, and operational recommendations.
 - Manifested RAG evaluation ZIP bundles with retrieval trace, source provenance hashes, score CSV, retrieved chunks JSONL, RAG status, structured manifest, artifact verification, and semantic cross-checks.
 - Data catalog and refresh API for reproducible GTEx/Allen reference panel ingestion.
-- Data provenance audit for source hashes, release metadata, RAG/document coverage, and refresh history.
+- Data provenance and release-bundle audit for source hashes, dataset/source-file summary hashes, release metadata, RAG/document coverage, and refresh history.
 - Production caveat tracking for low-confidence or placeholder tRNA/codon-availability priors so seed matrices cannot be mistaken for release-pinned quantitative data.
 - Baseline audit recording for local seed/ingested data so reproducibility checks can start before a live external refresh.
 - Data lockfile support for pinning and drift-checking a reproducible data/RAG/document state.

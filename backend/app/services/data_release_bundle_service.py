@@ -41,6 +41,7 @@ REQUIRED_DATA_RELEASE_FILES = {
     "data_release_lock_persisted.json",
     "rag_status.json",
     "refresh_log.json",
+    "record_source_summary.json",
     "records.jsonl",
     "records.csv",
 }
@@ -56,6 +57,8 @@ def build_data_release_bundle() -> bytes:
     trna_caveats = provenance.get("trna_prior_caveats") or {}
     records_jsonl = _records_jsonl(records)
     records_csv = _records_csv(records)
+    record_source_summary = _record_source_summary(records)
+    record_source_summary_json = _json(record_source_summary)
     rag_index_hash = _file_sha256(RAG_INDEX_PATH) if RAG_INDEX_PATH.exists() else None
     metadata = {
         "bundle_schema": RELEASE_BUNDLE_SCHEMA,
@@ -66,6 +69,10 @@ def build_data_release_bundle() -> bytes:
         "record_count": len(records),
         "records_hash": _hash_text(records_jsonl),
         "records_csv_hash": _hash_text(records_csv),
+        "record_source_summary_hash": _hash_payload(record_source_summary),
+        "dataset_count": record_source_summary.get("dataset_count"),
+        "release_count": record_source_summary.get("release_count"),
+        "source_file_count": record_source_summary.get("source_file_count"),
         "structured_file_count": len(manifest.get("files") or []),
         "external_snapshot_reference_count": len(_external_snapshot_paths(records)),
         "quality_status": quality.get("status"),
@@ -94,6 +101,7 @@ def build_data_release_bundle() -> bytes:
         bundle.writestr("data_release_lock_persisted.json", _json(read_data_release_lock() or {}))
         bundle.writestr("rag_status.json", _json(rag))
         bundle.writestr("refresh_log.json", _json(refresh_log(limit=500)))
+        bundle.writestr("record_source_summary.json", record_source_summary_json)
         bundle.writestr("records.jsonl", records_jsonl)
         bundle.writestr("records.csv", records_csv)
         for source_path in _structured_source_files():
@@ -143,6 +151,7 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
     trna_caveats = provenance.get("trna_prior_caveats") or {}
     release_lock = payloads.get("data_release_lock.json") or {}
     rag = payloads.get("rag_status.json") or {}
+    record_source_summary = payloads.get("record_source_summary.json") or {}
 
     _expect_equal(
         semantic_checks,
@@ -249,6 +258,42 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         release_manifest.get("records_csv_hash"),
         row_evidence.get("records_csv_hash"),
         "release_manifest.json records_csv_hash does not match records.csv.",
+    )
+    expected_record_source_summary = _record_source_summary(row_evidence.get("records") or [])
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "record_source_summary_hash",
+        release_manifest.get("record_source_summary_hash"),
+        _hash_payload(record_source_summary),
+        "release_manifest.json record_source_summary_hash does not match record_source_summary.json.",
+    )
+    if record_source_summary.get("summary_schema") != "agentic-rag-data-release-record-source-summary-v1":
+        semantic_errors.append("record_source_summary.json summary_schema is invalid.")
+        semantic_checks["record_source_summary_schema"] = "fail"
+    elif record_source_summary != expected_record_source_summary:
+        semantic_errors.append("record_source_summary.json does not match records.jsonl.")
+        semantic_checks["record_source_summary_consistency"] = "fail"
+    else:
+        semantic_checks["record_source_summary_schema"] = "pass"
+        semantic_checks["record_source_summary_consistency"] = "pass"
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "record_source_summary_counts",
+        {
+            "record_count": release_manifest.get("record_count"),
+            "dataset_count": release_manifest.get("dataset_count"),
+            "release_count": release_manifest.get("release_count"),
+            "source_file_count": release_manifest.get("source_file_count"),
+        },
+        {
+            "record_count": record_source_summary.get("record_count"),
+            "dataset_count": record_source_summary.get("dataset_count"),
+            "release_count": record_source_summary.get("release_count"),
+            "source_file_count": record_source_summary.get("source_file_count"),
+        },
+        "release_manifest.json source summary counts do not match record_source_summary.json.",
     )
     _expect_equal(
         semantic_checks,
@@ -375,6 +420,10 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "record_count": next(iter(record_counts), None),
         "records_hash": row_evidence.get("records_hash"),
         "records_csv_hash": row_evidence.get("records_csv_hash"),
+        "record_source_summary_hash": release_manifest.get("record_source_summary_hash"),
+        "dataset_count": record_source_summary.get("dataset_count"),
+        "release_count": record_source_summary.get("release_count"),
+        "source_file_count": record_source_summary.get("source_file_count"),
         "release_handoff_hash": release_manifest.get("release_handoff_hash"),
         "quality_status": quality.get("status"),
         "provenance_status": provenance.get("status"),
@@ -460,6 +509,90 @@ def _records_csv(records: list[dict[str, Any]]) -> str:
     return output.getvalue()
 
 
+def _record_source_summary(records: list[dict[str, Any]]) -> dict[str, Any]:
+    datasets: dict[str, dict[str, Any]] = {}
+    releases: dict[str, int] = {}
+    source_files: dict[str, dict[str, Any]] = {}
+    source_payload_hashes: dict[str, int] = {}
+    snapshot_paths: dict[str, int] = {}
+    for record in records:
+        dataset = str(record.get("dataset") or "unknown")
+        release = str(record.get("release") or "unreleased")
+        source_file = str(record.get("_source_file") or "unknown")
+        source_sha256 = str(record.get("_source_sha256") or "")
+        payload_hash = str(record.get("source_payload_sha256") or "")
+        snapshot_path = str(record.get("source_snapshot_path") or "")
+        dataset_row = datasets.setdefault(
+            dataset,
+            {
+                "dataset": dataset,
+                "record_count": 0,
+                "releases": set(),
+                "source_files": set(),
+                "source_payload_hash_count": 0,
+                "source_snapshot_count": 0,
+            },
+        )
+        dataset_row["record_count"] += 1
+        dataset_row["releases"].add(release)
+        dataset_row["source_files"].add(source_file)
+        if payload_hash:
+            dataset_row["source_payload_hash_count"] += 1
+            source_payload_hashes[payload_hash] = source_payload_hashes.get(payload_hash, 0) + 1
+        if snapshot_path:
+            dataset_row["source_snapshot_count"] += 1
+            snapshot_paths[snapshot_path] = snapshot_paths.get(snapshot_path, 0) + 1
+        releases[release] = releases.get(release, 0) + 1
+        source_row = source_files.setdefault(
+            source_file,
+            {
+                "source_file": source_file,
+                "record_count": 0,
+                "source_sha256": source_sha256,
+                "datasets": set(),
+                "releases": set(),
+            },
+        )
+        source_row["record_count"] += 1
+        source_row["datasets"].add(dataset)
+        source_row["releases"].add(release)
+        if source_sha256 and not source_row.get("source_sha256"):
+            source_row["source_sha256"] = source_sha256
+    dataset_rows = [
+        {
+            "dataset": row["dataset"],
+            "record_count": row["record_count"],
+            "releases": sorted(row["releases"]),
+            "source_files": sorted(row["source_files"]),
+            "source_payload_hash_count": row["source_payload_hash_count"],
+            "source_snapshot_count": row["source_snapshot_count"],
+        }
+        for row in sorted(datasets.values(), key=lambda item: item["dataset"].lower())
+    ]
+    source_file_rows = [
+        {
+            "source_file": row["source_file"],
+            "record_count": row["record_count"],
+            "source_sha256": row.get("source_sha256") or "",
+            "datasets": sorted(row["datasets"]),
+            "releases": sorted(row["releases"]),
+        }
+        for row in sorted(source_files.values(), key=lambda item: item["source_file"].lower())
+    ]
+    return {
+        "summary_schema": "agentic-rag-data-release-record-source-summary-v1",
+        "record_count": len(records),
+        "dataset_count": len(dataset_rows),
+        "release_count": len(releases),
+        "source_file_count": len(source_file_rows),
+        "source_payload_hash_count": len(source_payload_hashes),
+        "source_snapshot_count": len(snapshot_paths),
+        "datasets": dataset_rows,
+        "releases": [{"release": release, "record_count": count} for release, count in sorted(releases.items())],
+        "source_files": source_file_rows,
+    }
+
+
 def _export_record(record: dict[str, Any]) -> dict[str, Any]:
     return {key: value for key, value in record.items() if not key.startswith("__")}
 
@@ -473,6 +606,7 @@ def _verify_record_rows(archive: ZipFile, checks: dict[str, str], errors: list[s
     evidence = {
         "jsonl_rows": len(jsonl_rows),
         "csv_rows": len(csv_rows),
+        "records": [],
         "records_hash": _hash_text(jsonl_text),
         "records_csv_hash": _hash_text(csv_text),
         "external_snapshot_reference_basenames": [],
@@ -490,6 +624,7 @@ def _verify_record_rows(archive: ZipFile, checks: dict[str, str], errors: list[s
         snapshot_path = payload.get("source_snapshot_path")
         if snapshot_path:
             snapshot_references.add(Path(str(snapshot_path)).name)
+        evidence["records"].append(payload)
     checks["record_rows"] = "pass"
     evidence["external_snapshot_reference_basenames"] = sorted(snapshot_references)
     return evidence
@@ -538,6 +673,10 @@ def _hash_text(text: str) -> str:
     return sha256(text.encode("utf-8")).hexdigest()
 
 
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
 def _release_handoff_hash(metadata: dict[str, Any]) -> str:
     payload = {
         "bundle_schema": metadata.get("bundle_schema"),
@@ -547,6 +686,10 @@ def _release_handoff_hash(metadata: dict[str, Any]) -> str:
         "record_count": metadata.get("record_count"),
         "records_hash": metadata.get("records_hash"),
         "records_csv_hash": metadata.get("records_csv_hash"),
+        "record_source_summary_hash": metadata.get("record_source_summary_hash"),
+        "dataset_count": metadata.get("dataset_count"),
+        "release_count": metadata.get("release_count"),
+        "source_file_count": metadata.get("source_file_count"),
         "structured_file_count": metadata.get("structured_file_count"),
         "external_snapshot_reference_count": metadata.get("external_snapshot_reference_count"),
         "quality_status": metadata.get("quality_status"),

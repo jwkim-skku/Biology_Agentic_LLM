@@ -163,8 +163,8 @@ Invoke-RestMethod `
 - `POST /api/v1/data/lockfile/write`: write the current data/RAG/document state as the reproducibility lockfile.
 - `GET /api/v1/data/release-lock`: compare current structured dataset releases and file hashes against the persisted release lockfile.
 - `POST /api/v1/data/release-lock/write`: write current structured dataset releases and file hashes as the release lockfile.
-- `GET /api/v1/data/release/export.zip`: export a release-pinned data evidence bundle with manifests, quality/provenance gates, release locks, structured records, record-file hashes, source bytes, RAG status, and refresh history.
-- `GET /api/v1/data/release/export/verify`: rebuild and semantically verify the data release bundle for required files, record consistency, JSONL/CSV record hashes, source-byte inclusion, and promotion status.
+- `GET /api/v1/data/release/export.zip`: export a release-pinned data evidence bundle with manifests, quality/provenance gates, release locks, structured records, record/source summary hashes, source bytes, RAG status, and refresh history.
+- `GET /api/v1/data/release/export/verify`: rebuild and semantically verify the data release bundle for required files, record consistency, JSONL/CSV/source-summary hashes, source-byte inclusion, and promotion status.
 - `POST /api/v1/data/refresh`: refresh a reproducible GTEx/Allen reference panel, optionally as a dry run.
 - `GET /api/v1/data/refresh-log`: inspect refresh audit entries.
 - `python scripts/data_refresh.py plan|apply`: run the same GTEx/Allen refresh path from the backend CLI, with dry-run planning, evidence JSON output, and optional release-lock writing.
