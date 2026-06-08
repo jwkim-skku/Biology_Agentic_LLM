@@ -962,6 +962,10 @@
           "cpg_density_per_100nt": "float",
           "cryptic_splice_motif_count": "int",
           "five_prime_gc_deviation": "float",
+          "folding_backend": "str",
+          "folding_evidence_hash": "str",
+          "folding_fallback_active": "bool",
+          "folding_status": "str",
           "gc_window_max_deviation": "float",
           "hairpin_proxy_score": "float",
           "low_complexity_penalty": "float",
@@ -972,12 +976,32 @@
           "secondary_structure_proxy_score": "float",
           "sequence_policy_violation_score": "float",
           "splice_acceptor_motif_count": "int",
-          "splice_donor_motif_count": "int"
+          "splice_donor_motif_count": "int",
+          "thermodynamic_mfe_delta_g": "null",
+          "thermodynamic_risk_score": "null"
         },
         "rationale": [
           "str"
         ],
         "selection_trace": [
+          "str"
+        ]
+      },
+      "recommended_folding_evidence": {
+        "active_backend": "str",
+        "evaluated_window_nt": "int",
+        "fallback_active": "bool",
+        "folding_evidence_hash": "str",
+        "folding_schema": "str",
+        "input_length_nt": "int",
+        "proxy": {
+          "mfe_proxy_delta_g": "float",
+          "secondary_structure_proxy_score": "float"
+        },
+        "requested_backend": "str",
+        "rnafold": "null",
+        "status": "str",
+        "warnings": [
           "str"
         ]
       },
@@ -1284,6 +1308,24 @@
         "tissue_codon_adaptation": "float"
       },
       "selection_trace": [
+        "str"
+      ]
+    },
+    "recommended_folding_evidence": {
+      "active_backend": "str",
+      "evaluated_window_nt": "int",
+      "fallback_active": "bool",
+      "folding_evidence_hash": "str",
+      "folding_schema": "str",
+      "input_length_nt": "int",
+      "proxy": {
+        "mfe_proxy_delta_g": "float",
+        "secondary_structure_proxy_score": "float"
+      },
+      "requested_backend": "str",
+      "rnafold": "null",
+      "status": "str",
+      "warnings": [
         "str"
       ]
     },
@@ -1976,6 +2018,10 @@
         "cpg_density_per_100nt": "float",
         "cryptic_splice_motif_count": "int",
         "five_prime_gc_deviation": "float",
+        "folding_backend": "str",
+        "folding_evidence_hash": "str",
+        "folding_fallback_active": "bool",
+        "folding_status": "str",
         "gc_window_max_deviation": "float",
         "hairpin_proxy_score": "float",
         "low_complexity_penalty": "float",
@@ -1986,12 +2032,32 @@
         "secondary_structure_proxy_score": "float",
         "sequence_policy_violation_score": "float",
         "splice_acceptor_motif_count": "int",
-        "splice_donor_motif_count": "int"
+        "splice_donor_motif_count": "int",
+        "thermodynamic_mfe_delta_g": "null",
+        "thermodynamic_risk_score": "null"
       },
       "rationale": [
         "str"
       ],
       "selection_trace": [
+        "str"
+      ]
+    },
+    "recommended_folding_evidence": {
+      "active_backend": "str",
+      "evaluated_window_nt": "int",
+      "fallback_active": "bool",
+      "folding_evidence_hash": "str",
+      "folding_schema": "str",
+      "input_length_nt": "int",
+      "proxy": {
+        "mfe_proxy_delta_g": "float",
+        "secondary_structure_proxy_score": "float"
+      },
+      "requested_backend": "str",
+      "rnafold": "null",
+      "status": "str",
+      "warnings": [
         "str"
       ]
     },

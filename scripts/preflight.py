@@ -21,6 +21,20 @@ READY_URL = "http://127.0.0.1:8000/api/v1/health/ready"
 DEFAULT_FRONTEND_URL = "http://127.0.0.1:3000"
 DEV_FRONTEND_URL = "http://127.0.0.1:3001"
 SIGNING_SMOKE_PORT = 8002
+PREFLIGHT_SCHEMA = "agentic-rag-production-preflight-evidence-v1"
+REQUIRED_CHECKS = [
+    "backend_compile",
+    "production_env_template",
+    "compose_preflight",
+    "production_audit_template",
+    "api_contract",
+    "structured_import_cli_preview",
+    "data_refresh_cli_plan",
+    "data_refresh_cli_validate",
+    "golden_response",
+    "golden_value",
+    "manual_backend_tests",
+]
 
 
 def main() -> int:
@@ -206,10 +220,17 @@ def build_report(args: argparse.Namespace, checks: list[dict[str, object]], *, s
         if enabled
     ]
     report = {
+        "preflight_schema": PREFLIGHT_SCHEMA,
         "generated_at": started_at.isoformat(),
         "duration_seconds": duration_seconds,
         "root": str(ROOT),
         "status": "fail" if failed else "pass",
+        "required_checks": REQUIRED_CHECKS,
+        "required_check_count": len(REQUIRED_CHECKS),
+        "check_count": len(checks),
+        "passed_count": sum(1 for check in checks if check["returncode"] == 0),
+        "failed_count": len(failed),
+        "skipped_count": len(skipped),
         "mode": {
             "skip_frontend": args.skip_frontend,
             "skip_smoke": args.skip_smoke,

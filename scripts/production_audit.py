@@ -17,6 +17,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "backend" / "app" / "data" / "runtime" / "production_audits"
 DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1"
+PREFLIGHT_SCHEMA = "agentic-rag-production-preflight-evidence-v1"
 
 RAG_EVALUATION_AUDIT_PAYLOAD = {
     "query": "SNCA substantia nigra dopaminergic neuron AAV",
@@ -257,9 +258,25 @@ def extract_preflight_summary(
     generated_at = str(payload.get("generated_at") or "")
     checks_hash = payload.get("checks_hash")
     preflight_hash = payload.get("preflight_hash")
+    preflight_schema = payload.get("preflight_schema")
+    required_checks = payload.get("required_checks")
     check_names = [str(check.get("name")) for check in checks if isinstance(check, dict) and check.get("name")]
     missing_checks = sorted(set(REQUIRED_PREFLIGHT_CHECKS) - set(check_names))
 
+    if preflight_schema != PREFLIGHT_SCHEMA:
+        failures.append(f"preflight_schema is {preflight_schema!r}, expected {PREFLIGHT_SCHEMA!r}")
+    if required_checks != REQUIRED_PREFLIGHT_CHECKS:
+        failures.append("preflight required_checks does not match the production audit required check set.")
+    if int_or_default(payload.get("required_check_count"), -1) != len(REQUIRED_PREFLIGHT_CHECKS):
+        failures.append("preflight required_check_count does not match required_checks.")
+    if int_or_default(payload.get("check_count"), -1) != len(checks):
+        failures.append("preflight check_count does not match checks[].")
+    if int_or_default(payload.get("failed_count"), -1) != len(stringify_list(failed)):
+        failures.append("preflight failed_count does not match failed[].")
+    if int_or_default(payload.get("skipped_count"), -1) != len(stringify_list(skipped)):
+        failures.append("preflight skipped_count does not match skipped[].")
+    if int_or_default(payload.get("passed_count"), -1) != sum(1 for check in checks if isinstance(check, dict) and check.get("returncode") == 0):
+        failures.append("preflight passed_count does not match passing checks.")
     if status != "pass":
         failures.append(f"preflight status is {status!r}, expected 'pass'")
     if failed:
@@ -286,9 +303,14 @@ def extract_preflight_summary(
 
     return {
         "status": status,
+        "preflight_schema": preflight_schema,
         "generated_at": generated_at,
         "age_hours": round(age_hours, 3) if age_hours is not None else None,
         "checks": len(checks),
+        "check_count": payload.get("check_count"),
+        "passed_count": payload.get("passed_count"),
+        "failed_count": payload.get("failed_count"),
+        "skipped_count": payload.get("skipped_count"),
         "checks_hash": checks_hash,
         "preflight_hash": preflight_hash,
         "required_checks": REQUIRED_PREFLIGHT_CHECKS,
@@ -355,6 +377,13 @@ def int_value(value: Any) -> int:
         return int(value)
     except (TypeError, ValueError):
         return 0
+
+
+def int_or_default(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def preflight_age_hours(generated_at: str) -> float | None:
@@ -954,6 +983,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                 "## Preflight Evidence",
                 "",
                 f"- Status: `{preflight.get('status', 'n/a')}`",
+                f"- Schema: `{details.get('preflight_schema', 'n/a')}`",
                 f"- Evidence path: `{details.get('path', preflight.get('path', 'n/a'))}`",
                 f"- Generated at: `{details.get('generated_at', 'n/a')}`",
                 f"- Age hours: `{details.get('age_hours', 'n/a')}`",

@@ -751,8 +751,11 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
     evidence_path = root / "backend" / "app" / "data" / "runtime" / f"preflight_unit_{uuid.uuid4().hex}.json"
     evidence_path.parent.mkdir(parents=True, exist_ok=True)
     evidence = {
+        "preflight_schema": module.PREFLIGHT_SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "pass",
+        "required_checks": module.REQUIRED_PREFLIGHT_CHECKS,
+        "required_check_count": len(module.REQUIRED_PREFLIGHT_CHECKS),
         "checks": [
             {"name": name, "returncode": 0, "status": "pass", "details": _preflight_detail(name)}
             for name in module.REQUIRED_PREFLIGHT_CHECKS
@@ -760,6 +763,10 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         "failed": [],
         "skipped": ["frontend_build"],
     }
+    evidence["check_count"] = len(evidence["checks"])
+    evidence["passed_count"] = len(evidence["checks"])
+    evidence["failed_count"] = len(evidence["failed"])
+    evidence["skipped_count"] = len(evidence["skipped"])
     evidence["checks_hash"] = module.hash_payload(evidence["checks"])
     evidence["preflight_hash"] = module.hash_payload({key: value for key, value in evidence.items() if key != "preflight_hash"})
     try:
@@ -778,6 +785,9 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         markdown = module.render_markdown(report)
 
         assert preflight_check["status"] == "pass"
+        assert preflight_check["details"]["preflight_schema"] == module.PREFLIGHT_SCHEMA
+        assert preflight_check["details"]["check_count"] == len(module.REQUIRED_PREFLIGHT_CHECKS)
+        assert preflight_check["details"]["skipped_count"] == 1
         assert preflight_check["details"]["missing_required_checks"] == []
         assert preflight_check["details"]["checks_hash"] == evidence["checks_hash"]
         assert preflight_check["details"]["preflight_hash"] == evidence["preflight_hash"]
@@ -856,8 +866,11 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
 
     evidence_path = root / "backend" / "app" / "data" / "runtime" / f"preflight_unit_bad_{uuid.uuid4().hex}.json"
     evidence = {
+        "preflight_schema": module.PREFLIGHT_SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "pass",
+        "required_checks": module.REQUIRED_PREFLIGHT_CHECKS,
+        "required_check_count": len(module.REQUIRED_PREFLIGHT_CHECKS),
         "checks": [
             {"name": name, "returncode": 0, "status": "pass", "details": {"status": "pass"}}
             for name in module.REQUIRED_PREFLIGHT_CHECKS
@@ -865,6 +878,10 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         "failed": [],
         "skipped": [],
     }
+    evidence["check_count"] = len(evidence["checks"])
+    evidence["passed_count"] = len(evidence["checks"])
+    evidence["failed_count"] = len(evidence["failed"])
+    evidence["skipped_count"] = len(evidence["skipped"])
     evidence["checks_hash"] = module.hash_payload(evidence["checks"])
     evidence["preflight_hash"] = module.hash_payload({key: value for key, value in evidence.items() if key != "preflight_hash"})
     try:
