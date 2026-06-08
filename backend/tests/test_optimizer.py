@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import importlib.util
 import random
 import json
@@ -74,7 +75,7 @@ from app.services.metrics_service import metrics_prometheus, metrics_snapshot, r
 from app.services.optimizer_benchmark_bundle_service import build_optimizer_benchmark_bundle, verify_optimizer_benchmark_bundle
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark, optimizer_benchmark_cases
 from app.services.optimizer_diagnostics_service import optimizer_diagnostics
-from app.services import deployment_readiness_service
+from app.services import deployment_readiness_service, rna_folding_service
 from app.services.deployment_readiness_service import deployment_readiness
 from app.services.production_audit_service import (
     build_production_audit,
@@ -156,6 +157,54 @@ class FakeEnsemblClient:
 
 def test_translate_trims_terminal_stop() -> None:
     assert translate("ATGGCTTAA") == "MA"
+
+
+def test_rnafold_execution_evidence_hashes_success(monkeypatch) -> None:
+    stdout = "AUGGCCGCCGCCGCCGCC\n...((....)).... (-3.20)\n"
+
+    class Completed:
+        pass
+
+    completed = Completed()
+    completed.returncode = 0
+    completed.stderr = ""
+    completed.stdout = stdout
+
+    monkeypatch.setattr(rna_folding_service.subprocess, "run", lambda *args, **kwargs: completed)
+
+    folded = rna_folding_service._run_rnafold("AUGGCCGCCGCCGCCGCC", "RNAfold", 5)
+
+    evidence = folded["execution_evidence"]
+    assert folded["status"] == "pass"
+    assert folded["raw_output_sha256_supported"] is True
+    assert evidence["evidence_schema"] == "agentic-rag-rnafold-execution-evidence-v1"
+    assert evidence["returncode"] == 0
+    assert evidence["stdout_sha256"] == hashlib.sha256(stdout.encode("utf-8")).hexdigest()
+    assert evidence["stderr_sha256"] == hashlib.sha256(b"").hexdigest()
+    assert evidence["parsed_structure_sha256"] == hashlib.sha256(b"...((....))....").hexdigest()
+    assert evidence["raw_output_persisted"] is False
+
+
+def test_rnafold_execution_evidence_hashes_failure(monkeypatch) -> None:
+    stderr = "RNAfold failed\n"
+
+    class Completed:
+        pass
+
+    completed = Completed()
+    completed.returncode = 2
+    completed.stdout = ""
+    completed.stderr = stderr
+
+    monkeypatch.setattr(rna_folding_service.subprocess, "run", lambda *args, **kwargs: completed)
+
+    folded = rna_folding_service._run_rnafold("AUGGCCGCCGCCGCCGCC", "RNAfold", 5)
+
+    evidence = folded["execution_evidence"]
+    assert folded["status"] == "fail"
+    assert evidence["returncode"] == 2
+    assert evidence["stderr_sha256"] == hashlib.sha256(stderr.encode("utf-8")).hexdigest()
+    assert evidence["raw_output_persisted"] is False
 
 
 def test_settings_expose_data_dir() -> None:
@@ -661,6 +710,9 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     optimizer_gate = next(gate for gate in readiness["gates"] if gate["name"] == "optimizer_benchmark")
     assert len(optimizer_gate["details"]["cases_hash"]) == 64
     assert len(optimizer_gate["details"]["results_hash"]) == 64
+    folding_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rna_folding_backend")
+    assert folding_gate["details"]["evidence_capabilities"]["raw_output_sha256"] is True
+    assert folding_gate["details"]["evidence_capabilities"]["raw_output_storage_policy"]
     data_release_gate = next(gate for gate in readiness["gates"] if gate["name"] == "data_release_archive_semantics")
     assert data_release_gate["details"]["status"] in {"pass", "warning"}
     assert data_release_gate["details"]["latest_records_hash"] is None or len(data_release_gate["details"]["latest_records_hash"]) == 64

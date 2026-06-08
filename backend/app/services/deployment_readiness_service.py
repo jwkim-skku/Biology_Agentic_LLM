@@ -229,6 +229,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "executable": folding["executable"],
                 "executable_path": folding["executable_path"],
                 "window_nt": folding["window_nt"],
+                "evidence_capabilities": folding.get("evidence_capabilities", {}),
                 "production_requirements": {
                     "rna_folding_backend": "rnafold",
                     "validated_backend": True,

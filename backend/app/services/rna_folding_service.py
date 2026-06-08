@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+from hashlib import sha256
 from typing import Any
 
 from app.config import get_settings
@@ -33,6 +34,10 @@ def rna_folding_status() -> dict[str, Any]:
         "window_nt": settings.rnafold_window_nt,
         "validated_backend": rnafold_ready,
         "production_ready": rnafold_ready,
+        "evidence_capabilities": {
+            "raw_output_sha256": True,
+            "raw_output_storage_policy": "hash stdout/stderr and parsed result; do not persist raw sequence-bearing RNAfold output",
+        },
         "recommendation": _status_recommendation(status, settings.rnafold_executable),
     }
 
@@ -94,21 +99,42 @@ def _run_rnafold(rna: str, executable: str, timeout_seconds: int) -> dict[str, A
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return {"status": "fail", "message": str(exc)}
+        return {
+            "status": "fail",
+            "message": str(exc),
+            "execution_evidence": _execution_evidence(returncode=None, stdout="", stderr=str(exc), parsed_structure=None),
+        }
+    execution_evidence = _execution_evidence(
+        returncode=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+        parsed_structure=None,
+    )
     if completed.returncode != 0:
         message = (completed.stderr or completed.stdout or f"RNAfold exited with {completed.returncode}").strip()
-        return {"status": "fail", "message": message}
+        return {"status": "fail", "message": message, "execution_evidence": execution_evidence}
     parsed = _parse_rnafold_output(completed.stdout)
     if not parsed:
-        return {"status": "fail", "message": "RNAfold output did not contain a parseable dot-bracket/MFE line."}
+        return {
+            "status": "fail",
+            "message": "RNAfold output did not contain a parseable dot-bracket/MFE line.",
+            "execution_evidence": execution_evidence,
+        }
     structure, mfe = parsed
+    execution_evidence = _execution_evidence(
+        returncode=completed.returncode,
+        stdout=completed.stdout,
+        stderr=completed.stderr,
+        parsed_structure=structure,
+    )
     return {
         "status": "pass",
         "algorithm": "ViennaRNA RNAfold",
         "sequence_length_nt": len(rna),
         "structure": structure,
         "mfe_delta_g": mfe,
-        "raw_output_sha256_supported": False,
+        "raw_output_sha256_supported": True,
+        "execution_evidence": execution_evidence,
     }
 
 
@@ -127,6 +153,20 @@ def _mfe_risk_score(mfe_delta_g: float, length_nt: int) -> float:
     if length_nt <= 0 or mfe_delta_g >= 0:
         return 0.0
     return round(min(abs(mfe_delta_g) / max(length_nt, 1) / 0.12, 1.0), 4)
+
+
+def _execution_evidence(*, returncode: int | None, stdout: str, stderr: str, parsed_structure: str | None) -> dict[str, Any]:
+    return {
+        "evidence_schema": "agentic-rag-rnafold-execution-evidence-v1",
+        "returncode": returncode,
+        "stdout_sha256": sha256(stdout.encode("utf-8")).hexdigest(),
+        "stderr_sha256": sha256(stderr.encode("utf-8")).hexdigest(),
+        "combined_output_sha256": sha256(f"{stdout}\n---stderr---\n{stderr}".encode("utf-8")).hexdigest(),
+        "stdout_line_count": len(stdout.splitlines()),
+        "stderr_line_count": len(stderr.splitlines()),
+        "parsed_structure_sha256": sha256((parsed_structure or "").encode("utf-8")).hexdigest() if parsed_structure is not None else None,
+        "raw_output_persisted": False,
+    }
 
 
 def _status_recommendation(status: str, executable: str) -> str:
