@@ -1832,6 +1832,9 @@ type RagRegressionBundleVerification = {
   case_count?: number;
   cases_hash?: string;
   results_hash?: string;
+  quality_summary_hash?: string;
+  case_metrics_hash?: string;
+  source_provenance_summary_hash?: string;
   weak_case_count?: number;
   structured_manifest_hash?: string;
   semantic_checks?: Record<string, string>;
@@ -3956,6 +3959,9 @@ export default function Dashboard() {
                   "n/a"}
               </span>
               <span>
+                RAG metrics hash {ragRegressionBundleVerification?.case_metrics_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Vector bundle {ragVectorBundleVerification?.chunk_count ?? ragDiagnostics?.index.chunk_count ?? "n/a"} chunks /{" "}
                 {ragVectorBundleVerification?.recommended_backend ?? ragDiagnostics?.vector_store_readiness?.recommended_backend ?? "n/a"}
               </span>
@@ -4828,6 +4834,9 @@ export default function Dashboard() {
               <span>
                 Results {ragRegressionSemantics?.latest_artifacts?.[0]?.results_hash?.slice(0, 10) ?? "n/a"} / quality{" "}
                 {ragRegressionSemantics?.latest_artifacts?.[0]?.quality_summary_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                RAG metrics hash {ragRegressionSemantics?.latest_artifacts?.[0]?.case_metrics_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Quality {ragRegressionSemantics?.latest_artifacts?.[0]?.quality_status ?? "n/a"} / top src{" "}
