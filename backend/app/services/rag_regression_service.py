@@ -110,6 +110,7 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
                 "source_snapshot_path": chunk["metadata"].get("source_snapshot_path"),
                 "source_payload_sha256": chunk["metadata"].get("source_payload_sha256"),
                 "score": chunk["score"],
+                "rank_evidence_hash": chunk.get("rank_evidence_hash"),
                 "relevance": _relevance(chunk, case),
             }
             for idx, chunk in enumerate(chunks[:limit])
@@ -285,6 +286,7 @@ def _semantic_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "source_sha256": item.get("source_sha256"),
                     "source_snapshot_path": item.get("source_snapshot_path"),
                     "source_payload_sha256": item.get("source_payload_sha256"),
+                    "rank_evidence_hash": item.get("rank_evidence_hash"),
                     "relevance": item.get("relevance"),
                 }
                 for item in (result.get("top_results") or [])

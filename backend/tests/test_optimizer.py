@@ -2073,6 +2073,8 @@ def test_rag_index_status_and_search() -> None:
     )
     assert results["chunks"]
     assert any(chunk["metadata"]["collection"] == "canonical_transcript" for chunk in results["chunks"])
+    assert all(chunk["rank_evidence"]["rank_evidence_schema"] == "agentic-rag-result-rank-evidence-v1" for chunk in results["chunks"])
+    assert all(len(chunk["rank_evidence_hash"]) == 64 for chunk in results["chunks"])
 
 
 def test_rag_evaluation_explains_coverage() -> None:
@@ -2088,12 +2090,14 @@ def test_rag_evaluation_explains_coverage() -> None:
     assert evaluation["ranking_policy"]["weights"]["vector_score"] == 0.36
     assert evaluation["retrieval_trace"]["trace_schema"] == "agentic-rag-retrieval-trace-v1"
     assert evaluation["retrieval_trace"]["score_weights"]["rerank_score"] == 0.40
+    assert all(len(value) == 64 for value in evaluation["retrieval_trace"]["top_rank_evidence_hashes"])
     assert evaluation["index"]["retrieval_model"] == "hybrid-hash-bm25-facet-rerank-v2"
     assert evaluation["query_analysis"]["aliases_added"]
     assert evaluation["evidence_sufficiency"]["sufficiency_schema"] == "agentic-rag-evidence-sufficiency-v1"
     assert evaluation["evidence_sufficiency"]["status"] in {"pass", "warning", "fail"}
     assert evaluation["evidence_sufficiency"]["checks"]
     assert all("facet_score" in item for item in evaluation["score_breakdown"])
+    assert all(len(item["rank_evidence_hash"]) == 64 for item in evaluation["score_breakdown"])
     assert all(item["rationale"] for item in evaluation["score_breakdown"])
     assert any(item["matched_facets"] for item in evaluation["score_breakdown"])
 
@@ -2189,6 +2193,11 @@ def test_rag_regression_suite_passes_required_evidence() -> None:
     assert len(result["results_hash"]) == 64
     assert result["macro"]["recall_at_k"] >= 0.9
     assert result["macro"]["source_coverage"] >= 0.9
+    assert all(
+        len(item["rank_evidence_hash"]) == 64
+        for case in result["results"]
+        for item in case["top_results"]
+    )
     assert {case["case_id"] for case in result["results"]} >= {
         "canonical_transcript_mane",
         "allen_dopaminergic_substantia_nigra",

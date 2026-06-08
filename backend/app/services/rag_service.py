@@ -187,7 +187,7 @@ def rag_search(query: str, filters: dict[str, Any] | None = None, limit: int = 6
                     **{key: round(value, 6) for key, value in rerank.items()},
                 }
             )
-    results = _diversify_by_document(sorted(results, key=lambda item: item["score"], reverse=True), limit)
+    results = _with_rank_evidence(_diversify_by_document(sorted(results, key=lambda item: item["score"], reverse=True), limit), filters)
     return {
         "query": query,
         "filters": filters,
@@ -249,6 +249,7 @@ def evaluate_rag_query(query: str, filters: dict[str, Any] | None = None, limit:
                 "facet_score": chunk.get("facet_score", 0),
                 "field_match_score": chunk.get("field_match_score", 0),
                 "source_priority_score": chunk.get("source_priority_score", 0),
+                "rank_evidence_hash": chunk.get("rank_evidence_hash"),
                 "matched_facets": _matched_facets(chunk["metadata"], filters),
                 "rationale": _result_rationale(chunk, filters),
             }
@@ -287,6 +288,7 @@ def rag_chunks_to_evidence_records(chunks: list[dict[str, Any]]) -> list[dict[st
                     "facet_score": chunk.get("facet_score", 0),
                     "field_match_score": chunk.get("field_match_score", 0),
                     "source_priority_score": chunk.get("source_priority_score", 0),
+                    "rank_evidence_hash": chunk.get("rank_evidence_hash"),
                     "embedding_model": EMBEDDING_MODEL,
                     "embedding_backend": (chunk.get("embedding_metadata") or {}).get("active_backend"),
                     "retrieval_model": RETRIEVAL_MODEL,
@@ -523,6 +525,10 @@ def _query_fingerprint(query: str, filters: dict[str, Any], limit: int) -> str:
     return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()[:16]
 
 
+def _hash_compact(payload: Any) -> str:
+    return hashlib.sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
 def _retrieval_trace(
     search: dict[str, Any],
     chunks: list[dict[str, Any]],
@@ -552,6 +558,7 @@ def _retrieval_trace(
         },
         "query_term_coverage_fraction": (query_term_coverage or {}).get("coverage_fraction"),
         "top_ranked_chunk_ids": [chunk["chunk_id"] for chunk in chunks[:5]],
+        "top_rank_evidence_hashes": [chunk.get("rank_evidence_hash") for chunk in chunks[:5]],
     }
 
 
@@ -589,6 +596,46 @@ def _diversify_by_document(results: list[dict[str, Any]], limit: int) -> list[di
         if len(selected) >= limit:
             break
     return selected
+
+
+def _with_rank_evidence(results: list[dict[str, Any]], filters: dict[str, Any]) -> list[dict[str, Any]]:
+    enriched: list[dict[str, Any]] = []
+    for rank, result in enumerate(results, start=1):
+        evidence = _rank_evidence(result, rank, filters)
+        enriched.append({**result, "rank": rank, "rank_evidence": evidence, "rank_evidence_hash": _hash_compact(evidence)})
+    return enriched
+
+
+def _rank_evidence(chunk: dict[str, Any], rank: int, filters: dict[str, Any]) -> dict[str, Any]:
+    metadata = chunk.get("metadata") or {}
+    return {
+        "rank_evidence_schema": "agentic-rag-result-rank-evidence-v1",
+        "rank": rank,
+        "chunk_id": chunk.get("chunk_id"),
+        "document_id": chunk.get("document_id"),
+        "retrieval_model": RETRIEVAL_MODEL,
+        "ranking_policy": RANKING_POLICY["version"],
+        "score_components": {
+            "score": chunk.get("score"),
+            "vector_score": chunk.get("vector_score"),
+            "bm25_score": chunk.get("bm25_score"),
+            "rerank_score": chunk.get("rerank_score"),
+            "facet_score": chunk.get("facet_score"),
+            "field_match_score": chunk.get("field_match_score"),
+            "source_priority_score": chunk.get("source_priority_score"),
+        },
+        "matched_facets": _matched_facets(metadata, filters),
+        "source": {
+            "collection": metadata.get("collection"),
+            "source": metadata.get("source"),
+            "source_url": metadata.get("source_url"),
+            "source_path": metadata.get("source_path"),
+            "source_sha256": metadata.get("source_sha256"),
+            "source_snapshot_path": metadata.get("source_snapshot_path"),
+            "source_payload_sha256": metadata.get("source_payload_sha256"),
+            "confidence": metadata.get("confidence"),
+        },
+    }
 
 
 def _chunk_record(record: dict[str, Any], max_words: int = CHUNKING_POLICY["max_words"], max_tokens: int = CHUNKING_POLICY["max_lexical_tokens"]) -> list[str]:
