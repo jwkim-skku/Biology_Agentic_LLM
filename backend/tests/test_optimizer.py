@@ -458,6 +458,10 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert audit["production_gap_summary"]["gap_count"] == len(audit["production_gap_summary"]["gaps"])
     optimizer_item = next(item for item in audit["promotion_summary"]["items"] if item["area"] == "optimizer")
     assert "deterministic-tradeoff-seeds-v1" in optimizer_item["detail"]
+    rag_embedding_item = next(item for item in audit["promotion_summary"]["items"] if item["area"] == "rag_embedding")
+    if rag_embedding_item["status"] != "pass":
+        assert "OpenAI embedding" in rag_embedding_item["action"]
+        assert "budget guardrails" in rag_embedding_item["action"]
     assert "structured_import_archive_semantics" in {item["name"] for item in audit["checks"]}
     assert "structured_import_archive_semantics" in audit["evidence"]
     assert "data_release_archive_semantics" in {item["name"] for item in audit["checks"]}
@@ -693,6 +697,13 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     rag_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_regression")
     assert len(rag_gate["details"]["cases_hash"]) == 64
     assert len(rag_gate["details"]["results_hash"]) == 64
+    embedding_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_embedding_backend")
+    embedding_requirements = embedding_gate["details"]["production_requirements"]
+    assert embedding_requirements["accepted_backends"] == ["sentence_transformers", "openai"]
+    assert embedding_requirements["sentence_transformers"]["model_load_policy"] == "local_files_only"
+    assert embedding_requirements["openai"]["api_key_configured"] is True
+    assert embedding_requirements["openai"]["price_configured"] is True
+    assert embedding_requirements["openai"]["budget_configured"] is True
     qc_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "qc_bundle_archive_semantics")
     assert qc_archive_gate["details"]["status"] in {"pass", "warning"}
     for field in [

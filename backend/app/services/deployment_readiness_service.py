@@ -194,14 +194,24 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "embedding_model": embedding["embedding_model"],
                 "embedding_dimensions": embedding["embedding_dimensions"],
                 "production_requirements": {
-                    "rag_embedding_backend": "sentence_transformers",
+                    "accepted_backends": ["sentence_transformers", "openai"],
+                    "sentence_transformers": {
+                        "rag_embedding_backend": "sentence_transformers",
+                        "model_load_policy": "local_files_only",
+                    },
+                    "openai": {
+                        "rag_embedding_backend": "openai",
+                        "api_key_configured": True,
+                        "price_configured": True,
+                        "budget_configured": True,
+                        "within_budget": True,
+                    },
                     "production_ready": True,
-                    "model_load_policy": "local_files_only",
                 },
                 "warnings": embedding["warnings"],
             },
             fail_message="RAG embedding backend status is invalid.",
-            warn_message="RAG retrieval is using hash-BOW fallback; pin a biomedical embedding model for production promotion.",
+            warn_message="RAG retrieval is not using a production embedding backend; pin a biomedical embedding model or configure OpenAI embedding with budget guardrails.",
         ),
         _gate(
             "optimizer_benchmark",

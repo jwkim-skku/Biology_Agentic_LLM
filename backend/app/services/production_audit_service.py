@@ -699,7 +699,7 @@ def _promotion_summary(
             "rag_embedding",
             "pass" if rag_embedding.get("production_ready") else rag_embedding.get("status"),
             f"{rag_embedding.get('active_backend')} / {rag_embedding.get('embedding_model')}",
-            "Pin and load a local biomedical sentence-transformers model."
+            "Pin and load a local biomedical sentence-transformers model, or configure OpenAI embedding credentials with positive price and budget guardrails."
             if not rag_embedding.get("production_ready")
             else "Embedding backend is production configured.",
         ),
