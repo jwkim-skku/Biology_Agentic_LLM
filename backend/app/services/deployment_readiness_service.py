@@ -579,6 +579,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "latest_candidate_diagnostics_hash": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("candidate_diagnostics_hash"),
                 "latest_case_provenance_hash": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("case_provenance_hash"),
                 "latest_case_fingerprint_count": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("case_fingerprint_count"),
+                "latest_recommended_folding_evidence_hash": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("recommended_folding_evidence_hash"),
+                "latest_recommended_folding_evidence_count": (optimizer_archive.get("latest_artifacts") or [{}])[0].get("recommended_folding_evidence_count"),
                 **_archive_freshness_details(optimizer_archive),
             },
             fail_message="Archived optimizer benchmark bundle semantic verification failed.",

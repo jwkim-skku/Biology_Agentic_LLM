@@ -650,11 +650,16 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
         "latest_case_metrics_hash",
         "latest_candidate_diagnostics_hash",
         "latest_case_provenance_hash",
+        "latest_recommended_folding_evidence_hash",
     ]:
         assert optimizer_archive_gate["details"][field] is None or len(optimizer_archive_gate["details"][field]) == 64
     assert (
         optimizer_archive_gate["details"]["latest_case_fingerprint_count"] is None
         or optimizer_archive_gate["details"]["latest_case_fingerprint_count"] >= 1
+    )
+    assert (
+        optimizer_archive_gate["details"]["latest_recommended_folding_evidence_count"] is None
+        or optimizer_archive_gate["details"]["latest_recommended_folding_evidence_count"] >= 1
     )
     assert optimizer_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
 
@@ -953,12 +958,17 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "diagnostics_hash": "pass",
                     "case_metrics_hash": "pass",
                     "candidate_diagnostics_hash": "pass",
+                    "recommended_folding_evidence_schema": "pass",
+                    "recommended_folding_evidence_hashes": "pass",
+                    "recommended_folding_evidence_payload_hash": "pass",
+                    "recommended_folding_evidence_hash": "pass",
                 },
                 "results_hash": valid_hash,
                 "benchmark_hash": valid_hash,
                 "diagnostics_hash": valid_hash,
                 "case_metrics_hash": valid_hash,
                 "candidate_diagnostics_hash": valid_hash,
+                "recommended_folding_evidence_hash": valid_hash,
             }
         },
     ) == []
@@ -1246,6 +1256,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "candidate_diagnostics_hash": valid_hash,
                         "case_provenance_hash": valid_hash,
                         "case_fingerprint_count": 3,
+                        "recommended_folding_evidence_hash": valid_hash,
+                        "recommended_folding_evidence_count": 3,
                     }
                 ],
             }
@@ -1266,6 +1278,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "candidate_diagnostics_hash" in " ".join(optimizer_archive_failures)
     assert "case_provenance_hash" in " ".join(optimizer_archive_failures)
     assert "case_fingerprint_count" in " ".join(optimizer_archive_failures)
+    assert "recommended_folding_evidence_hash" in " ".join(optimizer_archive_failures)
+    assert "recommended_folding_evidence_count" in " ".join(optimizer_archive_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
@@ -1572,6 +1586,10 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["semantic_checks"]["pareto_quality_hash"] == "pass"
     assert verification["semantic_checks"]["case_provenance_schema"] == "pass"
     assert verification["semantic_checks"]["case_provenance_fingerprints"] == "pass"
+    assert verification["semantic_checks"]["recommended_folding_evidence_schema"] == "pass"
+    assert verification["semantic_checks"]["recommended_folding_evidence_hashes"] == "pass"
+    assert verification["semantic_checks"]["recommended_folding_evidence_payload_hash"] == "pass"
+    assert verification["semantic_checks"]["recommended_folding_evidence_hash"] == "pass"
     assert verification["semantic_checks"]["case_metric_columns"] == "pass"
     assert verification["semantic_checks"]["stress_schema"] == "pass"
     assert verification["stress_status"] in {"pass", "warning"}
@@ -1582,6 +1600,8 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert len(verification["candidate_diagnostics_hash"]) == 64
     assert len(verification["case_provenance_hash"]) == 64
     assert verification["case_fingerprint_count"] == verification["case_count"]
+    assert len(verification["recommended_folding_evidence_hash"]) == 64
+    assert verification["recommended_folding_evidence_count"] == verification["case_count"]
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "search_strategy.json" in names
@@ -1601,10 +1621,14 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert manifest["diagnostics_hash"] == verification["diagnostics_hash"]
         assert manifest["case_metrics_hash"] == verification["case_metrics_hash"]
         assert manifest["candidate_diagnostics_hash"] == verification["candidate_diagnostics_hash"]
+        assert manifest["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
+        assert manifest["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
         first_case = candidate_diagnostics["cases"][0]
         assert first_case["pareto_quality"]["quality_schema"] == "agentic-rag-pareto-quality-v1"
         assert first_case["case_provenance"]["provenance_schema"] == "agentic-rag-optimizer-benchmark-case-provenance-v1"
         assert len(first_case["case_provenance"]["case_fingerprint"]) == 64
+        assert first_case["recommended_folding_evidence"]["folding_schema"] == "agentic-rag-rna-folding-v1"
+        assert len(first_case["recommended_folding_evidence"]["folding_evidence_hash"]) == 64
         assert first_case["recommendation_audit"]["pareto_quality_hash"] == first_case["pareto_quality"]["quality_hash"]
         assert "case_fingerprint" in case_metrics
         assert "target_hash" in case_metrics
@@ -1614,6 +1638,8 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert "recommendation_tradeoff_count" in case_metrics
         assert "pareto_quality_hash" in case_metrics
         assert "recommended_on_pareto_front" in case_metrics
+        assert "recommended_folding_evidence_hash" in case_metrics
+        assert "recommended_folding_status" in case_metrics
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_optimizer_benchmark_bundle",
@@ -1627,6 +1653,8 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert semantic["case_metrics_hash"] == verification["case_metrics_hash"]
     assert semantic["case_provenance_hash"] == verification["case_provenance_hash"]
     assert semantic["case_fingerprint_count"] == verification["case_fingerprint_count"]
+    assert semantic["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
+    assert semantic["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
     summary = optimizer_benchmark_archive_summary(limit=5, verify_files=False)
     assert any(
         item["artifact_id"] == archived["artifact_id"]
@@ -1635,6 +1663,8 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         and item["case_metrics_hash"] == verification["case_metrics_hash"]
         and item["case_provenance_hash"] == verification["case_provenance_hash"]
         and item["case_fingerprint_count"] == verification["case_fingerprint_count"]
+        and item["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
+        and item["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
         for item in summary["latest_artifacts"]
     )
 

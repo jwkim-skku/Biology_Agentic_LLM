@@ -547,13 +547,23 @@ def api_failures(name: str, details: Any) -> list[str]:
             "diagnostics_hash",
             "case_metrics_hash",
             "candidate_diagnostics_hash",
+            "recommended_folding_evidence_schema",
+            "recommended_folding_evidence_hashes",
+            "recommended_folding_evidence_payload_hash",
+            "recommended_folding_evidence_hash",
         ]
         missing = [check for check in required_optimizer_checks if checks.get(check) != "pass"]
         if missing:
             failures.append(f"Optimizer benchmark bundle does not verify semantic checks: {', '.join(missing)}.")
         if checks.get("results_hash") != "pass" or not payload.get("results_hash"):
             failures.append("Optimizer benchmark bundle does not verify results_hash.")
-        for hash_check in ["benchmark_hash", "diagnostics_hash", "case_metrics_hash", "candidate_diagnostics_hash"]:
+        for hash_check in [
+            "benchmark_hash",
+            "diagnostics_hash",
+            "case_metrics_hash",
+            "candidate_diagnostics_hash",
+            "recommended_folding_evidence_hash",
+        ]:
             if not payload.get(hash_check):
                 failures.append(f"Optimizer benchmark bundle does not expose {hash_check}.")
     if name == "qc_report_bundle_verify":
@@ -698,6 +708,7 @@ def api_failures(name: str, details: Any) -> list[str]:
             "case_metrics_hash",
             "candidate_diagnostics_hash",
             "case_provenance_hash",
+            "recommended_folding_evidence_hash",
         ]:
             if checked_count and not latest.get(hash_field):
                 failures.append(f"latest optimizer benchmark archive is missing {hash_field}")
@@ -706,6 +717,11 @@ def api_failures(name: str, details: Any) -> list[str]:
             or int(latest.get("case_fingerprint_count") or 0) < int(latest.get("case_count") or 0)
         ):
             failures.append("latest optimizer benchmark archive is missing case_fingerprint_count coverage")
+        if checked_count and (
+            not latest.get("recommended_folding_evidence_count")
+            or int(latest.get("recommended_folding_evidence_count") or 0) < int(latest.get("case_count") or 0)
+        ):
+            failures.append("latest optimizer benchmark archive is missing recommended_folding_evidence_count coverage")
     if name == "rag_regression_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)

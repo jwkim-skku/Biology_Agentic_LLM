@@ -11,6 +11,7 @@ from app.optimizer.codon_table import split_codons, translate
 from app.optimizer.nsga2 import OptimizationConfig
 from app.optimizer.scoring import ScoreConfig
 from app.services.design_service import optimize_design
+from app.services.rna_folding_service import evaluate_rna_folding
 
 
 OPTIMIZER_BENCHMARK_CASES_PATH = get_settings().data_dir / "optimizer_benchmark_cases.json"
@@ -50,7 +51,8 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
     config = _optimization_config(case.get("optimization_settings") or {})
     design = optimize_design(case["cds"], config, case.get("target") or {}, evidence_used=True)
     elapsed_ms = round((time.perf_counter() - started) * 1000, 3)
-    metrics = _metrics(case["cds"], design, elapsed_ms)
+    folding_evidence = _recommended_folding_evidence(design)
+    metrics = _metrics(case["cds"], design, elapsed_ms, folding_evidence)
     thresholds = _thresholds(case)
     errors, warnings = _evaluate_thresholds(metrics, thresholds)
     return {
@@ -64,6 +66,7 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
         "metrics": metrics,
         "run_id": design["run_id"],
         "recommended_candidate_id": (design.get("recommended_candidate") or {}).get("candidate_id"),
+        "recommended_folding_evidence": folding_evidence,
         "candidate_diagnostics": design.get("candidate_diagnostics", {}),
     }
 
@@ -103,13 +106,15 @@ def _case_provenance(case: dict[str, Any]) -> dict[str, Any]:
     return provenance
 
 
-def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float) -> dict[str, Any]:
+def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float, folding_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     candidates = design.get("candidates") or []
     native_scores = (design.get("native") or {}).get("scores") or {}
     recommended = design.get("recommended_candidate") or {}
     recommended_scores = recommended.get("scores") or {}
     diagnostics = design.get("candidate_diagnostics") or {}
     recommendation_audit = design.get("recommendation_audit") or diagnostics.get("recommendation_audit") or {}
+    folding_evidence = folding_evidence or {}
+    folding_proxy = folding_evidence.get("proxy") or {}
     diversity = diagnostics.get("diversity") or {}
     pareto_quality = diagnostics.get("pareto_quality") or {}
     native_protein = translate(native_cds)
@@ -139,6 +144,15 @@ def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float) -> dict
         "recommended_rare_codon_clusters": _float(recommended_scores.get("rare_codon_clusters")),
         "recommended_low_complexity_penalty": _float(recommended_scores.get("low_complexity_penalty")),
         "recommended_hairpin_proxy_score": _float(recommended_scores.get("hairpin_proxy_score")),
+        "recommended_folding_evidence_hash": folding_evidence.get("folding_evidence_hash"),
+        "recommended_folding_status": folding_evidence.get("status"),
+        "recommended_folding_backend": folding_evidence.get("active_backend"),
+        "recommended_folding_fallback_active": 1.0 if folding_evidence.get("fallback_active") else 0.0,
+        "recommended_folding_window_nt": _float(folding_evidence.get("evaluated_window_nt")),
+        "recommended_folding_proxy_score": _float(folding_proxy.get("secondary_structure_proxy_score")),
+        "recommended_folding_proxy_mfe_delta_g": _float(folding_proxy.get("mfe_proxy_delta_g")),
+        "recommended_thermodynamic_mfe_delta_g": _float(folding_evidence.get("thermodynamic_mfe_delta_g")),
+        "recommended_thermodynamic_risk_score": _float(folding_evidence.get("thermodynamic_risk_score")),
         "recommended_policy_violation_delta": round(
             _float(recommended_scores.get("sequence_policy_violation_score")) - _float(native_scores.get("sequence_policy_violation_score")),
             6,
@@ -152,6 +166,22 @@ def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float) -> dict
         "feasible_pareto_front_count": int(pareto_quality.get("feasible_front_count") or 0),
         "approx_hypervolume_2d": _float(pareto_quality.get("approx_hypervolume_2d")) or _approx_hypervolume(candidates),
     }
+
+
+def _recommended_folding_evidence(design: dict[str, Any]) -> dict[str, Any]:
+    recommended = design.get("recommended_candidate") or {}
+    cds = recommended.get("cds")
+    if not cds:
+        payload = {
+            "folding_schema": "agentic-rag-rna-folding-v1",
+            "status": "warning",
+            "active_backend": "missing_recommended_candidate",
+            "fallback_active": True,
+            "warnings": ["No recommended candidate was available for folding evidence."],
+        }
+        return {**payload, "folding_evidence_hash": _hash_payload(payload)}
+    payload = evaluate_rna_folding(str(cds))
+    return {**payload, "folding_evidence_hash": _hash_payload(payload)}
 
 
 def _evaluate_thresholds(metrics: dict[str, Any], thresholds: dict[str, Any]) -> tuple[list[str], list[str]]:
@@ -205,6 +235,7 @@ def _macro_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
             "recommended_rare_codon_clusters",
             "recommended_low_complexity_penalty",
             "recommended_hairpin_proxy_score",
+            "recommended_thermodynamic_risk_score",
             "approx_hypervolume_2d",
             "recommended_on_pareto_front",
             "feasible_pareto_front_count",
@@ -336,6 +367,7 @@ def _semantic_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "thresholds": result.get("thresholds") or {},
                 "case_provenance": result.get("case_provenance") or {},
                 "metrics": metrics,
+                "recommended_folding_evidence": result.get("recommended_folding_evidence") or {},
                 "recommended_candidate_id": result.get("recommended_candidate_id"),
                 "candidate_diagnostics": result.get("candidate_diagnostics") or {},
             }

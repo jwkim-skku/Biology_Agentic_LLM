@@ -45,6 +45,7 @@ def build_optimizer_benchmark_bundle() -> bytes:
     diagnostics_json = _json(diagnostics)
     case_metrics_csv = _case_metrics_csv(benchmark.get("results") or [])
     candidate_diagnostics_json = _json(_candidate_diagnostics(benchmark.get("results") or []))
+    folding_evidence_hashes = _recommended_folding_evidence_hashes(benchmark.get("results") or [])
     metadata = {
         "bundle_schema": "agentic-rag-optimizer-benchmark-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -56,6 +57,8 @@ def build_optimizer_benchmark_bundle() -> bytes:
         "diagnostics_hash": _hash_text(diagnostics_json),
         "case_metrics_hash": _hash_text(case_metrics_csv),
         "candidate_diagnostics_hash": _hash_text(candidate_diagnostics_json),
+        "recommended_folding_evidence_hash": _hash_json(sorted(folding_evidence_hashes)),
+        "recommended_folding_evidence_count": len(folding_evidence_hashes),
         "diagnostics_status": diagnostics.get("status"),
         "stress_status": stress.get("status"),
         "rna_folding_status": folding.get("status"),
@@ -301,6 +304,35 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["case_provenance_fingerprints"] = "fail"
     else:
         semantic_checks["case_provenance_fingerprints"] = "pass"
+    folding_evidence_hashes = [
+        str((case.get("recommended_folding_evidence") or {}).get("folding_evidence_hash") or "")
+        for case in diag_cases
+        if (case.get("recommended_folding_evidence") or {}).get("folding_evidence_hash")
+    ]
+    if any((case.get("recommended_folding_evidence") or {}).get("folding_schema") != "agentic-rag-rna-folding-v1" for case in diag_cases):
+        semantic_errors.append("candidate_diagnostics.json is missing recommended folding evidence metadata.")
+        semantic_checks["recommended_folding_evidence_schema"] = "fail"
+    else:
+        semantic_checks["recommended_folding_evidence_schema"] = "pass"
+    if len(folding_evidence_hashes) != len(diag_cases):
+        semantic_errors.append("candidate_diagnostics.json is missing recommended folding evidence hashes.")
+        semantic_checks["recommended_folding_evidence_hashes"] = "fail"
+    else:
+        semantic_checks["recommended_folding_evidence_hashes"] = "pass"
+    if any(not _folding_evidence_hash_matches(case.get("recommended_folding_evidence") or {}) for case in diag_cases):
+        semantic_errors.append("candidate_diagnostics.json recommended folding evidence hashes do not match evidence payloads.")
+        semantic_checks["recommended_folding_evidence_payload_hash"] = "fail"
+    else:
+        semantic_checks["recommended_folding_evidence_payload_hash"] = "pass"
+    folding_manifest_hash = _hash_json(sorted(folding_evidence_hashes))
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommended_folding_evidence_hash",
+        manifest.get("recommended_folding_evidence_hash"),
+        folding_manifest_hash,
+        "bundle_manifest.json recommended_folding_evidence_hash does not match candidate_diagnostics.json.",
+    )
 
     if any(row.get("status") not in {"pass", "warning", "fail"} for row in metric_rows):
         semantic_errors.append("case_metrics.csv contains invalid case status values.")
@@ -329,6 +361,10 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "feasible_pareto_front_count",
         "recommended_secondary_structure_proxy",
         "recommended_mfe_proxy_delta_g",
+        "recommended_folding_evidence_hash",
+        "recommended_folding_status",
+        "recommended_folding_backend",
+        "recommended_thermodynamic_risk_score",
         "approx_hypervolume_2d",
         "recommended_candidate_id",
     }
@@ -379,6 +415,8 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "candidate_diagnostics_hash": manifest.get("candidate_diagnostics_hash"),
         "case_provenance_hash": _hash_json(sorted(case_fingerprints)),
         "case_fingerprint_count": len(case_fingerprints),
+        "recommended_folding_evidence_hash": folding_manifest_hash,
+        "recommended_folding_evidence_count": len(folding_evidence_hashes),
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }
 
@@ -398,6 +436,15 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
         "recommended_composite_delta",
         "recommended_secondary_structure_proxy",
         "recommended_mfe_proxy_delta_g",
+        "recommended_folding_evidence_hash",
+        "recommended_folding_status",
+        "recommended_folding_backend",
+        "recommended_folding_fallback_active",
+        "recommended_folding_window_nt",
+        "recommended_folding_proxy_score",
+        "recommended_folding_proxy_mfe_delta_g",
+        "recommended_thermodynamic_mfe_delta_g",
+        "recommended_thermodynamic_risk_score",
         "recommended_policy_violation_delta",
         "recommendation_best_metric_count",
         "recommendation_tradeoff_count",
@@ -432,6 +479,15 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
                 "recommended_composite_delta": metrics.get("recommended_composite_delta"),
                 "recommended_secondary_structure_proxy": metrics.get("recommended_secondary_structure_proxy"),
                 "recommended_mfe_proxy_delta_g": metrics.get("recommended_mfe_proxy_delta_g"),
+                "recommended_folding_evidence_hash": metrics.get("recommended_folding_evidence_hash"),
+                "recommended_folding_status": metrics.get("recommended_folding_status"),
+                "recommended_folding_backend": metrics.get("recommended_folding_backend"),
+                "recommended_folding_fallback_active": metrics.get("recommended_folding_fallback_active"),
+                "recommended_folding_window_nt": metrics.get("recommended_folding_window_nt"),
+                "recommended_folding_proxy_score": metrics.get("recommended_folding_proxy_score"),
+                "recommended_folding_proxy_mfe_delta_g": metrics.get("recommended_folding_proxy_mfe_delta_g"),
+                "recommended_thermodynamic_mfe_delta_g": metrics.get("recommended_thermodynamic_mfe_delta_g"),
+                "recommended_thermodynamic_risk_score": metrics.get("recommended_thermodynamic_risk_score"),
                 "recommended_policy_violation_delta": metrics.get("recommended_policy_violation_delta"),
                 "recommendation_best_metric_count": metrics.get("recommendation_best_metric_count"),
                 "recommendation_tradeoff_count": metrics.get("recommendation_tradeoff_count"),
@@ -460,6 +516,7 @@ def _candidate_diagnostics(results: list[dict[str, Any]]) -> dict[str, Any]:
                 "status": result.get("status"),
                 "run_id": result.get("run_id"),
                 "recommended_candidate_id": result.get("recommended_candidate_id"),
+                "recommended_folding_evidence": result.get("recommended_folding_evidence") or {},
                 "candidate_count": diagnostics.get("candidate_count"),
                 "feasible_count": diagnostics.get("feasible_count"),
                 "pareto_front": diagnostics.get("pareto_front"),
@@ -474,6 +531,14 @@ def _candidate_diagnostics(results: list[dict[str, Any]]) -> dict[str, Any]:
         "diagnostics_schema": "agentic-rag-optimizer-benchmark-candidate-diagnostics-v1",
         "cases": cases,
     }
+
+
+def _recommended_folding_evidence_hashes(results: list[dict[str, Any]]) -> list[str]:
+    return [
+        str((result.get("recommended_folding_evidence") or {}).get("folding_evidence_hash") or "")
+        for result in results
+        if (result.get("recommended_folding_evidence") or {}).get("folding_evidence_hash")
+    ]
 
 
 def _read_json(archive: ZipFile, name: str) -> dict[str, Any]:
@@ -496,6 +561,19 @@ def _hash_text(text: str) -> str:
 
 def _hash_json(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _folding_evidence_hash_matches(evidence: dict[str, Any]) -> bool:
+    expected = evidence.get("folding_evidence_hash")
+    if not expected:
+        return False
+    payload = dict(evidence)
+    payload.pop("folding_evidence_hash", None)
+    return expected == _hash_payload(payload)
 
 
 def _expect_equal(
