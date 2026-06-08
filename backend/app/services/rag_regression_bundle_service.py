@@ -22,6 +22,7 @@ REQUIRED_RAG_REGRESSION_FILES = {
     "case_metrics.csv",
     "weak_cases.json",
     "quality_summary.json",
+    "source_provenance_summary.json",
     "diagnostics.json",
     "ranking_policy.json",
     "rag_status.json",
@@ -34,6 +35,8 @@ def build_rag_regression_bundle() -> bytes:
     cases = rag_regression_cases()
     diagnostics = rag_diagnostics()
     rag = rag_status()
+    source_provenance = _source_provenance_summary(regression.get("results") or [])
+    source_provenance_json = _json(source_provenance)
     metadata = {
         "bundle_schema": "agentic-rag-regression-bundle-v1",
         "exported_at": datetime.now(timezone.utc).isoformat(),
@@ -43,6 +46,10 @@ def build_rag_regression_bundle() -> bytes:
         "results_hash": regression.get("results_hash"),
         "quality_summary_hash": regression.get("quality_summary_hash"),
         "quality_status": (regression.get("quality_summary") or {}).get("status"),
+        "source_provenance_summary_hash": _hash_payload(source_provenance),
+        "source_provenance_case_count": source_provenance.get("case_count"),
+        "source_provenance_source_count": source_provenance.get("source_count"),
+        "source_snapshot_case_count": source_provenance.get("source_snapshot_case_count"),
         "retrieval_model": regression.get("retrieval_model"),
         "structured_manifest_hash": rag.get("structured_manifest_hash"),
     }
@@ -55,6 +62,7 @@ def build_rag_regression_bundle() -> bytes:
         bundle.writestr("case_metrics.csv", _case_metrics_csv(regression.get("results") or []))
         bundle.writestr("weak_cases.json", _json(_weak_cases(regression.get("results") or [])))
         bundle.writestr("quality_summary.json", _json(regression.get("quality_summary") or {}))
+        bundle.writestr("source_provenance_summary.json", source_provenance_json)
         bundle.writestr("diagnostics.json", _json(diagnostics))
         bundle.writestr("ranking_policy.json", _json(RANKING_POLICY))
         bundle.writestr("rag_status.json", _json(rag))
@@ -94,6 +102,7 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
                     "cases": _read_json(archive, "cases.json"),
                     "weak_cases": _read_json(archive, "weak_cases.json"),
                     "quality_summary": _read_json(archive, "quality_summary.json"),
+                    "source_provenance_summary": _read_json(archive, "source_provenance_summary.json"),
                     "diagnostics": _read_json(archive, "diagnostics.json"),
                     "ranking_policy": _read_json(archive, "ranking_policy.json"),
                     "rag_status": _read_json(archive, "rag_status.json"),
@@ -114,6 +123,7 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
     structured = payloads.get("structured_manifest") or {}
     weak_cases = payloads.get("weak_cases") or {}
     quality_summary = payloads.get("quality_summary") or {}
+    source_provenance = payloads.get("source_provenance_summary") or {}
     metadata = base.get("bundle_metadata") or {}
 
     _expect_equal(
@@ -194,6 +204,39 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_checks["quality_summary_status"] = "pass"
 
+    expected_source_provenance = _source_provenance_summary(regression.get("results") or [])
+    if source_provenance.get("provenance_schema") != "agentic-rag-regression-source-provenance-summary-v1":
+        semantic_errors.append("source_provenance_summary.json schema is invalid.")
+        semantic_checks["source_provenance_summary_schema"] = "fail"
+    elif source_provenance != expected_source_provenance:
+        semantic_errors.append("source_provenance_summary.json does not match regression.json top result metadata.")
+        semantic_checks["source_provenance_summary_consistency"] = "fail"
+    else:
+        semantic_checks["source_provenance_summary_schema"] = "pass"
+        semantic_checks["source_provenance_summary_consistency"] = "pass"
+    source_provenance_hashes = {
+        str(value)
+        for value in [
+            manifest.get("source_provenance_summary_hash"),
+            metadata.get("source_provenance_summary_hash"),
+            _hash_payload(source_provenance),
+        ]
+        if value
+    }
+    if len(source_provenance_hashes) != 1:
+        semantic_errors.append("RAG regression source provenance summary hashes are missing or disagree.")
+        semantic_checks["source_provenance_summary_hash"] = "fail"
+    else:
+        semantic_checks["source_provenance_summary_hash"] = "pass"
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "source_provenance_case_count",
+        manifest.get("source_provenance_case_count"),
+        source_provenance.get("case_count"),
+        "bundle_manifest.json source_provenance_case_count does not match source_provenance_summary.json.",
+    )
+
     _expect_equal(
         semantic_checks,
         semantic_errors,
@@ -258,6 +301,10 @@ def verify_rag_regression_bundle(bundle: bytes) -> dict[str, Any]:
         "results_hash": next(iter(result_hashes), None),
         "quality_summary_hash": next(iter(quality_hashes), None),
         "quality_status": quality_summary.get("status"),
+        "source_provenance_summary_hash": next(iter(source_provenance_hashes), None),
+        "source_provenance_case_count": source_provenance.get("case_count"),
+        "source_provenance_source_count": source_provenance.get("source_count"),
+        "source_snapshot_case_count": source_provenance.get("source_snapshot_case_count"),
         "top_source_count": quality_summary.get("top_source_count"),
         "missing_term_case_count": quality_summary.get("missing_term_case_count"),
         "weak_case_count": weak_cases.get("weak_case_count"),
@@ -327,6 +374,69 @@ def _weak_cases(results: list[dict[str, Any]]) -> dict[str, Any]:
             }
             for result in weak
         ],
+    }
+
+
+def _source_provenance_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
+    cases = []
+    all_sources: set[str] = set()
+    cases_with_hashes = 0
+    cases_with_snapshots = 0
+    cases_with_urls = 0
+    for result in results:
+        rows = []
+        for item in result.get("top_results") or []:
+            source = str(item.get("source") or "unknown")
+            all_sources.add(source)
+            source_hashes = sorted(
+                {
+                    str(value)
+                    for value in [item.get("source_sha256"), item.get("source_payload_sha256")]
+                    if value
+                }
+            )
+            rows.append(
+                {
+                    "rank": item.get("rank"),
+                    "document_id": item.get("document_id"),
+                    "chunk_id": item.get("chunk_id"),
+                    "collection": item.get("collection"),
+                    "source": source,
+                    "source_url": item.get("source_url") or "",
+                    "source_path": item.get("source_path") or "",
+                    "source_hashes": source_hashes,
+                    "source_snapshot_path": item.get("source_snapshot_path") or "",
+                    "has_source_url": bool(item.get("source_url")),
+                    "has_source_hash": bool(source_hashes),
+                    "has_source_snapshot": bool(item.get("source_snapshot_path")),
+                }
+            )
+        if any(row["has_source_hash"] for row in rows):
+            cases_with_hashes += 1
+        if any(row["has_source_snapshot"] for row in rows):
+            cases_with_snapshots += 1
+        if any(row["has_source_url"] for row in rows):
+            cases_with_urls += 1
+        cases.append(
+            {
+                "case_id": result.get("case_id"),
+                "status": result.get("status"),
+                "result_count": result.get("result_count"),
+                "source_count": len({row["source"] for row in rows}),
+                "source_hash_count": sum(1 for row in rows if row["has_source_hash"]),
+                "source_snapshot_count": sum(1 for row in rows if row["has_source_snapshot"]),
+                "source_url_count": sum(1 for row in rows if row["has_source_url"]),
+                "top_results": rows,
+            }
+        )
+    return {
+        "provenance_schema": "agentic-rag-regression-source-provenance-summary-v1",
+        "case_count": len(cases),
+        "source_count": len(all_sources),
+        "source_hash_case_count": cases_with_hashes,
+        "source_snapshot_case_count": cases_with_snapshots,
+        "source_url_case_count": cases_with_urls,
+        "cases": cases,
     }
 
 

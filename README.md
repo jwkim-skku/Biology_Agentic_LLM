@@ -9,7 +9,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - MANE-aware Ensembl transcript selection.
 - Local document ingestion for PDF, Markdown, text, and JSON.
 - Hybrid local RAG retrieval over seed evidence, ingested documents, and structured GTEx/Allen/CUSTOM priors, including alias expansion, facet-aware reranking, source-priority scoring, and retrieval coverage evaluation.
-- RAG diagnostics for corpus/source distribution, reproducible chunking policy, token and embedding health, regression macro metrics, weak-case surfacing, and operational recommendations.
+- RAG diagnostics for corpus/source distribution, reproducible chunking policy, token and embedding health, regression macro metrics, source-provenance regression evidence, weak-case surfacing, and operational recommendations.
 - Manifested RAG evaluation ZIP bundles with retrieval trace, source provenance hashes, score CSV, retrieved chunks JSONL, RAG status, structured manifest, artifact verification, and semantic cross-checks.
 - Data catalog and refresh API for reproducible GTEx/Allen reference panel ingestion.
 - Data provenance audit for source hashes, release metadata, RAG/document coverage, and refresh history.

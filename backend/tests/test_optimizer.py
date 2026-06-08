@@ -900,6 +900,9 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "evidence_sufficiency_schema": "pass",
                     "facet_gap_analysis": "pass",
                     "query_term_coverage": "pass",
+                    "source_provenance_schema": "pass",
+                    "source_provenance_consistency": "pass",
+                    "source_provenance_count": "pass",
                     "retrieval_trace_hash": "pass",
                     "evidence_sufficiency_hash": "pass",
                     "facet_gap_analysis_hash": "pass",
@@ -907,6 +910,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "top_sources_consistency": "pass",
                     "evaluation_hash": "pass",
                     "top_sources_hash": "pass",
+                    "source_provenance_hash": "pass",
                     "score_breakdown_hash": "pass",
                     "chunks_hash": "pass",
                 },
@@ -916,6 +920,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 "facet_gap_analysis_hash": valid_hash,
                 "query_term_coverage_hash": valid_hash,
                 "top_sources_hash": valid_hash,
+                "source_provenance_hash": valid_hash,
+                "source_provenance_count": 3,
                 "score_breakdown_hash": valid_hash,
                 "chunks_hash": valid_hash,
             }
@@ -933,9 +939,14 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "quality_summary_schema": "pass",
                     "quality_summary_case_count": "pass",
                     "quality_summary_status": "pass",
+                    "source_provenance_summary_schema": "pass",
+                    "source_provenance_summary_consistency": "pass",
+                    "source_provenance_summary_hash": "pass",
+                    "source_provenance_case_count": "pass",
                 },
                 "results_hash": valid_hash,
                 "quality_summary_hash": valid_hash,
+                "source_provenance_summary_hash": valid_hash,
             }
         },
     ) == []
@@ -1219,6 +1230,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "cases_hash": valid_hash,
                         "results_hash": valid_hash,
                         "quality_summary_hash": valid_hash,
+                        "source_provenance_summary_hash": valid_hash,
+                        "source_provenance_case_count": 5,
+                        "source_provenance_source_count": 4,
+                        "source_snapshot_case_count": 1,
                         "quality_status": "pass",
                         "top_source_count": 4,
                         "missing_term_case_count": 0,
@@ -1235,6 +1250,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "cases_hash" in " ".join(rag_regression_archive_failures)
     assert "results_hash" in " ".join(rag_regression_archive_failures)
     assert "quality_summary_hash" in " ".join(rag_regression_archive_failures)
+    assert "source_provenance_summary_hash" in " ".join(rag_regression_archive_failures)
     assert "top_source_count" in " ".join(rag_regression_archive_failures)
     vector_index_failures = module.api_failures(
         "rag_vector_index_archive_semantics",
@@ -2023,19 +2039,33 @@ def test_rag_regression_bundle_verifies_result_hash() -> None:
     assert verification["semantic_checks"]["quality_summary_schema"] == "pass"
     assert verification["semantic_checks"]["quality_summary_case_count"] == "pass"
     assert verification["semantic_checks"]["quality_summary_status"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_summary_schema"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_summary_consistency"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_summary_hash"] == "pass"
+    assert verification["semantic_checks"]["source_provenance_case_count"] == "pass"
     assert len(verification["results_hash"]) == 64
     assert len(verification["quality_summary_hash"]) == 64
+    assert len(verification["source_provenance_summary_hash"]) == 64
     assert verification["quality_status"] == "pass"
+    assert verification["source_provenance_case_count"] == verification["case_count"]
+    assert verification["source_provenance_source_count"] >= 1
+    assert verification["source_snapshot_case_count"] >= 0
     assert verification["top_source_count"] >= 1
     assert verification["missing_term_case_count"] == 0
     with ZipFile(BytesIO(bundle)) as archive:
         manifest = json.loads(archive.read("bundle_manifest.json"))
         regression = json.loads(archive.read("regression.json"))
         quality = json.loads(archive.read("quality_summary.json"))
+        source_provenance = json.loads(archive.read("source_provenance_summary.json"))
         assert manifest["results_hash"] == regression["results_hash"] == verification["results_hash"]
         assert manifest["quality_summary_hash"] == regression["quality_summary_hash"] == verification["quality_summary_hash"]
+        assert manifest["source_provenance_summary_hash"] == verification["source_provenance_summary_hash"]
+        assert manifest["source_provenance_case_count"] == verification["source_provenance_case_count"]
         assert quality["quality_summary_schema"] == "agentic-rag-regression-quality-summary-v1"
         assert quality == regression["quality_summary"]
+        assert source_provenance["provenance_schema"] == "agentic-rag-regression-source-provenance-summary-v1"
+        assert source_provenance["case_count"] == verification["case_count"]
+        assert source_provenance["cases"]
 
 
 def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:

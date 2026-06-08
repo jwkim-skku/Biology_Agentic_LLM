@@ -1322,6 +1322,10 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     results_hash?: string | null;
     quality_summary_hash?: string | null;
     quality_status?: string | null;
+    source_provenance_summary_hash?: string | null;
+    source_provenance_case_count?: number | null;
+    source_provenance_source_count?: number | null;
+    source_snapshot_case_count?: number | null;
     top_source_count?: number | null;
     missing_term_case_count?: number | null;
     benchmark_hash?: string | null;
@@ -4699,6 +4703,11 @@ export default function Dashboard() {
                 Quality {ragRegressionSemantics?.latest_artifacts?.[0]?.quality_status ?? "n/a"} / top src{" "}
                 {ragRegressionSemantics?.latest_artifacts?.[0]?.top_source_count ?? "n/a"} / term gaps{" "}
                 {ragRegressionSemantics?.latest_artifacts?.[0]?.missing_term_case_count ?? "n/a"}
+              </span>
+              <span>
+                Source prov {ragRegressionSemantics?.latest_artifacts?.[0]?.source_provenance_summary_hash?.slice(0, 10) ?? "n/a"} / cases{" "}
+                {ragRegressionSemantics?.latest_artifacts?.[0]?.source_provenance_case_count ?? "n/a"} / snapshots{" "}
+                {ragRegressionSemantics?.latest_artifacts?.[0]?.source_snapshot_case_count ?? "n/a"}
               </span>
             </div>
             <div className="data-quality" aria-label="RAG vector index archive summary">

@@ -104,6 +104,11 @@ def _evaluate_case(case: dict[str, Any]) -> dict[str, Any]:
                 "chunk_id": chunk["chunk_id"],
                 "collection": chunk["metadata"].get("collection"),
                 "source": chunk["metadata"].get("source"),
+                "source_url": chunk["metadata"].get("source_url"),
+                "source_path": chunk["metadata"].get("source_path"),
+                "source_sha256": chunk["metadata"].get("source_sha256"),
+                "source_snapshot_path": chunk["metadata"].get("source_snapshot_path"),
+                "source_payload_sha256": chunk["metadata"].get("source_payload_sha256"),
                 "score": chunk["score"],
                 "relevance": _relevance(chunk, case),
             }
@@ -275,6 +280,11 @@ def _semantic_results(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "chunk_id": item.get("chunk_id"),
                     "collection": item.get("collection"),
                     "source": item.get("source"),
+                    "source_url": item.get("source_url"),
+                    "source_path": item.get("source_path"),
+                    "source_sha256": item.get("source_sha256"),
+                    "source_snapshot_path": item.get("source_snapshot_path"),
+                    "source_payload_sha256": item.get("source_payload_sha256"),
                     "relevance": item.get("relevance"),
                 }
                 for item in (result.get("top_results") or [])
