@@ -4303,6 +4303,10 @@ export default function Dashboard() {
               <span>RAG regress {deploymentGateStatus(deploymentReadiness, "rag_regression_archive_semantics")}</span>
               <span>RAG metrics {deploymentGateHash(deploymentReadiness, "rag_regression_archive_semantics", "latest_case_metrics_hash")}</span>
               <span>Bench summary {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommendation_summary_hash")}</span>
+              <span>
+                Bench front {deploymentGateDetail(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_on_pareto_front_count")} /
+                regret {deploymentGateDetail(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommendation_max_regret")}
+              </span>
               <span>Bench folding {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
               <span>
                 Trace steps {deploymentGateDetail(deploymentReadiness, "workflow_trace_archive_semantics", "latest_trace_step_count")} /

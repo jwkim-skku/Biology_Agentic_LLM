@@ -183,6 +183,7 @@ async function main() {
     assert(/RAG source\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG source provenance hash was not rendered: ${deploymentText}`);
     assert(/RAG regress\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness RAG regression archive gate was not rendered: ${deploymentText}`);
     assert(/RAG metrics\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG metrics hash was not rendered: ${deploymentText}`);
+    assert(/Bench front\s+(\d+|n\/a)\s+\/\s+regret\s+(\d+(\.\d+)?|n\/a)/.test(deploymentText), `Deployment readiness optimizer recommendation evidence was not rendered: ${deploymentText}`);
     assert(/Trace steps\s+(\d+|n\/a)\s+\/\s+task\s+([\w-]+|n\/a)/.test(deploymentText), `Deployment readiness workflow trace step evidence was not rendered: ${deploymentText}`);
     assert(/Trace hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness workflow trace hash was not rendered: ${deploymentText}`);
     assert(/tRNA prior\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness tRNA prior caveat count was not rendered: ${deploymentText}`);

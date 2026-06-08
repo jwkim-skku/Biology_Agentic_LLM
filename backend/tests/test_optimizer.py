@@ -804,6 +804,10 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
         or optimizer_archive_gate["details"]["latest_recommended_on_pareto_front_count"] >= 1
     )
     assert (
+        optimizer_archive_gate["details"]["latest_recommendation_max_regret"] is None
+        or optimizer_archive_gate["details"]["latest_recommendation_max_regret"] >= 0
+    )
+    assert (
         optimizer_archive_gate["details"]["latest_case_fingerprint_count"] is None
         or optimizer_archive_gate["details"]["latest_case_fingerprint_count"] >= 1
     )
