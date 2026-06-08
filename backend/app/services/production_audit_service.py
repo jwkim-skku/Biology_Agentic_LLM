@@ -700,10 +700,12 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
     optimizer = gates.get("optimizer_benchmark_archive_semantics") or {}
     workflow = gates.get("workflow_trace_archive_semantics") or {}
     memory = gates.get("agent_memory") or {}
+    object_store = gates.get("artifact_object_store") or {}
     rows = [
         ("Agent memory count", _markdown_value(memory.get("memory_count"))),
         ("Agent memory genes", _markdown_value(memory.get("distinct_genes"))),
         ("Agent memory aggregate", _short_hash(memory.get("memory_hash_aggregate"))),
+        ("Object-store lifecycle", _short_hash(object_store.get("lifecycle_policy_hash"))),
         ("Release handoff hash", _short_hash(release.get("latest_release_handoff_hash"))),
         ("Refresh plan operations", _markdown_value(refresh.get("latest_operation_count"))),
         ("Refresh plan validation", _markdown_value(refresh.get("latest_validation_status"))),
@@ -827,7 +829,11 @@ def _promotion_summary(
         _promotion_item(
             "artifact_object_store",
             "pass" if object_store.get("status") == "ready" else object_store.get("status"),
-            f"enabled {object_store.get('enabled')}; bucket {object_store.get('bucket') or 'n/a'}",
+            "enabled {enabled}; bucket {bucket}; lifecycle {lifecycle}".format(
+                enabled=object_store.get("enabled"),
+                bucket=object_store.get("bucket") or "n/a",
+                lifecycle=(object_store.get("lifecycle_policy") or {}).get("status", "n/a"),
+            ),
             object_store.get("recommendation") or "Configure managed object-store mirroring for immutable retention.",
         ),
     ]

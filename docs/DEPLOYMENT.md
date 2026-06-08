@@ -72,6 +72,7 @@ Useful runtime variables:
 - `ARTIFACT_OBJECT_STORE_PREFIX`: destination object key prefix.
 - `ARTIFACT_OBJECT_STORE_REGION`: SigV4 region used for object-store requests.
 - `ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID` and `ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY`: object-store credentials used by the mirror endpoint.
+  `/api/v1/artifacts/object-store/status`, deployment readiness, and production audit reports expose a lifecycle-policy summary plus `lifecycle_policy_hash` derived from retention days, minimum keep count, and mirror readiness so promotion reviewers can verify archive retention intent without inspecting secrets.
 - `NEXT_PUBLIC_API_BASE_URL`: frontend API base URL.
 
 Operational endpoints:

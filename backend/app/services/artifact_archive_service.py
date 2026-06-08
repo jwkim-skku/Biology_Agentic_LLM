@@ -1376,6 +1376,7 @@ def archive_summary() -> dict[str, Any]:
             ).fetchall()
         }
         latest = conn.execute("select * from archived_artifacts order by created_at desc limit 1").fetchone()
+    lifecycle_policy = _archive_lifecycle_policy(settings)
     return {
         "total_artifacts": total,
         "total_bytes": total_bytes,
@@ -1400,6 +1401,8 @@ def archive_summary() -> dict[str, Any]:
             "bucket": settings.artifact_object_store_bucket or None,
             "prefix": settings.artifact_object_store_prefix,
             "region": settings.artifact_object_store_region,
+            "lifecycle_policy": lifecycle_policy,
+            "lifecycle_policy_hash": _hash_payload(lifecycle_policy),
         },
         "store_path": str(ARCHIVE_DB_PATH),
         "archive_dir": str(ARCHIVE_DIR),
@@ -1601,6 +1604,34 @@ def _hash_ledger_entry(entry: dict[str, Any]) -> str:
     payload = {key: value for key, value in entry.items() if key != "entry_hash"}
     encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return sha256(encoded).hexdigest()
+
+
+def _hash_payload(payload: Any) -> str:
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return sha256(encoded).hexdigest()
+
+
+def _archive_lifecycle_policy(settings: Any) -> dict[str, Any]:
+    configured = bool(
+        settings.artifact_object_store_enabled
+        and settings.artifact_object_store_endpoint
+        and settings.artifact_object_store_bucket
+        and settings.artifact_object_store_access_key_id
+        and settings.artifact_object_store_secret_access_key
+    )
+    retention_days = int(settings.artifact_retention_days)
+    keep_min = int(settings.artifact_retention_keep_min)
+    return {
+        "policy_schema": "agentic-rag-artifact-lifecycle-policy-v1",
+        "status": "pass" if retention_days > 0 and keep_min >= 100 and configured else "warning",
+        "retention_days": retention_days,
+        "keep_min": keep_min,
+        "local_retention_enabled": retention_days > 0,
+        "minimum_keep_ready": keep_min >= 100,
+        "object_store_mirror_ready": configured,
+        "mirror_before_retention": True,
+        "immutability_expectation": "mirror ZIP bundles and manifest hashes to managed object storage before local retention deletion",
+    }
 
 
 def _connect() -> sqlite3.Connection:

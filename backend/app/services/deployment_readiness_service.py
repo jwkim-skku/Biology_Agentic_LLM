@@ -404,6 +404,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "prefix": object_store["prefix"],
                 "region": object_store["region"],
                 "missing_settings": object_store["missing_settings"],
+                "lifecycle_policy": object_store.get("lifecycle_policy", {}),
+                "lifecycle_policy_hash": object_store.get("lifecycle_policy_hash"),
                 "recommendation": object_store["recommendation"],
             },
             fail_message="Artifact object-store mirror is enabled but misconfigured.",

@@ -1485,6 +1485,13 @@ type ArtifactArchiveSummary = {
     bucket?: string | null;
     prefix?: string;
     region?: string;
+    lifecycle_policy?: {
+      status: string;
+      retention_days: number;
+      keep_min: number;
+      object_store_mirror_ready: boolean;
+    };
+    lifecycle_policy_hash?: string | null;
   };
 };
 
@@ -1515,6 +1522,13 @@ type ArtifactObjectStoreMirrorPlan = {
     bucket?: string | null;
     prefix?: string;
     region?: string;
+    lifecycle_policy?: {
+      status: string;
+      retention_days: number;
+      keep_min: number;
+      object_store_mirror_ready: boolean;
+    };
+    lifecycle_policy_hash?: string | null;
     recommendation?: string;
   };
 };
@@ -4696,6 +4710,10 @@ export default function Dashboard() {
               <span>
                 Prefix {artifactSummary?.object_store?.prefix ?? objectStorePlan?.object_store?.prefix ?? "n/a"} / region{" "}
                 {artifactSummary?.object_store?.region ?? objectStorePlan?.object_store?.region ?? "n/a"}
+              </span>
+              <span>
+                Lifecycle {artifactSummary?.object_store?.lifecycle_policy?.status ?? objectStorePlan?.object_store?.lifecycle_policy?.status ?? "n/a"} / hash{" "}
+                {(artifactSummary?.object_store?.lifecycle_policy_hash ?? objectStorePlan?.object_store?.lifecycle_policy_hash ?? "").slice(0, 10) || "n/a"}
               </span>
               <span>{objectStorePlan?.object_store?.recommendation ?? "Archive mirror status not checked"}</span>
             </div>

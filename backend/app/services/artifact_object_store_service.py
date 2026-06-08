@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
@@ -25,6 +26,7 @@ def artifact_object_store_status() -> dict[str, Any]:
     settings = get_settings()
     configured = _configured(settings)
     missing = _missing_settings(settings)
+    lifecycle_policy = _lifecycle_policy(settings, configured)
     return {
         "status_schema": OBJECT_STORE_SCHEMA,
         "status": "disabled" if not settings.artifact_object_store_enabled else "ready" if configured else "misconfigured",
@@ -41,6 +43,8 @@ def artifact_object_store_status() -> dict[str, Any]:
             "head_verify": configured,
             "path_style": True,
         },
+        "lifecycle_policy": lifecycle_policy,
+        "lifecycle_policy_hash": _hash_payload(lifecycle_policy),
         "recommendation": _recommendation(settings, missing),
     }
 
@@ -248,6 +252,28 @@ def _redacted_endpoint(endpoint: str) -> str | None:
     if not parsed.netloc:
         return endpoint
     return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _lifecycle_policy(settings: Any, configured: bool) -> dict[str, Any]:
+    retention_days = int(settings.artifact_retention_days)
+    keep_min = int(settings.artifact_retention_keep_min)
+    retention_ready = retention_days > 0 and keep_min >= 100
+    mirror_ready = bool(settings.artifact_object_store_enabled and configured)
+    return {
+        "policy_schema": "agentic-rag-artifact-lifecycle-policy-v1",
+        "status": "pass" if retention_ready and mirror_ready else "warning",
+        "retention_days": retention_days,
+        "keep_min": keep_min,
+        "local_retention_enabled": retention_days > 0,
+        "minimum_keep_ready": keep_min >= 100,
+        "object_store_mirror_ready": mirror_ready,
+        "mirror_before_retention": True,
+        "immutability_expectation": "mirror ZIP bundles and manifest hashes to managed object storage before local retention deletion",
+    }
+
+
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def _recommendation(settings: Any, missing: list[str]) -> str:

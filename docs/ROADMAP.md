@@ -41,6 +41,7 @@ Implemented:
 - immutable local archive for exported run/job/data snapshot bundles with archive re-verification
 - append-only artifact archive ledger with hash-chain verification
 - optional S3-compatible object-store mirror planning/apply workflow for immutable archive bundles
+- object-store lifecycle-policy summary and hash evidence for retention/mirror readiness review
 - governance attestation export for OpenAPI, data, RAG, storage, and artifact-ledger state
 - optional HMAC and Ed25519 signatures for artifact manifests and governance attestation payloads
 - API-key role-based access control for viewer/operator/admin deployment profiles
@@ -61,7 +62,7 @@ Implemented:
 Remaining production work:
 
 - Replace seed structured data with larger release-pinned GTEx/Allen/CUSTOM/Kapur data files.
-- Add external timestamping and lifecycle-policy validation for regulated object-store deployments.
+- Add external timestamping and managed-provider lifecycle validation for regulated object-store deployments.
 - Pin and validate the production biomedical embedding model artifact, then calibrate RAG regression thresholds against that model before retrieval promotion.
 - Validate pgvector/Qdrant cutover against live managed services in a Docker-enabled or cloud environment; current import/parity endpoints provide the application-side cutover workflow.
 - Validate a LangGraph or managed workflow runtime against the current task/plan/trace/artifact contract only when persistence, retry, and human-in-the-loop requirements exceed this local orchestrator.

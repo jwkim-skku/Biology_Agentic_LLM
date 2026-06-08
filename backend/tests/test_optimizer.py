@@ -51,6 +51,7 @@ from app.services.artifact_archive_service import (
     verify_artifact_ledger,
     workflow_trace_archive_summary,
 )
+from app.services.artifact_object_store_service import artifact_object_store_status
 from app.services.batch_design_service import run_batch_gene_design
 from app.services.design_service import optimize_design
 from app.services.evidence_service import build_design_evidence, search_evidence
@@ -543,6 +544,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "## Production Gaps" in bundled_markdown
         assert "## Readiness Evidence" in bundled_markdown
         assert "Agent memory aggregate" in bundled_markdown
+        assert "Object-store lifecycle" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
@@ -1086,6 +1088,35 @@ def test_compose_preflight_includes_required_external_service_env() -> None:
     assert synthetic["OPENAI_EMBEDDING_BASE_URL"].startswith("https://")
     assert float(synthetic["OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS"]) > 0
     assert float(synthetic["OPENAI_EMBEDDING_BUDGET_USD"]) > 0
+
+
+def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "ARTIFACT_RETENTION_DAYS": "365",
+            "ARTIFACT_RETENTION_KEEP_MIN": "1000",
+            "ARTIFACT_OBJECT_STORE_ENABLED": "true",
+            "ARTIFACT_OBJECT_STORE_ENDPOINT": "https://s3.example.com",
+            "ARTIFACT_OBJECT_STORE_BUCKET": "agentic-rag-prod-artifacts",
+            "ARTIFACT_OBJECT_STORE_PREFIX": "agentic-rag/artifacts",
+            "ARTIFACT_OBJECT_STORE_REGION": "us-east-1",
+            "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID": "unit-test-access-key",
+            "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY": "unit-test-secret-key",
+        },
+    ):
+        status = artifact_object_store_status()
+        summary_object_store = archive_summary()["object_store"]
+
+    lifecycle = status["lifecycle_policy"]
+    assert status["status"] == "ready"
+    assert lifecycle["status"] == "pass"
+    assert lifecycle["retention_days"] == 365
+    assert lifecycle["keep_min"] == 1000
+    assert lifecycle["object_store_mirror_ready"] is True
+    assert len(status["lifecycle_policy_hash"]) == 64
+    assert summary_object_store["lifecycle_policy"]["status"] == "pass"
+    assert summary_object_store["lifecycle_policy_hash"] == status["lifecycle_policy_hash"]
 
 
 def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
