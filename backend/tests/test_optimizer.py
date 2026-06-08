@@ -1148,6 +1148,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "objective_inventory": "pass",
                     "evidence_retrieval_quality_schema": "pass",
                     "evidence_retrieval_quality_sources": "pass",
+                    "evidence_retrieval_quality_rank_hashes": "pass",
                     "recommendation_audit": "pass",
                     "recommendation_audit_file_schema": "pass",
                     "recommendation_audit_file_report": "pass",
@@ -1162,6 +1163,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 "candidate_ranking_hash": valid_hash,
                 "recommendation_audit_hash": valid_hash,
                 "recommended_folding_evidence_hash": valid_hash,
+                "retrieval_quality_rank_evidence_count": 3,
+                "retrieval_quality_rank_evidence_hash": valid_hash,
             }
         },
     ) == []
@@ -1235,6 +1238,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "recommended_constraint_risk_csv" in " ".join(qc_failures)
     assert "evidence_retrieval_quality_schema" in " ".join(qc_failures)
     assert "evidence_retrieval_quality_sources" in " ".join(qc_failures)
+    assert "evidence_retrieval_quality_rank_hashes" in " ".join(qc_failures)
     assert "archive semantic summary is fail" in " ".join(
         module.api_failures("data_release_archive_semantics", {"data": {"status": "fail", "checked_count": 1, "latest_artifacts": []}})
     )
@@ -1247,6 +1251,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "recommended_folding_evidence_hash" in " ".join(qc_archive_failures)
     assert "recommended_folding_status" in " ".join(qc_archive_failures)
     assert "retrieval_quality_status" in " ".join(qc_archive_failures)
+    assert "retrieval_quality_rank_evidence_count" in " ".join(qc_archive_failures)
+    assert "retrieval_quality_rank_evidence_hash" in " ".join(qc_archive_failures)
     assert "objective_count" in " ".join(qc_archive_failures)
     archive_hash_failures = module.api_failures(
         "data_release_archive_semantics",
@@ -2634,6 +2640,8 @@ def test_qc_report_contains_rationale() -> None:
     assert report["evidence_summary"]["retrieval_quality"]["quality_schema"] == "agentic-rag-qc-retrieval-quality-v1"
     assert report["evidence_summary"]["retrieval_quality"]["source_count"] >= 1
     assert report["evidence_summary"]["retrieval_quality"]["top_sources"]
+    assert report["evidence_summary"]["retrieval_quality"]["rank_evidence_count"] >= 1
+    assert len(report["evidence_summary"]["retrieval_quality"]["rank_evidence_hash"]) == 64
     assert report["recommended_candidate"]["rationale"]
     assert report["recommended_candidate"]["selection_trace"]
     assert report["recommended_candidate"]["constraint_risk"]["status"] in {"pass", "warning", "fail"}
@@ -2751,6 +2759,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["recommended_folding_evidence_hash"] == bundle_manifest["recommended_folding_evidence_hash"]
     assert verification["recommended_folding_status"] in {"pass", "warning"}
     assert verification["recommended_folding_backend"] in {"rnafold", "deterministic_proxy"}
+    assert verification["retrieval_quality_rank_evidence_count"] >= 1
+    assert len(verification["retrieval_quality_rank_evidence_hash"]) == 64
     assert verification["semantic_checks"]["request_hash"] == "pass"
     assert verification["semantic_checks"]["qc_report_hash"] == "pass"
     assert verification["semantic_checks"]["report_formats_summary_hash"] == "pass"
@@ -2760,6 +2770,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["semantic_checks"]["recommendation_audit_hash"] == "pass"
     assert verification["semantic_checks"]["evidence_retrieval_quality_schema"] == "pass"
     assert verification["semantic_checks"]["evidence_retrieval_quality_sources"] == "pass"
+    assert verification["semantic_checks"]["evidence_retrieval_quality_rank_hashes"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_file_schema"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_file_report"] == "pass"
     assert verification["semantic_checks"]["recommendation_audit_candidate"] == "pass"
@@ -2797,6 +2808,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_status"] in {"pass", "warning"}
     assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_status"] in {"pass", "warning"}
     assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_source_count"] >= 1
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_rank_evidence_count"] >= 1
+    assert len(archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_rank_evidence_hash"]) == 64
     assert archived["metadata"]["qc_bundle_semantic_verification"]["objective_count"] >= 1
     assert archived["metadata"]["qc_bundle_semantic_verification"]["data_quality_status"] in {"pass", "warning"}
     assert archived["metadata"]["qc_bundle_semantic_verification"]["optimizer_stress_status"] in {"pass", "warning"}
@@ -2826,6 +2839,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         and item["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
         and item["recommended_folding_status"] in {"pass", "warning"}
         and item["retrieval_quality_source_count"] >= 1
+        and item["retrieval_quality_rank_evidence_count"] >= 1
+        and len(item["retrieval_quality_rank_evidence_hash"]) == 64
         and item["objective_count"] >= 1
         and item["data_quality_status"] in {"pass", "warning"}
         and item["optimizer_stress_status"] in {"pass", "warning"}

@@ -196,6 +196,8 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "retrieval_quality_source_count": retrieval_quality.get("source_count"),
             "retrieval_quality_collection_count": retrieval_quality.get("collection_count"),
             "retrieval_quality_high_confidence_count": retrieval_quality.get("high_confidence_count"),
+            "retrieval_quality_rank_evidence_count": retrieval_quality.get("rank_evidence_count"),
+            "retrieval_quality_rank_evidence_hash": retrieval_quality.get("rank_evidence_hash"),
             "retrieval_model": retrieval_quality.get("retrieval_model"),
             "embedding_model": retrieval_quality.get("embedding_model"),
         }
@@ -284,6 +286,9 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     _record_check(semantic_checks, "evidence_retrieval_quality_sources", int(retrieval_quality.get("source_count") or 0) >= 1)
     if int(retrieval_quality.get("source_count") or 0) < 1:
         semantic_errors.append("qc_report.json evidence_summary.retrieval_quality must include at least one source.")
+    _record_check(semantic_checks, "evidence_retrieval_quality_rank_hashes", int(retrieval_quality.get("rank_evidence_count") or 0) >= 1)
+    if int(retrieval_quality.get("rank_evidence_count") or 0) < 1 or len(str(retrieval_quality.get("rank_evidence_hash") or "")) != 64:
+        semantic_errors.append("qc_report.json evidence_summary.retrieval_quality must include rank evidence hash coverage.")
     _expect_equal(
         semantic_checks,
         semantic_errors,

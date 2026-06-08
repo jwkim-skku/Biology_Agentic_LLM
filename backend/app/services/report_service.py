@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from html import escape
+from hashlib import sha256
 from typing import Any
 
 from app.optimizer.scoring import ScoreConfig
@@ -412,6 +413,7 @@ def _retrieval_quality_summary(evidence: dict[str, Any]) -> dict[str, Any]:
     high_confidence = 0
     scores: list[float] = []
     facet_scores: list[float] = []
+    rank_evidence_hashes: list[str] = []
     for record in records:
         source = str(record.get("source") or "unknown")
         collection = str(record.get("collection") or "unknown")
@@ -424,6 +426,9 @@ def _retrieval_quality_summary(evidence: dict[str, Any]) -> dict[str, Any]:
             scores.append(float(retrieval_meta["score"]))
         if isinstance(retrieval_meta.get("facet_score"), (int, float)):
             facet_scores.append(float(retrieval_meta["facet_score"]))
+        rank_hash = retrieval_meta.get("rank_evidence_hash")
+        if isinstance(rank_hash, str) and len(rank_hash) == 64:
+            rank_evidence_hashes.append(rank_hash)
     source_count = len([source for source in sources if source != "unknown"])
     collection_count = len([collection for collection in collections if collection != "unknown"])
     status = "pass" if len(records) >= 3 and source_count >= 2 else "warning" if records else "fail"
@@ -437,6 +442,8 @@ def _retrieval_quality_summary(evidence: dict[str, Any]) -> dict[str, Any]:
         "high_confidence_count": high_confidence,
         "retrieval_model": retrieval.get("retrieval_model") or first_record_retrieval.get("retrieval_model"),
         "embedding_model": retrieval.get("embedding_model") or first_record_retrieval.get("embedding_model"),
+        "rank_evidence_count": len(rank_evidence_hashes),
+        "rank_evidence_hash": _hash_compact(sorted(rank_evidence_hashes)) if rank_evidence_hashes else None,
         "top_sources": [
             {"source": source, "records": count}
             for source, count in sorted(sources.items(), key=lambda item: (-item[1], item[0].lower()))[:6]
@@ -678,6 +685,7 @@ def _retrieval_quality_lines(summary: dict[str, Any]) -> list[str]:
         f"- High-confidence records: {summary.get('high_confidence_count', 'n/a')}",
         f"- Retrieval model: {summary.get('retrieval_model', 'n/a')}",
         f"- Embedding model: {summary.get('embedding_model', 'n/a')}",
+        f"- Rank evidence hashes: {summary.get('rank_evidence_count', 0)} ({summary.get('rank_evidence_hash') or 'n/a'})",
         f"- Top sources: {top_sources or 'n/a'}",
         f"- Top collections: {top_collections or 'n/a'}",
         f"- Score range: {_format_score(score_range.get('min'))} to {_format_score(score_range.get('max'))}; mean {_format_score(score_range.get('mean'))}",
@@ -828,6 +836,10 @@ def _format_score(value: Any, signed: bool = False) -> str:
     if isinstance(value, float):
         return f"{value:+.4f}" if signed else f"{value:.4f}"
     return "n/a"
+
+
+def _hash_compact(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def _score_config_from_design(design: dict[str, Any]) -> ScoreConfig:

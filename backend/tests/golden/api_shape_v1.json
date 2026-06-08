@@ -723,6 +723,8 @@
           },
           "high_confidence_count": "int",
           "quality_schema": "str",
+          "rank_evidence_count": "int",
+          "rank_evidence_hash": "null",
           "record_count": "int",
           "retrieval_model": "null",
           "score_range": {
@@ -1779,6 +1781,8 @@
         },
         "high_confidence_count": "int",
         "quality_schema": "str",
+        "rank_evidence_count": "int",
+        "rank_evidence_hash": "null",
         "record_count": "int",
         "retrieval_model": "null",
         "score_range": {

@@ -649,6 +649,7 @@ def api_failures(name: str, details: Any) -> list[str]:
             "objective_inventory",
             "evidence_retrieval_quality_schema",
             "evidence_retrieval_quality_sources",
+            "evidence_retrieval_quality_rank_hashes",
             "recommendation_audit",
             "recommended_folding_evidence_schema",
             "recommended_folding_evidence_report",
@@ -688,6 +689,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest QC archive is missing pass/warning retrieval_quality_status")
         if checked_count and int(latest.get("retrieval_quality_source_count") or 0) < 1:
             failures.append("latest QC archive is missing retrieval_quality_source_count")
+        if checked_count and int(latest.get("retrieval_quality_rank_evidence_count") or 0) < 1:
+            failures.append("latest QC archive is missing retrieval_quality_rank_evidence_count")
+        if checked_count and len(str(latest.get("retrieval_quality_rank_evidence_hash") or "")) != 64:
+            failures.append("latest QC archive is missing retrieval_quality_rank_evidence_hash")
         if checked_count and int(latest.get("objective_count") or 0) < 1:
             failures.append("latest QC archive is missing objective_count")
         if checked_count and latest.get("data_quality_status") not in {"pass", "warning"}:
