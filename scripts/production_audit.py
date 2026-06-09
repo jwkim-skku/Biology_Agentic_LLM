@@ -259,9 +259,12 @@ def extract_preflight_summary(
     status = payload.get("status")
     failed = payload.get("failed")
     skipped = payload.get("skipped")
+    mode = payload.get("mode") if isinstance(payload.get("mode"), dict) else {}
     generated_at = str(payload.get("generated_at") or "")
     checks_hash = payload.get("checks_hash")
     preflight_hash = payload.get("preflight_hash")
+    mode_hash = payload.get("mode_hash")
+    skipped_hash = payload.get("skipped_hash")
     preflight_schema = payload.get("preflight_schema")
     required_checks = payload.get("required_checks")
     check_names = [str(check.get("name")) for check in checks if isinstance(check, dict) and check.get("name")]
@@ -281,6 +284,12 @@ def extract_preflight_summary(
         failures.append("preflight skipped_count does not match skipped[].")
     if int_or_default(payload.get("passed_count"), -1) != sum(1 for check in checks if isinstance(check, dict) and check.get("returncode") == 0):
         failures.append("preflight passed_count does not match passing checks.")
+    expected_mode_hash = hash_payload(mode)
+    if mode_hash != expected_mode_hash:
+        failures.append("preflight mode_hash is missing or does not match mode.")
+    expected_skipped_hash = hash_payload(skipped if isinstance(skipped, list) else stringify_list(skipped))
+    if skipped_hash != expected_skipped_hash:
+        failures.append("preflight skipped_hash is missing or does not match skipped[].")
     if status != "pass":
         failures.append(f"preflight status is {status!r}, expected 'pass'")
     if failed:
@@ -317,6 +326,9 @@ def extract_preflight_summary(
         "skipped_count": payload.get("skipped_count"),
         "checks_hash": checks_hash,
         "preflight_hash": preflight_hash,
+        "mode": mode,
+        "mode_hash": mode_hash,
+        "skipped_hash": skipped_hash,
         "required_checks": REQUIRED_PREFLIGHT_CHECKS,
         "missing_required_checks": missing_checks,
         "failed": failed if isinstance(failed, list) else stringify_list(failed),

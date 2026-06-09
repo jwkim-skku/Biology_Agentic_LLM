@@ -1071,6 +1071,7 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
             {"name": name, "returncode": 0, "status": "pass", "details": _preflight_detail(name)}
             for name in module.REQUIRED_PREFLIGHT_CHECKS
         ],
+        "mode": {"skip_frontend": True, "skip_smoke": False, "skip_signing_smoke": False, "skip_ui_smoke": False},
         "failed": [],
         "skipped": ["frontend_build"],
     }
@@ -1078,6 +1079,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
     evidence["passed_count"] = len(evidence["checks"])
     evidence["failed_count"] = len(evidence["failed"])
     evidence["skipped_count"] = len(evidence["skipped"])
+    evidence["mode_hash"] = module.hash_payload(evidence["mode"])
+    evidence["skipped_hash"] = module.hash_payload(evidence["skipped"])
     evidence["checks_hash"] = module.hash_payload(evidence["checks"])
     evidence["preflight_hash"] = module.hash_payload({key: value for key, value in evidence.items() if key != "preflight_hash"})
     try:
@@ -1111,6 +1114,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert preflight_check["details"]["check_count"] == len(module.REQUIRED_PREFLIGHT_CHECKS)
         assert preflight_check["details"]["skipped_count"] == 1
         assert preflight_check["details"]["missing_required_checks"] == []
+        assert preflight_check["details"]["mode_hash"] == evidence["mode_hash"]
+        assert preflight_check["details"]["skipped_hash"] == evidence["skipped_hash"]
         assert preflight_check["details"]["checks_hash"] == evidence["checks_hash"]
         assert preflight_check["details"]["preflight_hash"] == evidence["preflight_hash"]
         assert len(preflight_check["details"]["required_checks"]) == len(module.REQUIRED_PREFLIGHT_CHECKS)
@@ -1127,6 +1132,14 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
         assert tampered_check["status"] == "fail"
         assert "preflight_hash" in " ".join(tampered_check["failures"])
+        tampered = dict(evidence)
+        tampered["skipped"] = []
+        tampered["skipped_count"] = 0
+        tampered["preflight_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "preflight_hash"})
+        evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
+        tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        assert tampered_check["status"] == "fail"
+        assert "skipped_hash" in " ".join(tampered_check["failures"])
     finally:
         evidence_path.unlink(missing_ok=True)
 
@@ -1200,6 +1213,7 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
             {"name": name, "returncode": 0, "status": "pass", "details": {"status": "pass"}}
             for name in module.REQUIRED_PREFLIGHT_CHECKS
         ],
+        "mode": {"skip_frontend": False, "skip_smoke": False, "skip_signing_smoke": False, "skip_ui_smoke": False},
         "failed": [],
         "skipped": [],
     }
@@ -1207,6 +1221,8 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
     evidence["passed_count"] = len(evidence["checks"])
     evidence["failed_count"] = len(evidence["failed"])
     evidence["skipped_count"] = len(evidence["skipped"])
+    evidence["mode_hash"] = module.hash_payload(evidence["mode"])
+    evidence["skipped_hash"] = module.hash_payload(evidence["skipped"])
     evidence["checks_hash"] = module.hash_payload(evidence["checks"])
     evidence["preflight_hash"] = module.hash_payload({key: value for key, value in evidence.items() if key != "preflight_hash"})
     try:

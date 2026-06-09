@@ -241,6 +241,8 @@ def build_report(args: argparse.Namespace, checks: list[dict[str, object]], *, s
         "failed": [str(check["name"]) for check in failed],
         "skipped": skipped,
     }
+    report["mode_hash"] = hash_payload(report["mode"])
+    report["skipped_hash"] = hash_payload(report["skipped"])
     stamp_report_hashes(report)
     return report
 
