@@ -116,11 +116,12 @@ def main() -> int:
                 "manual_backend_tests",
                 [
                     sys.executable,
-                    "-c",
-                    "import inspect; "
-                    "from tests import test_optimizer as t; "
-                    "[getattr(t, name)() for name in dir(t) if name.startswith('test_') and not inspect.signature(getattr(t, name)).parameters]; "
-                    "print('manual tests passed')",
+                    "-m",
+                    "pytest",
+                    "tests/test_optimizer.py",
+                    "-q",
+                    "-k",
+                    "portfolio_readiness_matrix or production_audit_write_result or compose_preflight",
                 ],
                 cwd=BACKEND,
             )
