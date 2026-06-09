@@ -1412,6 +1412,45 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "validated_backend" in " ".join(folding_failures)
     assert "executable_path" in " ".join(folding_failures)
     assert module.api_failures(
+        "governance_attestation_verify",
+        {
+            "data": {
+                "status": "pass",
+                "attestation_hash": valid_hash,
+                "artifact_verification": {"status": "pass", "checked_files": 7, "file_count": 7},
+                "signature": {"status": "verified"},
+            }
+        },
+    ) == []
+    governance_failures = module.api_failures(
+        "governance_attestation_verify",
+        {
+            "data": {
+                "status": "warning",
+                "attestation_hash": "",
+                "artifact_verification": {"status": "warning", "checked_files": 0, "file_count": 7},
+                "signature": {"status": "unsigned"},
+            }
+        },
+    )
+    assert "verification did not pass" in " ".join(governance_failures)
+    assert "attestation_hash" in " ".join(governance_failures)
+    assert "artifact verification" in " ".join(governance_failures)
+    assert "checked no files" in " ".join(governance_failures)
+    assert "signature" in " ".join(governance_failures)
+    assert module.api_failures(
+        "artifact_ledger_verify",
+        {"data": {"status": "pass", "entry_count": 3, "latest_hash": valid_hash, "missing_from_ledger_count": 0}},
+    ) == []
+    ledger_failures = module.api_failures(
+        "artifact_ledger_verify",
+        {"data": {"status": "warning", "entry_count": 0, "latest_hash": "GENESIS", "missing_from_ledger_count": 2}},
+    )
+    assert "verification did not pass" in " ".join(ledger_failures)
+    assert "no entries" in " ".join(ledger_failures)
+    assert "GENESIS" in " ".join(ledger_failures)
+    assert "missing from ledger" in " ".join(ledger_failures)
+    assert module.api_failures(
         "security_status",
         {
             "data": {

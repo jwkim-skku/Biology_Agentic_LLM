@@ -749,10 +749,28 @@ def api_failures(name: str, details: Any) -> list[str]:
         failed_targets = [key for key, value in checks.items() if key.startswith("request_target_") and value != "pass"]
         if failed_targets:
             failures.append(f"QC report bundle request target checks failed: {', '.join(failed_targets)}")
-    if name == "governance_attestation_verify" and payload.get("status") not in {None, "pass"}:
-        failures.append("governance attestation verification did not pass")
-    if name == "artifact_ledger_verify" and payload.get("status") not in {None, "pass"}:
-        failures.append("artifact ledger verification did not pass")
+    if name == "governance_attestation_verify":
+        artifact_verification = payload.get("artifact_verification") or {}
+        signature = payload.get("signature") or {}
+        if payload.get("status") != "pass":
+            failures.append("governance attestation verification did not pass")
+        if not payload.get("attestation_hash"):
+            failures.append("governance attestation_hash is missing")
+        if artifact_verification.get("status") != "pass":
+            failures.append("governance attestation artifact verification did not pass")
+        if safe_int(artifact_verification.get("checked_files")) < 1:
+            failures.append("governance attestation artifact verification checked no files")
+        if signature.get("status") != "verified":
+            failures.append("governance attestation signature is not verified")
+    if name == "artifact_ledger_verify":
+        if payload.get("status") != "pass":
+            failures.append("artifact ledger verification did not pass")
+        if safe_int(payload.get("entry_count")) < 1:
+            failures.append("artifact ledger has no entries")
+        if not payload.get("latest_hash") or payload.get("latest_hash") == "GENESIS":
+            failures.append("artifact ledger latest_hash is missing or GENESIS")
+        if safe_int(payload.get("missing_from_ledger_count")) != 0:
+            failures.append("artifact ledger has archived artifacts missing from ledger")
     if name.endswith("_archive_semantics") and payload.get("status") == "fail":
         failures.append(f"{name} archive semantic summary is fail")
     if name == "qc_bundle_archive_semantics":
