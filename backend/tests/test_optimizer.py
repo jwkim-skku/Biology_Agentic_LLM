@@ -1068,7 +1068,7 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         "required_checks": module.REQUIRED_PREFLIGHT_CHECKS,
         "required_check_count": len(module.REQUIRED_PREFLIGHT_CHECKS),
         "checks": [
-            {"name": name, "returncode": 0, "status": "pass", "details": _preflight_detail(name)}
+            _preflight_check(name, _preflight_detail(name), root)
             for name in module.REQUIRED_PREFLIGHT_CHECKS
         ],
         "mode": {"skip_frontend": True, "skip_smoke": False, "skip_signing_smoke": False, "skip_ui_smoke": False},
@@ -1114,6 +1114,9 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert preflight_check["details"]["check_count"] == len(module.REQUIRED_PREFLIGHT_CHECKS)
         assert preflight_check["details"]["skipped_count"] == 1
         assert preflight_check["details"]["missing_required_checks"] == []
+        assert preflight_check["details"]["missing_command_checks"] == []
+        assert preflight_check["details"]["missing_cwd_checks"] == []
+        assert preflight_check["details"]["missing_duration_checks"] == []
         assert preflight_check["details"]["mode_hash"] == evidence["mode_hash"]
         assert preflight_check["details"]["skipped_hash"] == evidence["skipped_hash"]
         assert preflight_check["details"]["checks_hash"] == evidence["checks_hash"]
@@ -1170,6 +1173,19 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
         assert tampered_check["status"] == "fail"
         assert "check status does not match returncode" in " ".join(tampered_check["failures"])
+        tampered = json.loads(json.dumps(evidence))
+        tampered["checks"][0].pop("command")
+        tampered["checks"][1]["cwd"] = ""
+        tampered["checks"][2]["duration_seconds"] = None
+        tampered["checks_hash"] = module.hash_payload(tampered["checks"])
+        tampered["preflight_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "preflight_hash"})
+        evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
+        tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        failures = " ".join(tampered_check["failures"])
+        assert tampered_check["status"] == "fail"
+        assert "missing command evidence" in failures
+        assert "missing cwd evidence" in failures
+        assert "missing duration evidence" in failures
     finally:
         evidence_path.unlink(missing_ok=True)
 
@@ -1224,6 +1240,20 @@ def _preflight_detail(name: str) -> dict[str, Any]:
     return {"status": "pass"}
 
 
+def _preflight_check(name: str, details: dict[str, Any], root: Path) -> dict[str, Any]:
+    return {
+        "name": name,
+        "returncode": 0,
+        "status": "pass",
+        "duration_seconds": 0.01,
+        "command": ["python", name],
+        "cwd": str(root / "backend"),
+        "stdout": "{}",
+        "stderr": "",
+        "details": details,
+    }
+
+
 def test_cli_production_audit_requires_preflight_data_evidence_details() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "production_audit.py"
@@ -1240,7 +1270,7 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         "required_checks": module.REQUIRED_PREFLIGHT_CHECKS,
         "required_check_count": len(module.REQUIRED_PREFLIGHT_CHECKS),
         "checks": [
-            {"name": name, "returncode": 0, "status": "pass", "details": {"status": "pass"}}
+            _preflight_check(name, {"status": "pass"}, root)
             for name in module.REQUIRED_PREFLIGHT_CHECKS
         ],
         "mode": {"skip_frontend": False, "skip_smoke": False, "skip_signing_smoke": False, "skip_ui_smoke": False},
