@@ -1139,6 +1139,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert f"Mode hash: `{evidence['mode_hash']}`" in markdown
         assert f"Skipped hash: `{evidence['skipped_hash']}`" in markdown
         assert "Missing required checks: `0`" in markdown
+        assert "Actual failed checks: `0`" in markdown
+        assert "Status mismatch checks: `0`" in markdown
         assert "Skipped checks: `1`" in markdown
         assert "Missing command evidence: `0`" in markdown
         assert "Missing cwd evidence: `0`" in markdown

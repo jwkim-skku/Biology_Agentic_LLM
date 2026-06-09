@@ -1379,6 +1379,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Required checks: `{len(details.get('required_checks') or [])}`",
                 f"- Missing required checks: `{len(details.get('missing_required_checks') or [])}`",
                 f"- Failed checks: `{len(details.get('failed') or [])}`",
+                f"- Actual failed checks: `{len(details.get('actual_failed_checks') or [])}`",
+                f"- Status mismatch checks: `{len(details.get('status_mismatch_checks') or [])}`",
                 f"- Skipped checks: `{len(details.get('skipped') or [])}`",
                 f"- Missing command evidence: `{len(details.get('missing_command_checks') or [])}`",
                 f"- Missing cwd evidence: `{len(details.get('missing_cwd_checks') or [])}`",
