@@ -58,9 +58,11 @@ API_CHECKS = [
     {"name": "data_release_bundle_verify", "path": "/data/release/export/verify"},
     {"name": "external_sources", "path": "/data/external-sources"},
     {"name": "rag_diagnostics", "path": "/rag/diagnostics"},
+    {"name": "rag_embedding_status", "path": "/rag/embedding/status"},
     {"name": "rag_evaluation_bundle_verify", "path": "/rag/evaluate/export/verify", "method": "POST", "json": RAG_EVALUATION_AUDIT_PAYLOAD},
     {"name": "rag_regression_bundle_verify", "path": "/rag/regression/export/verify"},
     {"name": "optimizer_diagnostics", "path": "/optimizer/diagnostics"},
+    {"name": "rna_folding_status", "path": "/optimizer/rna-folding/status"},
     {"name": "optimizer_benchmark_bundle_verify", "path": "/optimizer/benchmark/export/verify"},
     {"name": "qc_report_bundle_verify", "path": "/report/export-bundle/verify", "method": "POST", "json": QC_BUNDLE_AUDIT_PAYLOAD},
     {"name": "governance_attestation_verify", "path": "/governance/attestation/verify"},
@@ -483,6 +485,34 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("data provenance status is fail")
     if name == "rag_diagnostics" and payload.get("status") == "fail":
         failures.append("RAG diagnostics status is fail")
+    if name == "rag_embedding_status":
+        if payload.get("production_ready") is not True:
+            failures.append("RAG embedding backend is not production_ready")
+        if payload.get("active_backend") not in {"sentence_transformers", "openai"}:
+            failures.append("RAG embedding active_backend is not a production backend")
+        if payload.get("fallback_active"):
+            failures.append("RAG embedding fallback_active is true")
+        if not payload.get("model_fingerprint_hash"):
+            failures.append("RAG embedding model_fingerprint_hash is missing")
+        if payload.get("active_backend") == "openai":
+            budget = (payload.get("openai") or {}).get("budget") or {}
+            if not budget.get("price_configured"):
+                failures.append("OpenAI embedding price is not configured")
+            if not budget.get("budget_configured"):
+                failures.append("OpenAI embedding budget is not configured")
+            if not budget.get("within_budget"):
+                failures.append("OpenAI embedding budget is not within budget")
+    if name == "rna_folding_status":
+        if payload.get("production_ready") is not True:
+            failures.append("RNA folding backend is not production_ready")
+        if payload.get("active_backend") != "rnafold":
+            failures.append("RNA folding active_backend is not rnafold")
+        if payload.get("fallback_active"):
+            failures.append("RNA folding fallback_active is true")
+        if payload.get("validated_backend") is not True:
+            failures.append("RNA folding validated_backend is not true")
+        if not payload.get("executable_path"):
+            failures.append("RNA folding executable_path is missing")
     if name == "optimizer_diagnostics" and payload.get("status") == "fail":
         failures.append("optimizer diagnostics status is fail")
     if name == "storage_status":
@@ -966,6 +996,10 @@ def api_warnings(name: str, details: Any) -> list[str]:
             warnings.extend(str(gate.get("message", gate.get("name"))) for gate in gates if isinstance(gate, dict) and gate.get("status") == "warning")
     if name in {"rag_diagnostics", "optimizer_diagnostics", "data_provenance"} and payload.get("status") == "warning":
         warnings.append(f"{name} status is warning")
+    if name == "rag_embedding_status" and payload.get("production_ready") is not True:
+        warnings.append("RAG embedding backend is not production_ready")
+    if name == "rna_folding_status" and payload.get("production_ready") is not True:
+        warnings.append("RNA folding backend is not production_ready")
     if name in {
         "data_release_bundle_verify",
         "rag_evaluation_bundle_verify",

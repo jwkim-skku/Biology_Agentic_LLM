@@ -1347,7 +1347,70 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "rag_regression_archive_semantics" in api_check_names
     assert "rag_vector_index_archive_semantics" in api_check_names
     assert "workflow_trace_archive_semantics" in api_check_names
+    assert "rag_embedding_status" in api_check_names
+    assert "rna_folding_status" in api_check_names
     assert "artifact_object_store_mirror_plan" in api_check_names
+    assert module.api_failures(
+        "rag_embedding_status",
+        {
+            "data": {
+                "status": "pass",
+                "production_ready": True,
+                "active_backend": "openai",
+                "fallback_active": False,
+                "model_fingerprint_hash": valid_hash,
+                "openai": {"budget": {"price_configured": True, "budget_configured": True, "within_budget": True}},
+            }
+        },
+    ) == []
+    embedding_failures = module.api_failures(
+        "rag_embedding_status",
+        {
+            "data": {
+                "status": "warning",
+                "production_ready": False,
+                "active_backend": "hash_bow",
+                "fallback_active": True,
+                "model_fingerprint_hash": "",
+                "openai": {"budget": {"price_configured": False, "budget_configured": False, "within_budget": False}},
+            }
+        },
+    )
+    assert "production_ready" in " ".join(embedding_failures)
+    assert "production backend" in " ".join(embedding_failures)
+    assert "fallback_active" in " ".join(embedding_failures)
+    assert "model_fingerprint_hash" in " ".join(embedding_failures)
+    assert module.api_failures(
+        "rna_folding_status",
+        {
+            "data": {
+                "status": "ready",
+                "production_ready": True,
+                "active_backend": "rnafold",
+                "fallback_active": False,
+                "validated_backend": True,
+                "executable_path": "C:\\Tools\\RNAfold.exe",
+            }
+        },
+    ) == []
+    folding_failures = module.api_failures(
+        "rna_folding_status",
+        {
+            "data": {
+                "status": "proxy",
+                "production_ready": False,
+                "active_backend": "deterministic_proxy",
+                "fallback_active": True,
+                "validated_backend": False,
+                "executable_path": None,
+            }
+        },
+    )
+    assert "production_ready" in " ".join(folding_failures)
+    assert "rnafold" in " ".join(folding_failures)
+    assert "fallback_active" in " ".join(folding_failures)
+    assert "validated_backend" in " ".join(folding_failures)
+    assert "executable_path" in " ".join(folding_failures)
     assert module.api_failures(
         "security_status",
         {
