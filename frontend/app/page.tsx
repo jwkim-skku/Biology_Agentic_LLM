@@ -203,6 +203,23 @@ type RecommendedFoldingEvidence = {
   warnings?: string[];
 };
 
+type CandidateFoldingAudit = {
+  audit_schema?: string;
+  candidate_count?: number;
+  evaluated_count?: number;
+  validated_backend_count?: number;
+  selection_signal?: string;
+  selection_influences_recommendation?: boolean;
+  audit_hash?: string;
+  best_thermodynamic_candidate?: {
+    candidate_id?: string | null;
+    thermodynamic_risk_score?: number | null;
+    thermodynamic_mfe_delta_g?: number | null;
+    active_backend?: string | null;
+    folding_evidence_hash?: string | null;
+  } | null;
+};
+
 type RecommendationReadiness = {
   readiness_schema?: string;
   recommended_candidate_id?: string | null;
@@ -349,6 +366,7 @@ type QcReport = {
     native?: SequencePolicyAudit;
     recommended?: SequencePolicyAudit;
   };
+  candidate_folding_audit?: CandidateFoldingAudit;
   recommended_folding_evidence?: RecommendedFoldingEvidence;
   recommendation_readiness?: RecommendationReadiness;
   warnings: string[];
@@ -393,6 +411,7 @@ type DesignResponse = {
   recommended_candidate: Candidate | null;
   candidate_diagnostics?: CandidateDiagnostics;
   recommendation_audit?: RecommendationAudit;
+  candidate_folding_audit?: CandidateFoldingAudit;
   recommended_folding_evidence?: RecommendedFoldingEvidence;
   warnings: string[];
   provenance: {
@@ -5430,6 +5449,7 @@ function QcReportPanel({ report }: { report: QcReport }) {
   const retrievalQuality = report.evidence_summary.retrieval_quality;
   const bestByMetric = diagnostics?.best_by_metric ?? {};
   const recommendationAudit = report.recommendation_audit ?? diagnostics?.recommendation_audit;
+  const candidateFoldingAudit = report.candidate_folding_audit;
   const foldingEvidence = report.recommended_folding_evidence;
   const readiness = report.recommendation_readiness;
 
@@ -5668,6 +5688,39 @@ function QcReportPanel({ report }: { report: QcReport }) {
           <div>
             <span>Primary tradeoff</span>
             <strong>{recommendationAudit.primary_tradeoff?.metric?.replaceAll("_", " ") ?? "none"}</strong>
+          </div>
+        </div>
+      ) : null}
+      {candidateFoldingAudit ? (
+        <div className="policy-strip" aria-label="Candidate folding audit">
+          <div>
+            <span>Folding audit</span>
+            <strong>{candidateFoldingAudit.selection_influences_recommendation ? "active" : "proxy"}</strong>
+          </div>
+          <div>
+            <span>Fold signal</span>
+            <strong>{candidateFoldingAudit.selection_signal ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Fold evaluated</span>
+            <strong>
+              {candidateFoldingAudit.evaluated_count ?? "n/a"} / {candidateFoldingAudit.candidate_count ?? "n/a"}
+            </strong>
+          </div>
+          <div>
+            <span>Fold validated</span>
+            <strong>{candidateFoldingAudit.validated_backend_count ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Best thermo</span>
+            <strong>
+              {candidateFoldingAudit.best_thermodynamic_candidate?.candidate_id ?? "n/a"} /{" "}
+              {formatMetric(candidateFoldingAudit.best_thermodynamic_candidate?.thermodynamic_risk_score ?? undefined, 3)}
+            </strong>
+          </div>
+          <div>
+            <span>Fold audit hash</span>
+            <strong>{candidateFoldingAudit.audit_hash?.slice(0, 12) ?? "n/a"}</strong>
           </div>
         </div>
       ) : null}

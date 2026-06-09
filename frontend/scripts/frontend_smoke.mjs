@@ -158,6 +158,11 @@ async function main() {
     assert(/Seed strategy\s*deterministic-tradeoff-seeds-v1/.test(designText), `Optimizer seed strategy was not rendered: ${designText}`);
     assert(/Best objectives\s*\d+/.test(designText), `Recommendation audit best-objective count was not rendered: ${designText}`);
     assert(/Max regret\s*(\d+\.\d+|n\/a)/.test(designText), `Recommendation audit regret was not rendered: ${designText}`);
+    assert(/Folding audit\s*(active|proxy)/.test(designText), `Candidate folding audit status was not rendered: ${designText}`);
+    assert(/Fold signal\s*(thermodynamic_risk_score|secondary_structure_proxy_score|n\/a)/.test(designText), `Candidate folding audit selection signal was not rendered: ${designText}`);
+    assert(/Fold evaluated\s*(\d+|n\/a)\s+\/\s+(\d+|n\/a)/.test(designText), `Candidate folding audit evaluated count was not rendered: ${designText}`);
+    assert(/Fold validated\s*(\d+|n\/a)/.test(designText), `Candidate folding audit validated count was not rendered: ${designText}`);
+    assert(/Fold audit hash\s*([a-f0-9]{12}|n\/a)/.test(designText), `Candidate folding audit hash was not rendered: ${designText}`);
     await expectSection(page, "Security controls", /Security/);
     await expectSection(page, "Deployment readiness", /Deployment/);
     await expectSection(page, "Production audit", /Production audit/);
