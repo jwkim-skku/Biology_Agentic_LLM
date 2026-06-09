@@ -1142,6 +1142,14 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
         assert tampered_check["status"] == "fail"
         assert "skipped_hash" in " ".join(tampered_check["failures"])
+        tampered = dict(evidence)
+        tampered["mode"] = {"skip_frontend": False, "skip_smoke": False, "skip_signing_smoke": False, "skip_ui_smoke": False}
+        tampered["mode_hash"] = module.hash_payload(tampered["mode"])
+        tampered["preflight_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "preflight_hash"})
+        evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
+        tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        assert tampered_check["status"] == "fail"
+        assert "skipped[] does not match mode skip flags" in " ".join(tampered_check["failures"])
     finally:
         evidence_path.unlink(missing_ok=True)
 

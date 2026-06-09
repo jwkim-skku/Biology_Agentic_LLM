@@ -18,6 +18,12 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "backend" / "app" / "data" / "runtime" / "production_audits"
 DEFAULT_API_BASE = "http://127.0.0.1:8000/api/v1"
 PREFLIGHT_SCHEMA = "agentic-rag-production-preflight-evidence-v1"
+PREFLIGHT_SKIP_MODE_TO_CHECK = {
+    "skip_frontend": "frontend_build",
+    "skip_smoke": "http_smoke",
+    "skip_signing_smoke": "signed_http_smoke",
+    "skip_ui_smoke": "frontend_smoke",
+}
 
 RAG_EVALUATION_AUDIT_PAYLOAD = {
     "query": "SNCA substantia nigra dopaminergic neuron AAV",
@@ -284,10 +290,14 @@ def extract_preflight_summary(
         failures.append("preflight skipped_count does not match skipped[].")
     if int_or_default(payload.get("passed_count"), -1) != sum(1 for check in checks if isinstance(check, dict) and check.get("returncode") == 0):
         failures.append("preflight passed_count does not match passing checks.")
+    skipped_list = skipped if isinstance(skipped, list) else stringify_list(skipped)
+    expected_skipped = sorted(check for flag, check in PREFLIGHT_SKIP_MODE_TO_CHECK.items() if mode.get(flag) is True)
+    if sorted(str(item) for item in skipped_list) != expected_skipped:
+        failures.append("preflight skipped[] does not match mode skip flags.")
     expected_mode_hash = hash_payload(mode)
     if mode_hash != expected_mode_hash:
         failures.append("preflight mode_hash is missing or does not match mode.")
-    expected_skipped_hash = hash_payload(skipped if isinstance(skipped, list) else stringify_list(skipped))
+    expected_skipped_hash = hash_payload(skipped_list)
     if skipped_hash != expected_skipped_hash:
         failures.append("preflight skipped_hash is missing or does not match skipped[].")
     if status != "pass":
@@ -332,7 +342,7 @@ def extract_preflight_summary(
         "required_checks": REQUIRED_PREFLIGHT_CHECKS,
         "missing_required_checks": missing_checks,
         "failed": failed if isinstance(failed, list) else stringify_list(failed),
-        "skipped": skipped if isinstance(skipped, list) else stringify_list(skipped),
+        "skipped": skipped_list,
         "path_mtime": datetime.fromtimestamp(evidence_path.stat().st_mtime, tz=timezone.utc).isoformat() if evidence_path.exists() else None,
     }
 
