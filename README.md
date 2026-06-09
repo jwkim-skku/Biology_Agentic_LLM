@@ -142,9 +142,11 @@ For a deployment audit artifact, run:
 ```powershell
 python scripts/production_audit.py --path .env.production --require-api
 python scripts/production_audit.py --path .env.production --require-api --preflight-evidence backend/app/data/runtime/preflight_latest.json
+python scripts/production_promotion_runbook.py --write-result backend/app/data/runtime/production_audit_write_result.json --output backend/app/data/runtime/production_promotion_runbook.md
 ```
 
 This writes JSON and Markdown reports under `backend/app/data/runtime/production_audits`, combining production env validation, Compose checks, optional preflight evidence validation, and live operational API status when the backend is reachable. When `--preflight-evidence` is provided, the audit requires a passing, recent preflight payload with the expected backend, contract, data-refresh, golden, and regression checks.
+The promotion runbook command accepts either the audit write-result or a `production_audit.json`, verifies the gap hashes, and groups remaining actions by operator environment, source-data promotion, artifact refresh, and optimizer validation scope.
 
 Individual contract and golden checks are also available from the repository root:
 

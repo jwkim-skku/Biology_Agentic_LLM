@@ -1682,6 +1682,73 @@ def test_production_gap_summary_classifies_resolution_scope() -> None:
     assert module._gap_summary_hash_matches(summary)
 
 
+def test_production_promotion_runbook_groups_gap_evidence(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "production_promotion_runbook.py"
+    spec = importlib.util.spec_from_file_location("production_promotion_runbook", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    valid_hash = "a" * 64
+    gap = {
+        "area": "rag_embedding_backend",
+        "status": "warning",
+        "priority": "promotion",
+        "resolution_scope": "operator_environment",
+        "resolution_mode": "managed_runtime",
+        "proof_hint": "Configure OpenAI or sentence-transformers and rebuild the index.",
+        "evidence_key": "rag_embedding",
+        "check_detail_hash": valid_hash,
+        "readiness_detail_hash": valid_hash,
+        "action": "Configure a production embedding backend.",
+    }
+    gap["gap_hash"] = module.hash_payload(gap)
+    gap_summary = {
+        "gap_schema": "agentic-rag-production-gap-summary-v1",
+        "status": "warning",
+        "gap_count": 1,
+        "blocking_count": 0,
+        "promotion_count": 1,
+        "resolution_scope_counts": {"operator_environment": 1},
+        "resolution_mode_counts": {"managed_runtime": 1},
+        "evidence_keys": ["rag_embedding"],
+        "readiness_action_hash": valid_hash,
+        "promotion_required_action_count": 1,
+        "gaps": [gap],
+    }
+    gap_summary["gap_summary_hash"] = module.hash_payload(gap_summary)
+    audit = {
+        "audit_hash": valid_hash,
+        "generated_at": "2026-06-09T00:00:00Z",
+        "summary": {"production_ready": False},
+        "production_gap_summary": gap_summary,
+    }
+    audit_path = tmp_path / "production_audit.json"
+    audit_path.write_text(json.dumps(audit), encoding="utf-8")
+    write_result_path = tmp_path / "write_result.json"
+    write_result_path.write_text(json.dumps({"json_path": str(audit_path)}), encoding="utf-16")
+
+    loaded = module.load_audit(type("Args", (), {"audit_json": None, "write_result": write_result_path})())
+    runbook = module.build_runbook(loaded)
+    markdown = module.render_markdown(runbook)
+
+    assert runbook["runbook_schema"] == "agentic-rag-production-promotion-runbook-v1"
+    assert runbook["verification"]["status"] == "pass"
+    assert runbook["resolution_scope_counts"] == {"operator_environment": 1}
+    assert runbook["groups"][0]["resolution_scope"] == "operator_environment"
+    assert "Production Promotion Runbook" in markdown
+    assert "rag_embedding_backend" in markdown
+    assert len(runbook["runbook_hash"]) == 64
+
+    tampered = dict(gap_summary)
+    tampered["gap_count"] = 2
+    assert module.verify_gap_summary(tampered)["status"] == "fail"
+    static_runbook = module.build_runbook({"audit_hash": valid_hash, "summary": {"production_ready": False}})
+    assert static_runbook["verification"]["status"] == "warning"
+    assert "live production audit" in static_runbook["verification"]["warnings"][0]
+
+
 def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "production_audit.py"
