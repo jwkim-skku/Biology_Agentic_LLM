@@ -548,6 +548,13 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["attention_gates_hash"] == "pass"
     assert verification["semantic_checks"]["required_actions_hash"] == "pass"
     assert verification["semantic_checks"]["required_action_detail_hashes"] == "pass"
+    assert verification["semantic_summary"]["summary_schema"] == "agentic-rag-production-audit-semantic-summary-v1"
+    assert verification["semantic_summary"]["check_count"] == len(verification["semantic_checks"])
+    assert verification["semantic_summary"]["pass_count"] == len(verification["semantic_checks"])
+    assert verification["semantic_summary"]["fail_count"] == 0
+    assert verification["semantic_summary"]["warning_count"] == 0
+    assert verification["semantic_summary"]["status"] == "pass"
+    assert len(verification["semantic_summary"]["summary_hash"]) == 64
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "production_audit.md" in names

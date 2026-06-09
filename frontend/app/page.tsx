@@ -1151,6 +1151,15 @@ type ProductionAuditStatus = {
     status?: string;
     audit_hash?: string | null;
     semantic_checks?: Record<string, string>;
+    semantic_summary?: {
+      summary_schema?: string;
+      check_count?: number;
+      pass_count?: number;
+      fail_count?: number;
+      warning_count?: number;
+      status?: string;
+      summary_hash?: string;
+    };
     artifact_verification?: {
       file_count?: number;
       checked_files?: number;
@@ -4545,7 +4554,7 @@ export default function Dashboard() {
                 Verify details {productionAudit?.verification?.semantic_checks?.check_detail_hashes ?? "n/a"} / actions{" "}
                 {productionAudit?.verification?.semantic_checks?.required_action_coverage ?? "n/a"}
               </span>
-              <span>Verify checks {semanticCheckSummary(productionAudit?.verification?.semantic_checks)}</span>
+              <span>Verify checks {semanticCheckSummary(productionAudit?.verification?.semantic_checks, productionAudit?.verification?.semantic_summary)}</span>
               <span>
                 Gap hash {productionAudit?.production_gap_summary?.gap_summary_hash?.slice(0, 10) ?? "n/a"} / blocking{" "}
                 {productionAudit?.production_gap_summary?.blocking_count ?? "n/a"}
@@ -6064,7 +6073,13 @@ function deploymentActionCoverage(readiness?: DeploymentReadinessStatus | null) 
   return `${actionCount}/${attentionCount}`;
 }
 
-function semanticCheckSummary(checks?: Record<string, string>) {
+function semanticCheckSummary(
+  checks?: Record<string, string>,
+  summary?: { pass_count?: number; fail_count?: number; warning_count?: number },
+) {
+  if (summary) {
+    return `P ${summary.pass_count ?? "n/a"} / F ${summary.fail_count ?? "n/a"} / W ${summary.warning_count ?? "n/a"}`;
+  }
   const values = Object.values(checks ?? {});
   if (!values.length) {
     return "P n/a / F n/a / W n/a";

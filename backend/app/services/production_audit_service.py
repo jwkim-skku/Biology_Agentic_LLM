@@ -643,6 +643,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
         "audit_hash": audit_hash,
         "summary": summary,
         "semantic_checks": semantic_checks,
+        "semantic_summary": _semantic_check_summary(semantic_checks),
         "artifact_verification": verification,
         "signature": signature_result,
     }
@@ -1121,6 +1122,18 @@ def _record_semantic_check(checks: dict[str, str], errors: list[str], name: str,
     checks[name] = "pass" if passed else "fail"
     if not passed:
         errors.append(message)
+
+
+def _semantic_check_summary(checks: dict[str, str]) -> dict[str, Any]:
+    return {
+        "summary_schema": "agentic-rag-production-audit-semantic-summary-v1",
+        "check_count": len(checks),
+        "pass_count": sum(1 for value in checks.values() if value == "pass"),
+        "fail_count": sum(1 for value in checks.values() if value == "fail"),
+        "warning_count": sum(1 for value in checks.values() if value == "warning"),
+        "status": "fail" if any(value == "fail" for value in checks.values()) else "warning" if any(value == "warning" for value in checks.values()) else "pass",
+        "summary_hash": _hash_payload(checks),
+    }
 
 
 def _required_action_detail_hash_mismatches(deployment_readiness: dict[str, Any]) -> list[str]:
