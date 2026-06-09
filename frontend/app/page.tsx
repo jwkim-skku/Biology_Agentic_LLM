@@ -4545,6 +4545,7 @@ export default function Dashboard() {
                 Verify details {productionAudit?.verification?.semantic_checks?.check_detail_hashes ?? "n/a"} / actions{" "}
                 {productionAudit?.verification?.semantic_checks?.required_action_coverage ?? "n/a"}
               </span>
+              <span>Verify checks {semanticCheckSummary(productionAudit?.verification?.semantic_checks)}</span>
               <span>
                 Gap hash {productionAudit?.production_gap_summary?.gap_summary_hash?.slice(0, 10) ?? "n/a"} / blocking{" "}
                 {productionAudit?.production_gap_summary?.blocking_count ?? "n/a"}
@@ -6061,6 +6062,17 @@ function deploymentActionCoverage(readiness?: DeploymentReadinessStatus | null) 
     return "n/a";
   }
   return `${actionCount}/${attentionCount}`;
+}
+
+function semanticCheckSummary(checks?: Record<string, string>) {
+  const values = Object.values(checks ?? {});
+  if (!values.length) {
+    return "P n/a / F n/a / W n/a";
+  }
+  const pass = values.filter((value) => value === "pass").length;
+  const fail = values.filter((value) => value === "fail").length;
+  const warning = values.filter((value) => value === "warning").length;
+  return `P ${pass} / F ${fail} / W ${warning}`;
 }
 
 function deploymentGateStatus(readiness: DeploymentReadinessStatus | null | undefined, name: string) {
