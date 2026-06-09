@@ -485,6 +485,26 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("RAG diagnostics status is fail")
     if name == "optimizer_diagnostics" and payload.get("status") == "fail":
         failures.append("optimizer diagnostics status is fail")
+    if name == "security_status":
+        if not payload.get("auth_enabled"):
+            failures.append("API authentication is not enabled")
+        if not payload.get("rbac_enabled"):
+            failures.append("API RBAC role bindings are not enabled")
+        if safe_int(payload.get("configured_keys")) < 1:
+            failures.append("security status reports no configured API keys")
+        if safe_int(payload.get("configured_role_bindings")) < 1:
+            failures.append("security status reports no configured API key role bindings")
+        if safe_int(payload.get("rate_limit_per_minute")) < 1:
+            failures.append("security status reports non-positive rate_limit_per_minute")
+        signing = payload.get("signing") or {}
+        hmac_signing = (signing.get("hmac") or {}).get("signing_enabled") or payload.get("artifact_signing_enabled")
+        ed25519_signing = (signing.get("ed25519") or {}).get("signing_enabled") or payload.get("artifact_asymmetric_signing_enabled")
+        if not (hmac_signing or ed25519_signing):
+            failures.append("artifact signing is not enabled")
+        if hmac_signing and not ((signing.get("hmac") or {}).get("key_id") or payload.get("artifact_signing_key_id")):
+            failures.append("HMAC artifact signing key_id is missing")
+        if ed25519_signing and not ((signing.get("ed25519") or {}).get("key_id") or payload.get("artifact_ed25519_key_id")):
+            failures.append("Ed25519 artifact signing key_id is missing")
     if name == "artifact_object_store_mirror_plan":
         status = payload.get("status")
         object_store = payload.get("object_store") or {}
@@ -961,8 +981,12 @@ def api_warnings(name: str, details: Any) -> list[str]:
     if name == "security_status":
         if not payload.get("auth_enabled"):
             warnings.append("API authentication is not enabled")
-        if not payload.get("rate_limit_enabled"):
+        if not payload.get("rbac_enabled"):
+            warnings.append("API RBAC role bindings are not enabled")
+        if ("rate_limit_enabled" in payload and not payload.get("rate_limit_enabled")) or safe_int(payload.get("rate_limit_per_minute")) < 1:
             warnings.append("rate limiting is not enabled")
+        if not (payload.get("artifact_signing_enabled") or payload.get("artifact_asymmetric_signing_enabled")):
+            warnings.append("artifact signing is not enabled")
     if name == "storage_status" and payload.get("backend") != "postgres":
         warnings.append("runtime storage backend is not postgres")
     if name == "artifact_object_store_mirror_plan":

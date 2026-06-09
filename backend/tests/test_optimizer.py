@@ -1349,6 +1349,41 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "workflow_trace_archive_semantics" in api_check_names
     assert "artifact_object_store_mirror_plan" in api_check_names
     assert module.api_failures(
+        "security_status",
+        {
+            "data": {
+                "auth_enabled": True,
+                "rbac_enabled": True,
+                "configured_keys": 1,
+                "configured_role_bindings": 1,
+                "rate_limit_per_minute": 60,
+                "artifact_signing_enabled": True,
+                "artifact_signing_key_id": "prod-hmac-key",
+                "signing": {"hmac": {"signing_enabled": True, "key_id": "prod-hmac-key"}},
+            }
+        },
+    ) == []
+    security_failures = module.api_failures(
+        "security_status",
+        {
+            "data": {
+                "auth_enabled": False,
+                "rbac_enabled": False,
+                "configured_keys": 0,
+                "configured_role_bindings": 0,
+                "rate_limit_per_minute": 0,
+                "artifact_signing_enabled": True,
+                "artifact_signing_key_id": "",
+                "signing": {"hmac": {"signing_enabled": True, "key_id": ""}},
+            }
+        },
+    )
+    assert "authentication" in " ".join(security_failures)
+    assert "RBAC" in " ".join(security_failures)
+    assert "configured API keys" in " ".join(security_failures)
+    assert "rate_limit_per_minute" in " ".join(security_failures)
+    assert "key_id" in " ".join(security_failures)
+    assert module.api_failures(
         "artifact_object_store_mirror_plan",
         {"data": {"status": "ready", "candidate_count": 0, "candidate_bytes": 0, "object_store": {"status": "ready", "enabled": True}}},
     ) == []
