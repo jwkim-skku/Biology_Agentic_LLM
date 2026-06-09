@@ -1294,6 +1294,9 @@ def write_result(report: dict[str, Any], *, json_path: Path, markdown_path: Path
         "markdown_path": str(markdown_path),
         "markdown_sha256": file_sha256(markdown_path),
         "preflight_evidence": (report.get("mode") or {}).get("preflight_evidence") if isinstance(report.get("mode"), dict) else None,
+        "preflight_status": preflight.get("status") if isinstance(preflight, dict) else None,
+        "preflight_failure_count": len(preflight.get("failures") or []) if isinstance(preflight, dict) else 0,
+        "preflight_warning_count": len(preflight.get("warnings") or []) if isinstance(preflight, dict) else 0,
         "preflight_hash": preflight_details.get("preflight_hash"),
         "preflight_checks_hash": preflight_details.get("checks_hash"),
     }

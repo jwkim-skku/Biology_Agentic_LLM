@@ -1138,6 +1138,9 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert write_result["audit_hash"] == report["audit_hash"]
         assert write_result["json_sha256"] == module.file_sha256(audit_json_path)
         assert write_result["markdown_sha256"] == module.file_sha256(audit_md_path)
+        assert write_result["preflight_status"] == "pass"
+        assert write_result["preflight_failure_count"] == 0
+        assert write_result["preflight_warning_count"] == 1
         assert write_result["preflight_hash"] == evidence["preflight_hash"]
         assert write_result["preflight_checks_hash"] == evidence["checks_hash"]
         assert report["audit_hash"] in markdown
