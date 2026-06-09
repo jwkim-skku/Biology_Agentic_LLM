@@ -520,6 +520,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["production_gap_summary_evidence"] == "pass"
     assert verification["semantic_checks"]["production_gap_summary_recomputed"] == "pass"
     assert verification["semantic_checks"]["production_gap_summary_hash"] == "pass"
+    assert verification["semantic_checks"]["qc_bundle_archive_evidence"] == "pass"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_candidate"] == "pass"
+    assert verification["semantic_checks"]["qc_bundle_archive_folding_candidate"] == "pass"
     assert verification["semantic_checks"]["rag_vector_index_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["rag_vector_index_archive_migration_backend"] == "pass"
     assert verification["semantic_checks"]["rag_vector_index_archive_parity"] == "pass"
@@ -744,6 +747,40 @@ def test_production_audit_bundle_rejects_missing_vector_archive_evidence() -> No
     assert verification["semantic_checks"]["rag_vector_index_archive_parity"] == "fail"
     assert verification["semantic_checks"]["rag_vector_index_archive_row_hash"] == "fail"
     assert "RAG vector index archive" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_missing_qc_archive_candidate_evidence() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    qc_archive = json.loads(source.read("evidence/qc_bundle_archive_semantics.json").decode("utf-8"))
+    assert int(qc_archive.get("checked_count") or 0) > 0
+    assert qc_archive["latest_artifacts"]
+
+    latest = qc_archive["latest_artifacts"][0]
+    latest.pop("recommendation_readiness_candidate_id", None)
+    latest.pop("recommended_folding_candidate_id", None)
+    audit["evidence"]["qc_bundle_archive_semantics"] = qc_archive
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/qc_bundle_archive_semantics.json":
+                tampered.writestr(item, json.dumps(qc_archive, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["qc_bundle_archive_evidence"] == "pass"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_candidate"] == "fail"
+    assert verification["semantic_checks"]["qc_bundle_archive_folding_candidate"] == "fail"
+    assert "QC archive evidence" in " ".join(verification["errors"])
 
 
 def test_production_audit_bundle_rejects_tampered_summary() -> None:

@@ -407,6 +407,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
             agent_memory = json.loads(archive.read("evidence/agent_memory.json").decode("utf-8"))
             production_gap_summary = json.loads(archive.read("evidence/production_gap_summary.json").decode("utf-8"))
+            qc_archive = json.loads(archive.read("evidence/qc_bundle_archive_semantics.json").decode("utf-8"))
             rag_vector_index_archive = json.loads(archive.read("evidence/rag_vector_index_archive_semantics.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
             evidence_hashes = json.loads(archive.read("evidence_hashes.json").decode("utf-8"))
@@ -497,6 +498,13 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             _record_semantic_check(
                 semantic_checks,
                 errors,
+                "qc_bundle_archive_evidence",
+                qc_archive == (evidence.get("qc_bundle_archive_semantics") or {}),
+                "evidence/qc_bundle_archive_semantics.json does not match production_audit.json evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
                 "rag_vector_index_archive_evidence",
                 rag_vector_index_archive == (evidence.get("rag_vector_index_archive_semantics") or {}),
                 "evidence/rag_vector_index_archive_semantics.json does not match production_audit.json evidence.",
@@ -516,6 +524,22 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 "evidence_hashes.json does not match production_audit.json evidence_hashes.",
             )
             _verify_evidence_hashes(archive, evidence, evidence_hashes, semantic_checks, errors)
+            latest_qc_archive = (qc_archive.get("latest_artifacts") or [{}])[0]
+            checked_qc_archives = int(qc_archive.get("checked_count") or 0)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "qc_bundle_archive_recommendation_candidate",
+                checked_qc_archives == 0 or bool(latest_qc_archive.get("recommendation_readiness_candidate_id")),
+                "Latest QC archive evidence is missing recommendation_readiness_candidate_id.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "qc_bundle_archive_folding_candidate",
+                checked_qc_archives == 0 or bool(latest_qc_archive.get("recommended_folding_candidate_id")),
+                "Latest QC archive evidence is missing recommended_folding_candidate_id.",
+            )
             latest_vector_index = (rag_vector_index_archive.get("latest_artifacts") or [{}])[0]
             checked_vector_indexes = int(rag_vector_index_archive.get("checked_count") or 0)
             _record_semantic_check(
