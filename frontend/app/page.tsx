@@ -1099,6 +1099,7 @@ type ProductionAuditStatus = {
         case_fingerprint_count?: number | null;
         recommended_folding_evidence_hash?: string | null;
         recommended_folding_evidence_count?: number | null;
+        recommended_folding_candidate_match_count?: number | null;
       }>;
     };
     workflow_trace_archive_semantics?: ArchiveSemanticFreshness & {
@@ -1478,6 +1479,7 @@ type AuditBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     case_fingerprint_count?: number | null;
     recommended_folding_evidence_hash?: string | null;
     recommended_folding_evidence_count?: number | null;
+    recommended_folding_candidate_match_count?: number | null;
     structured_manifest_hash?: string | null;
     workflow_id?: string | null;
     run_id?: string | null;
@@ -4386,6 +4388,7 @@ export default function Dashboard() {
                 regret {deploymentGateDetail(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommendation_max_regret")}
               </span>
               <span>Bench folding {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
+              <span>Bench fold match {deploymentGateDetail(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommended_folding_candidate_match_count")}</span>
               <span>
                 Trace steps {deploymentGateDetail(deploymentReadiness, "workflow_trace_archive_semantics", "latest_trace_step_count")} /
                 task {deploymentGateDetail(deploymentReadiness, "workflow_trace_archive_semantics", "latest_task_type")}
@@ -4612,6 +4615,9 @@ export default function Dashboard() {
                 Bench folding{" "}
                 {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"} /
                 count {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_evidence_count ?? "n/a"}
+              </span>
+              <span>
+                Bench fold match {productionAudit?.evidence?.optimizer_benchmark_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_candidate_match_count ?? "n/a"}
               </span>
               <span>
                 Trace steps {productionAudit?.evidence?.workflow_trace_archive_semantics?.latest_artifacts?.[0]?.trace_step_count ?? "n/a"} /
@@ -5055,6 +5061,9 @@ export default function Dashboard() {
               <span>
                 Folding hash {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"} / count{" "}
                 {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_folding_evidence_count ?? "n/a"}
+              </span>
+              <span>
+                Folding candidate match {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommended_folding_candidate_match_count ?? "n/a"}
               </span>
               <span>
                 Recommendation {optimizerBenchmarkSemantics?.latest_artifacts?.[0]?.recommendation_summary_hash?.slice(0, 10) ?? "n/a"} / front{" "}

@@ -201,6 +201,7 @@ async function main() {
     assert(/RAG regress\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness RAG regression archive gate was not rendered: ${deploymentText}`);
     assert(/RAG metrics\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG metrics hash was not rendered: ${deploymentText}`);
     assert(/Bench front\s+(\d+|n\/a)\s+\/\s+regret\s+(\d+(\.\d+)?|n\/a)/.test(deploymentText), `Deployment readiness optimizer recommendation evidence was not rendered: ${deploymentText}`);
+    assert(/Bench fold match\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness optimizer folding candidate match count was not rendered: ${deploymentText}`);
     assert(/Trace steps\s+(\d+|n\/a)\s+\/\s+task\s+([\w-]+|n\/a)/.test(deploymentText), `Deployment readiness workflow trace step evidence was not rendered: ${deploymentText}`);
     assert(/Trace hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness workflow trace hash was not rendered: ${deploymentText}`);
     assert(/tRNA prior\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness tRNA prior caveat count was not rendered: ${deploymentText}`);
@@ -221,6 +222,7 @@ async function main() {
     assert(/RAG source\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit RAG source provenance hash was not rendered: ${productionAuditText}`);
     assert(/RAG regress\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit RAG regression archive status was not rendered: ${productionAuditText}`);
     assert(/RAG metrics\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit RAG metrics hash was not rendered: ${productionAuditText}`);
+    assert(/Bench fold match\s+(\d+|n\/a)/.test(productionAuditText), `Production audit optimizer folding candidate match count was not rendered: ${productionAuditText}`);
     assert(/QC semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit QC semantic counts were not rendered: ${productionAuditText}`);
     assert(/Import semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit import semantic counts were not rendered: ${productionAuditText}`);
     assert(/Audit\s+(\d+(\.\d+)?s|n\/a)/.test(productionAuditText), `Production audit timing was not rendered: ${productionAuditText}`);
@@ -244,6 +246,7 @@ async function main() {
     assert(/RAG regress archive\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `RAG regression archive summary was not rendered: ${archiveText}`);
     assert(/RAG metrics hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `RAG regression metrics hash was not rendered: ${archiveText}`);
     assert(/OPT bench archive\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `Optimizer benchmark archive summary was not rendered: ${archiveText}`);
+    assert(/Folding candidate match\s+(\d+|n\/a)/.test(archiveText), `Optimizer benchmark folding candidate match count was not rendered: ${archiveText}`);
     const archiveSection = page.locator('section[aria-label="Immutable artifact archive"]');
     const verifyButton = archiveSection.getByTitle("Verify archived artifact").first();
     if ((await verifyButton.count()) > 0) {

@@ -370,6 +370,11 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["recommended_folding_candidate_id"] = "fail"
     else:
         semantic_checks["recommended_folding_candidate_id"] = "pass"
+    folding_candidate_match_count = sum(
+        1
+        for case in diag_cases
+        if (case.get("recommended_folding_evidence") or {}).get("candidate_id") == case.get("recommended_candidate_id")
+    )
     folding_manifest_hash = _hash_json(sorted(folding_evidence_hashes))
     _expect_equal(
         semantic_checks,
@@ -473,6 +478,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "case_fingerprint_count": len(case_fingerprints),
         "recommended_folding_evidence_hash": folding_manifest_hash,
         "recommended_folding_evidence_count": len(folding_evidence_hashes),
+        "recommended_folding_candidate_match_count": folding_candidate_match_count,
         "structured_manifest_hash": next(iter(manifest_hashes), None),
     }
 

@@ -862,6 +862,10 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
         optimizer_archive_gate["details"]["latest_recommended_folding_evidence_count"] is None
         or optimizer_archive_gate["details"]["latest_recommended_folding_evidence_count"] >= 1
     )
+    assert (
+        optimizer_archive_gate["details"]["latest_recommended_folding_candidate_match_count"] is None
+        or optimizer_archive_gate["details"]["latest_recommended_folding_candidate_match_count"] >= 1
+    )
     assert optimizer_archive_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
 
 
@@ -1989,6 +1993,7 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert verification["case_fingerprint_count"] == verification["case_count"]
     assert len(verification["recommended_folding_evidence_hash"]) == 64
     assert verification["recommended_folding_evidence_count"] == verification["case_count"]
+    assert verification["recommended_folding_candidate_match_count"] == verification["case_count"]
     with ZipFile(BytesIO(bundle)) as archive:
         names = set(archive.namelist())
         assert "search_strategy.json" in names
@@ -2060,6 +2065,7 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
     assert semantic["case_fingerprint_count"] == verification["case_fingerprint_count"]
     assert semantic["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
     assert semantic["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
+    assert semantic["recommended_folding_candidate_match_count"] == verification["recommended_folding_candidate_match_count"]
     summary = optimizer_benchmark_archive_summary(limit=5, verify_files=False)
     assert any(
         item["artifact_id"] == archived["artifact_id"]
@@ -2073,6 +2079,7 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         and item["case_fingerprint_count"] == verification["case_fingerprint_count"]
         and item["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
         and item["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
+        and item["recommended_folding_candidate_match_count"] == verification["recommended_folding_candidate_match_count"]
         for item in summary["latest_artifacts"]
     )
 

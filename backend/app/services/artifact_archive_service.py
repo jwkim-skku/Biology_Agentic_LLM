@@ -374,6 +374,7 @@ def optimizer_benchmark_archive_summary(limit: int = 20, *, verify_files: bool =
             "case_fingerprint_count",
             "recommended_folding_evidence_hash",
             "recommended_folding_evidence_count",
+            "recommended_folding_candidate_match_count",
             "structured_manifest_hash",
         ),
     )
@@ -815,6 +816,7 @@ def _optimizer_benchmark_semantic_metadata(verification: dict[str, Any]) -> dict
         "case_fingerprint_count": verification.get("case_fingerprint_count"),
         "recommended_folding_evidence_hash": verification.get("recommended_folding_evidence_hash"),
         "recommended_folding_evidence_count": verification.get("recommended_folding_evidence_count"),
+        "recommended_folding_candidate_match_count": verification.get("recommended_folding_candidate_match_count"),
         "structured_manifest_hash": verification.get("structured_manifest_hash"),
         "checked_files": verification.get("checked_files"),
         "file_count": verification.get("file_count"),
