@@ -43,6 +43,7 @@ Implemented:
 - optional S3-compatible object-store mirror planning/apply workflow for immutable archive bundles
 - object-store lifecycle-policy summary and hash evidence for retention/mirror readiness review
 - external timestamp provider configuration evidence with hashed readiness status for regulated archive promotion review
+- production promotion runbook renderer and CI artifact for hash-verified gap handoff
 - governance attestation export for OpenAPI, data, RAG, storage, and artifact-ledger state
 - optional HMAC and Ed25519 signatures for artifact manifests and governance attestation payloads
 - API-key role-based access control for viewer/operator/admin deployment profiles
@@ -70,4 +71,4 @@ Remaining production work:
 - Wire validated RNAfold thermodynamic results directly into optimizer objective scoring once the production environment has a pinned ViennaRNA release and calibration thresholds.
 - Add longer MANE-derived biological optimizer benchmarks once larger release-pinned transcript datasets are loaded.
 - Replace motif proxy policies with dedicated splice/polyA/restriction classifiers when validated production models are selected.
-- Add immutable managed object storage before multi-user deployment.
+- Run the configured S3-compatible object-store mirror workflow against the selected managed bucket, confirm lifecycle/timestamp enforcement, and archive the resulting promotion runbook before multi-user deployment.
