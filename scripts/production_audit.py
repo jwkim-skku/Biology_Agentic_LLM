@@ -1368,6 +1368,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Status: `{preflight.get('status', 'n/a')}`",
                 f"- Schema: `{details.get('preflight_schema', 'n/a')}`",
                 f"- Evidence path: `{details.get('path', preflight.get('path', 'n/a'))}`",
+                f"- Evidence root: `{details.get('root', 'n/a')}`",
+                f"- Output JSON: `{details.get('output_json', 'n/a')}`",
                 f"- Generated at: `{details.get('generated_at', 'n/a')}`",
                 f"- Age hours: `{details.get('age_hours', 'n/a')}`",
                 f"- Mode hash: `{details.get('mode_hash', 'n/a')}`",
@@ -1378,6 +1380,11 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Missing required checks: `{len(details.get('missing_required_checks') or [])}`",
                 f"- Failed checks: `{len(details.get('failed') or [])}`",
                 f"- Skipped checks: `{len(details.get('skipped') or [])}`",
+                f"- Missing command evidence: `{len(details.get('missing_command_checks') or [])}`",
+                f"- Missing cwd evidence: `{len(details.get('missing_cwd_checks') or [])}`",
+                f"- Missing duration evidence: `{len(details.get('missing_duration_checks') or [])}`",
+                f"- Missing details evidence: `{len(details.get('missing_details_checks') or [])}`",
+                f"- Missing output evidence: `{len(details.get('missing_output_checks') or [])}`",
             ]
         )
     lines.extend(["", "## Operator Notes", ""])

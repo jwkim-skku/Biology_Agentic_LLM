@@ -1134,10 +1134,17 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert "API checks: `1`" in markdown
         assert "| deployment_readiness | pass | 200 | pass |" in markdown
         assert "## Preflight Evidence" in markdown
+        assert f"Evidence root: `{root}`" in markdown
+        assert f"Output JSON: `{evidence_path}`" in markdown
         assert f"Mode hash: `{evidence['mode_hash']}`" in markdown
         assert f"Skipped hash: `{evidence['skipped_hash']}`" in markdown
         assert "Missing required checks: `0`" in markdown
         assert "Skipped checks: `1`" in markdown
+        assert "Missing command evidence: `0`" in markdown
+        assert "Missing cwd evidence: `0`" in markdown
+        assert "Missing duration evidence: `0`" in markdown
+        assert "Missing details evidence: `0`" in markdown
+        assert "Missing output evidence: `0`" in markdown
         tampered = {**evidence, "preflight_hash": "0" * 64}
         evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
         tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
