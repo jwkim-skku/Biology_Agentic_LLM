@@ -916,10 +916,12 @@ type ProductionAuditStatus = {
         recommendation_readiness_hash?: string | null;
         recommendation_readiness_status?: string | null;
         recommendation_release_ready?: boolean | null;
+        recommendation_readiness_candidate_id?: string | null;
         recommended_folding_evidence_hash?: string | null;
         recommended_folding_status?: string | null;
         recommended_folding_backend?: string | null;
         recommended_folding_fallback_active?: boolean | null;
+        recommended_folding_candidate_id?: string | null;
         data_quality_status?: string | null;
         optimizer_stress_status?: string | null;
         objective_count?: number | null;
@@ -1282,6 +1284,8 @@ type ArchivedArtifactVerification = {
     recommendation_readiness_hash?: string | null;
     recommendation_readiness_status?: string | null;
     recommendation_release_ready?: boolean | null;
+    recommendation_readiness_candidate_id?: string | null;
+    recommended_folding_candidate_id?: string | null;
     checked_files?: number;
     file_count?: number;
     semantic_checks?: Record<string, string>;
@@ -1315,10 +1319,12 @@ type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     recommendation_readiness_hash?: string | null;
     recommendation_readiness_status?: string | null;
     recommendation_release_ready?: boolean | null;
+    recommendation_readiness_candidate_id?: string | null;
     recommended_folding_evidence_hash?: string | null;
     recommended_folding_status?: string | null;
     recommended_folding_backend?: string | null;
     recommended_folding_fallback_active?: boolean | null;
+    recommended_folding_candidate_id?: string | null;
     data_quality_status?: string | null;
     optimizer_stress_status?: string | null;
     objective_count?: number | null;
@@ -4348,6 +4354,10 @@ export default function Dashboard() {
               <span>QC ready hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_readiness_hash")}</span>
               <span>QC release {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_release_ready")}</span>
               <span>QC folding {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_status")}</span>
+              <span>
+                QC candidate {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_readiness_candidate_id")} /
+                fold {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_candidate_id")}
+              </span>
               <span>QC fold hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
               <span>
                 QC rank evidence {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_retrieval_quality_rank_evidence_count")} /
@@ -4423,6 +4433,10 @@ export default function Dashboard() {
               <span>QC checked {productionAudit?.evidence?.qc_bundle_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>QC ready {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_readiness_status ?? "n/a"}</span>
               <span>QC ready hash {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_readiness_hash?.slice(0, 10) ?? "n/a"}</span>
+              <span>
+                QC candidate {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_readiness_candidate_id ?? "n/a"} /
+                fold {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_candidate_id ?? "n/a"}
+              </span>
               <span>Data release {productionAudit?.evidence?.data_release_archive_semantics?.status ?? "n/a"}</span>
               <span>Release checked {productionAudit?.evidence?.data_release_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Release fresh {formatArchiveFreshness(productionAudit?.evidence?.data_release_archive_semantics)}</span>
@@ -4794,6 +4808,10 @@ export default function Dashboard() {
               </span>
               <span>
                 Ready hash {qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_readiness_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Candidate {qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_readiness_candidate_id ?? "n/a"} / fold{" "}
+                {qcBundleSemantics?.latest_artifacts?.[0]?.recommended_folding_candidate_id ?? "n/a"}
               </span>
               <span>
                 Folding {qcBundleSemantics?.latest_artifacts?.[0]?.recommended_folding_status ?? "n/a"} /{" "}
