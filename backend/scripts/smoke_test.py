@@ -13,6 +13,7 @@ from zipfile import ZipFile
 BASE_URL = os.getenv("SMOKE_BASE_URL", "http://127.0.0.1:8000/api/v1")
 API_KEY = os.getenv("SMOKE_API_KEY") or os.getenv("NEXT_PUBLIC_API_KEY") or ""
 REQUIRE_SIGNING = os.getenv("SMOKE_REQUIRE_SIGNING", "").lower() in {"1", "true", "yes"}
+PRODUCTION_EMBEDDING_BACKENDS = {"hash_bow", "sentence_transformers", "openai"}
 
 
 def main() -> int:
@@ -39,7 +40,7 @@ def main() -> int:
         "rag_status": get_json("/rag/status")["data"]["chunks"] > 0,
         "rag_diagnostics": smoke_rag_diagnostics(),
         "rag_regression": get_json("/rag/regression")["data"]["status"] in {"pass", "warning"},
-        "rag_embedding_backend": get_json("/rag/embedding/status")["data"]["active_backend"] in {"hash_bow", "sentence_transformers", "openai"},
+        "rag_embedding_backend": get_json("/rag/embedding/status")["data"]["active_backend"] in PRODUCTION_EMBEDDING_BACKENDS,
         "structured_status": get_json("/structured/status")["data"]["records"] > 0,
         "structured_import_preview": smoke_structured_import_preview(),
         "data_catalog": smoke_data_catalog(),
@@ -192,7 +193,7 @@ def smoke_production_audit() -> bool:
         and object_store.get("status_schema") == "agentic-rag-artifact-object-store-v1"
         and object_store.get("status") in {"disabled", "ready", "misconfigured"}
         and embedding.get("embedding_schema") == "agentic-rag-embedding-backend-v1"
-        and embedding.get("active_backend") in {"hash_bow", "sentence_transformers"}
+        and embedding.get("active_backend") in PRODUCTION_EMBEDDING_BACKENDS
         and folding.get("folding_schema") == "agentic-rag-rna-folding-v1"
         and folding.get("status") in {"ready", "proxy", "fallback"}
         and workflow_runtime.get("runtime_schema") == "agentic-rag-workflow-runtime-v1"
@@ -362,7 +363,7 @@ def smoke_rag_diagnostics() -> bool:
         diagnostics["status"] in {"pass", "warning"}
         and diagnostics["embedding_backend"]["embedding_schema"] == "agentic-rag-embedding-backend-v1"
         and embedding_status["embedding_schema"] == "agentic-rag-embedding-backend-v1"
-        and embedding_status["active_backend"] in {"hash_bow", "sentence_transformers"}
+        and embedding_status["active_backend"] in PRODUCTION_EMBEDDING_BACKENDS
         and diagnostics["embedding_backend"]["active_backend"] == embedding_status["active_backend"]
         and diagnostics["index"]["chunk_count"] > 0
         and diagnostics["index"]["chunking_policy"]["version"] == "lexical-window-v2"

@@ -16,7 +16,7 @@ Implemented:
 - Structured data promotion quality gate for live/seed fractions, release pinning, source snapshot/hash coverage, dataset caveats, and operator actions
 - Data release lockfile for structured dataset release/file-hash pinning
 - Hybrid hash embedding + BM25 retrieval with biomedical alias expansion, facet-expanded candidate retrieval, intent-aware reranking, and source/collection diversification
-- Configurable RAG embedding backend boundary with `hash_bow` default, optional local-files-only `sentence_transformers` model loading, diagnostics, vector-index ZIP evidence, readiness gates, and production audit evidence
+- Configurable RAG embedding backend boundary with `hash_bow` default, optional local-files-only `sentence_transformers` model loading, optional budget-guarded OpenAI embeddings, diagnostics, vector-index ZIP evidence, readiness gates, and production audit evidence
 - fixed RAG retrieval regression suite with required evidence coverage, Recall@k, and nDCG@k
 - RAG diagnostics for corpus/source distribution, token and embedding health, regression macro metrics, weak cases, and operational recommendations
 - RAG vector-store readiness diagnostics for pgvector/Qdrant migration payload contracts and backend recommendations
