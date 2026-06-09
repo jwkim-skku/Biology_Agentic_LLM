@@ -242,6 +242,35 @@
         "top_motifs": []
       }
     },
+    "candidate_folding_audit": {
+      "audit_hash": "str",
+      "audit_schema": "str",
+      "best_thermodynamic_candidate": "null",
+      "candidate_count": "int",
+      "candidate_evaluations": [
+        {
+          "active_backend": "str",
+          "candidate_id": "str",
+          "fallback_active": "bool",
+          "folding_evidence_hash": "str",
+          "proxy": {
+            "mfe_proxy_delta_g": "float",
+            "secondary_structure_proxy_score": "float"
+          },
+          "status": "str",
+          "thermodynamic_mfe_delta_g": "null",
+          "thermodynamic_risk_score": "null",
+          "validated_backend": "bool",
+          "warnings": [
+            "str"
+          ]
+        }
+      ],
+      "evaluated_count": "int",
+      "selection_influences_recommendation": "bool",
+      "selection_signal": "str",
+      "validated_backend_count": "int"
+    },
     "candidates": [
       {
         "candidate_id": "str",
@@ -629,6 +658,35 @@
           },
           "top_motifs": []
         }
+      },
+      "candidate_folding_audit": {
+        "audit_hash": "str",
+        "audit_schema": "str",
+        "best_thermodynamic_candidate": "null",
+        "candidate_count": "int",
+        "candidate_evaluations": [
+          {
+            "active_backend": "str",
+            "candidate_id": "str",
+            "fallback_active": "bool",
+            "folding_evidence_hash": "str",
+            "proxy": {
+              "mfe_proxy_delta_g": "float",
+              "secondary_structure_proxy_score": "float"
+            },
+            "status": "str",
+            "thermodynamic_mfe_delta_g": "null",
+            "thermodynamic_risk_score": "null",
+            "validated_backend": "bool",
+            "warnings": [
+              "str"
+            ]
+          }
+        ],
+        "evaluated_count": "int",
+        "selection_influences_recommendation": "bool",
+        "selection_signal": "str",
+        "validated_backend_count": "int"
       },
       "candidate_ranking": [
         {
@@ -1719,6 +1777,35 @@
         },
         "top_motifs": []
       }
+    },
+    "candidate_folding_audit": {
+      "audit_hash": "str",
+      "audit_schema": "str",
+      "best_thermodynamic_candidate": "null",
+      "candidate_count": "int",
+      "candidate_evaluations": [
+        {
+          "active_backend": "str",
+          "candidate_id": "str",
+          "fallback_active": "bool",
+          "folding_evidence_hash": "str",
+          "proxy": {
+            "mfe_proxy_delta_g": "float",
+            "secondary_structure_proxy_score": "float"
+          },
+          "status": "str",
+          "thermodynamic_mfe_delta_g": "null",
+          "thermodynamic_risk_score": "null",
+          "validated_backend": "bool",
+          "warnings": [
+            "str"
+          ]
+        }
+      ],
+      "evaluated_count": "int",
+      "selection_influences_recommendation": "bool",
+      "selection_signal": "str",
+      "validated_backend_count": "int"
     },
     "candidate_ranking": [
       {
