@@ -65,6 +65,7 @@ API_CHECKS = [
     {"name": "qc_report_bundle_verify", "path": "/report/export-bundle/verify", "method": "POST", "json": QC_BUNDLE_AUDIT_PAYLOAD},
     {"name": "governance_attestation_verify", "path": "/governance/attestation/verify"},
     {"name": "artifact_ledger_verify", "path": "/artifacts/ledger/verify"},
+    {"name": "artifact_object_store_mirror_plan", "path": "/artifacts/object-store/mirror/plan?limit=500"},
     {"name": "qc_bundle_archive_semantics", "path": "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false"},
     {"name": "structured_import_archive_semantics", "path": "/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false"},
     {"name": "data_snapshot_archive_semantics", "path": "/artifacts/data-snapshots/semantic-summary?limit=6&verify_files=false"},
@@ -484,6 +485,19 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("RAG diagnostics status is fail")
     if name == "optimizer_diagnostics" and payload.get("status") == "fail":
         failures.append("optimizer diagnostics status is fail")
+    if name == "artifact_object_store_mirror_plan":
+        status = payload.get("status")
+        object_store = payload.get("object_store") or {}
+        candidate_count = safe_int(payload.get("candidate_count"))
+        candidate_bytes = safe_int(payload.get("candidate_bytes"))
+        if status == "misconfigured" or object_store.get("status") == "misconfigured":
+            failures.append("artifact object-store mirror plan is misconfigured")
+        if status == "ready" and candidate_count > 0:
+            failures.append("artifact object-store mirror plan has pending candidates")
+        if candidate_count < 0:
+            failures.append("artifact object-store mirror candidate_count is invalid")
+        if candidate_bytes < 0:
+            failures.append("artifact object-store mirror candidate_bytes is invalid")
     if name in {
         "data_release_bundle_verify",
         "data_snapshot_bundle_verify",
@@ -951,6 +965,13 @@ def api_warnings(name: str, details: Any) -> list[str]:
             warnings.append("rate limiting is not enabled")
     if name == "storage_status" and payload.get("backend") != "postgres":
         warnings.append("runtime storage backend is not postgres")
+    if name == "artifact_object_store_mirror_plan":
+        status = payload.get("status")
+        object_store = payload.get("object_store") or {}
+        if status == "disabled" or object_store.get("enabled") is False:
+            warnings.append("artifact object-store mirror is disabled")
+        if status == "ready" and safe_int(payload.get("candidate_count")) > 0:
+            warnings.append("artifact object-store mirror has pending candidates")
     return warnings
 
 
@@ -958,6 +979,13 @@ def api_payload(details: Any) -> Any:
     if isinstance(details, dict) and "data" in details and isinstance(details["data"], dict):
         return details["data"]
     return details
+
+
+def safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value if value is not None else default)
+    except (TypeError, ValueError):
+        return default
 
 
 def stringify_list(value: Any) -> list[str]:

@@ -1347,6 +1347,29 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "rag_regression_archive_semantics" in api_check_names
     assert "rag_vector_index_archive_semantics" in api_check_names
     assert "workflow_trace_archive_semantics" in api_check_names
+    assert "artifact_object_store_mirror_plan" in api_check_names
+    assert module.api_failures(
+        "artifact_object_store_mirror_plan",
+        {"data": {"status": "ready", "candidate_count": 0, "candidate_bytes": 0, "object_store": {"status": "ready", "enabled": True}}},
+    ) == []
+    assert "pending candidates" in " ".join(
+        module.api_failures(
+            "artifact_object_store_mirror_plan",
+            {"data": {"status": "ready", "candidate_count": 2, "candidate_bytes": 1234, "object_store": {"status": "ready", "enabled": True}}},
+        )
+    )
+    assert "misconfigured" in " ".join(
+        module.api_failures(
+            "artifact_object_store_mirror_plan",
+            {"data": {"status": "misconfigured", "candidate_count": 0, "candidate_bytes": 0, "object_store": {"status": "misconfigured", "enabled": True}}},
+        )
+    )
+    assert "disabled" in " ".join(
+        module.api_warnings(
+            "artifact_object_store_mirror_plan",
+            {"data": {"status": "disabled", "candidate_count": 0, "candidate_bytes": 0, "object_store": {"status": "disabled", "enabled": False}}},
+        )
+    )
     structured_import_failures = module.api_failures(
         "structured_import_archive_semantics",
         {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"semantic_status": "pass"}]}},
