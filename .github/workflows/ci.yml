@@ -64,7 +64,38 @@ jobs:
                   time.sleep(1)
           raise SystemExit("backend did not become ready for signed smoke")
           PY
-          python scripts/smoke_test.py
+          python - <<'PY'
+          import json
+          import sys
+          import urllib.request
+
+          BASE = "http://127.0.0.1:8000/api/v1"
+
+          def get(path, timeout=90):
+              with urllib.request.urlopen(f"{BASE}{path}", timeout=timeout) as response:
+                  return json.loads(response.read().decode("utf-8"))["data"]
+
+          security = get("/security/status")
+          readiness = get("/deployment/readiness", timeout=120)
+          readiness_gates = {gate["name"]: gate for gate in readiness["gates"]}
+          audit_verify = get("/deployment/audit/verify?refresh=true", timeout=180)
+          governance_verify = get("/governance/attestation/verify", timeout=120)
+          snapshot_verify = get("/data/snapshot/verify", timeout=120)
+
+          checks = {
+              "security_hmac_signing_enabled": security["signing"]["hmac"]["signing_enabled"] is True,
+              "security_hmac_verification_enabled": security["signing"]["hmac"]["verification_enabled"] is True,
+              "readiness_artifact_signing_gate": readiness_gates.get("artifact_signing", {}).get("status") == "pass",
+              "audit_payload_signature_verified": audit_verify.get("signature", {}).get("status") == "verified",
+              "audit_bundle_signature_verified": audit_verify.get("artifact_verification", {}).get("signature", {}).get("status") == "verified",
+              "governance_payload_signature_verified": governance_verify.get("signature", {}).get("status") == "verified",
+              "governance_bundle_signature_verified": governance_verify.get("artifact_verification", {}).get("signature", {}).get("status") == "verified",
+              "snapshot_bundle_signature_verified": snapshot_verify.get("signature", {}).get("status") == "verified",
+          }
+          failed = [name for name, ok in checks.items() if not ok]
+          print(json.dumps({"checks": checks, "failed": failed}, indent=2, sort_keys=True))
+          raise SystemExit(1 if failed else 0)
+          PY
 
   frontend:
     runs-on: ubuntu-latest
