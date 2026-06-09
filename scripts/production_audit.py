@@ -842,6 +842,11 @@ def api_failures(name: str, details: Any) -> list[str]:
             or int(latest.get("recommended_folding_evidence_count") or 0) < int(latest.get("case_count") or 0)
         ):
             failures.append("latest optimizer benchmark archive is missing recommended_folding_evidence_count coverage")
+        if checked_count and (
+            latest.get("recommended_folding_candidate_match_count") is None
+            or int(latest.get("recommended_folding_candidate_match_count") or 0) < int(latest.get("case_count") or 0)
+        ):
+            failures.append("latest optimizer benchmark archive is missing recommended_folding_candidate_match_count coverage")
     if name == "rag_regression_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)

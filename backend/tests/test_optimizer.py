@@ -1637,6 +1637,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "case_fingerprint_count": 3,
                         "recommended_folding_evidence_hash": valid_hash,
                         "recommended_folding_evidence_count": 3,
+                        "recommended_folding_candidate_match_count": 3,
                     }
                 ],
             }
@@ -1663,6 +1664,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "case_fingerprint_count" in " ".join(optimizer_archive_failures)
     assert "recommended_folding_evidence_hash" in " ".join(optimizer_archive_failures)
     assert "recommended_folding_evidence_count" in " ".join(optimizer_archive_failures)
+    assert "recommended_folding_candidate_match_count" in " ".join(optimizer_archive_failures)
 
 
 def test_audit_log_records_filters_and_summarizes_events() -> None:
