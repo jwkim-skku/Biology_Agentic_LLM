@@ -1065,6 +1065,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         "preflight_schema": module.PREFLIGHT_SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "pass",
+        "root": str(root),
+        "output_json": str(evidence_path),
         "required_checks": module.REQUIRED_PREFLIGHT_CHECKS,
         "required_check_count": len(module.REQUIRED_PREFLIGHT_CHECKS),
         "checks": [
@@ -1111,6 +1113,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
 
         assert preflight_check["status"] == "pass"
         assert preflight_check["details"]["preflight_schema"] == module.PREFLIGHT_SCHEMA
+        assert preflight_check["details"]["root"] == str(root)
+        assert preflight_check["details"]["output_json"] == str(evidence_path)
         assert preflight_check["details"]["check_count"] == len(module.REQUIRED_PREFLIGHT_CHECKS)
         assert preflight_check["details"]["skipped_count"] == 1
         assert preflight_check["details"]["missing_required_checks"] == []
@@ -1186,6 +1190,16 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert "missing command evidence" in failures
         assert "missing cwd evidence" in failures
         assert "missing duration evidence" in failures
+        tampered = dict(evidence)
+        tampered["root"] = str(root / "other")
+        tampered["output_json"] = str(evidence_path.with_name("different_preflight.json"))
+        tampered["preflight_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "preflight_hash"})
+        evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
+        tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        failures = " ".join(tampered_check["failures"])
+        assert tampered_check["status"] == "fail"
+        assert "root does not match" in failures
+        assert "output_json does not match" in failures
     finally:
         evidence_path.unlink(missing_ok=True)
 
@@ -1267,6 +1281,8 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         "preflight_schema": module.PREFLIGHT_SCHEMA,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "status": "pass",
+        "root": str(root),
+        "output_json": str(evidence_path),
         "required_checks": module.REQUIRED_PREFLIGHT_CHECKS,
         "required_check_count": len(module.REQUIRED_PREFLIGHT_CHECKS),
         "checks": [

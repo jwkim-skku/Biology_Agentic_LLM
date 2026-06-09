@@ -273,6 +273,8 @@ def extract_preflight_summary(
     skipped_hash = payload.get("skipped_hash")
     preflight_schema = payload.get("preflight_schema")
     required_checks = payload.get("required_checks")
+    root = str(payload.get("root") or "")
+    output_json = str(payload.get("output_json") or "")
     check_names = [str(check.get("name")) for check in checks if isinstance(check, dict) and check.get("name")]
     actual_failed_checks = sorted(
         str(check.get("name"))
@@ -310,6 +312,10 @@ def extract_preflight_summary(
         failures.append("preflight required_checks does not match the production audit required check set.")
     if int_or_default(payload.get("required_check_count"), -1) != len(REQUIRED_PREFLIGHT_CHECKS):
         failures.append("preflight required_check_count does not match required_checks.")
+    if Path(root).resolve() != ROOT:
+        failures.append("preflight root does not match the repository root.")
+    if Path(output_json).resolve() != evidence_path:
+        failures.append("preflight output_json does not match the supplied evidence path.")
     if int_or_default(payload.get("check_count"), -1) != len(checks):
         failures.append("preflight check_count does not match checks[].")
     if int_or_default(payload.get("failed_count"), -1) != len(stringify_list(failed)):
@@ -367,6 +373,8 @@ def extract_preflight_summary(
         "preflight_schema": preflight_schema,
         "generated_at": generated_at,
         "age_hours": round(age_hours, 3) if age_hours is not None else None,
+        "root": root,
+        "output_json": output_json,
         "checks": len(checks),
         "check_count": payload.get("check_count"),
         "passed_count": payload.get("passed_count"),
