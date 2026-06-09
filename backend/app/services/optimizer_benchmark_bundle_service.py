@@ -362,6 +362,14 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["recommended_folding_evidence_payload_hash"] = "fail"
     else:
         semantic_checks["recommended_folding_evidence_payload_hash"] = "pass"
+    if any(
+        (case.get("recommended_folding_evidence") or {}).get("candidate_id") != case.get("recommended_candidate_id")
+        for case in diag_cases
+    ):
+        semantic_errors.append("candidate_diagnostics.json recommended folding evidence candidate_id does not match recommended_candidate_id.")
+        semantic_checks["recommended_folding_candidate_id"] = "fail"
+    else:
+        semantic_checks["recommended_folding_candidate_id"] = "pass"
     folding_manifest_hash = _hash_json(sorted(folding_evidence_hashes))
     _expect_equal(
         semantic_checks,
@@ -400,6 +408,7 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         "recommended_secondary_structure_proxy",
         "recommended_mfe_proxy_delta_g",
         "recommended_folding_evidence_hash",
+        "recommended_folding_candidate_id",
         "recommended_folding_status",
         "recommended_folding_backend",
         "recommended_thermodynamic_risk_score",
@@ -413,6 +422,11 @@ def verify_optimizer_benchmark_bundle(bundle: bytes) -> dict[str, Any]:
         semantic_checks["case_metric_columns"] = "fail"
     elif metric_rows:
         semantic_checks["case_metric_columns"] = "pass"
+    if metric_rows and any(row.get("recommended_folding_candidate_id") != row.get("recommended_candidate_id") for row in metric_rows):
+        semantic_errors.append("case_metrics.csv recommended_folding_candidate_id does not match recommended_candidate_id.")
+        semantic_checks["case_metric_folding_candidate_id"] = "fail"
+    elif metric_rows:
+        semantic_checks["case_metric_folding_candidate_id"] = "pass"
 
     manifest_hashes = {str(value) for value in [manifest.get("structured_manifest_hash"), metadata.get("structured_manifest_hash"), structured.get("manifest_hash")] if value}
     if len(manifest_hashes) > 1:
@@ -479,6 +493,7 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
         "recommended_secondary_structure_proxy",
         "recommended_mfe_proxy_delta_g",
         "recommended_folding_evidence_hash",
+        "recommended_folding_candidate_id",
         "recommended_folding_status",
         "recommended_folding_backend",
         "recommended_folding_fallback_active",
@@ -522,6 +537,7 @@ def _case_metrics_csv(results: list[dict[str, Any]]) -> str:
                 "recommended_secondary_structure_proxy": metrics.get("recommended_secondary_structure_proxy"),
                 "recommended_mfe_proxy_delta_g": metrics.get("recommended_mfe_proxy_delta_g"),
                 "recommended_folding_evidence_hash": metrics.get("recommended_folding_evidence_hash"),
+                "recommended_folding_candidate_id": metrics.get("recommended_folding_candidate_id"),
                 "recommended_folding_status": metrics.get("recommended_folding_status"),
                 "recommended_folding_backend": metrics.get("recommended_folding_backend"),
                 "recommended_folding_fallback_active": metrics.get("recommended_folding_fallback_active"),
@@ -594,6 +610,7 @@ def _recommendation_summary(results: list[dict[str, Any]]) -> dict[str, Any]:
             "recommended_thermodynamic_risk_score": _float(metrics.get("recommended_thermodynamic_risk_score")),
             "recommended_folding_status": folding.get("status") or metrics.get("recommended_folding_status"),
             "recommended_folding_backend": folding.get("active_backend") or metrics.get("recommended_folding_backend"),
+            "recommended_folding_candidate_id": folding.get("candidate_id") or metrics.get("recommended_folding_candidate_id"),
             "recommended_folding_evidence_hash": folding.get("folding_evidence_hash") or metrics.get("recommended_folding_evidence_hash"),
         }
         case_item["recommendation_summary_hash"] = _hash_json({key: value for key, value in case_item.items() if key != "recommendation_summary_hash"})

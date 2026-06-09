@@ -144,6 +144,7 @@ def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float, folding
         "recommended_rare_codon_clusters": _float(recommended_scores.get("rare_codon_clusters")),
         "recommended_low_complexity_penalty": _float(recommended_scores.get("low_complexity_penalty")),
         "recommended_hairpin_proxy_score": _float(recommended_scores.get("hairpin_proxy_score")),
+        "recommended_folding_candidate_id": folding_evidence.get("candidate_id"),
         "recommended_folding_evidence_hash": folding_evidence.get("folding_evidence_hash"),
         "recommended_folding_status": folding_evidence.get("status"),
         "recommended_folding_backend": folding_evidence.get("active_backend"),
@@ -171,16 +172,19 @@ def _metrics(native_cds: str, design: dict[str, Any], elapsed_ms: float, folding
 def _recommended_folding_evidence(design: dict[str, Any]) -> dict[str, Any]:
     recommended = design.get("recommended_candidate") or {}
     cds = recommended.get("cds")
+    candidate_id = recommended.get("candidate_id")
     if not cds:
         payload = {
             "folding_schema": "agentic-rag-rna-folding-v1",
             "status": "warning",
             "active_backend": "missing_recommended_candidate",
             "fallback_active": True,
+            "candidate_id": candidate_id,
             "warnings": ["No recommended candidate was available for folding evidence."],
         }
         return {**payload, "folding_evidence_hash": _hash_payload(payload)}
     payload = evaluate_rna_folding(str(cds))
+    payload["candidate_id"] = candidate_id
     return {**payload, "folding_evidence_hash": _hash_payload(payload)}
 
 

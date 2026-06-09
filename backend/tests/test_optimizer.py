@@ -2019,11 +2019,13 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert recommendation_summary["recommended_folding_evidence_count"] == verification["recommended_folding_evidence_count"]
         assert recommendation_summary["recommended_on_pareto_front_count"] == verification["recommended_on_pareto_front_count"]
         assert len(recommendation_summary["cases_hash"]) == 64
+        assert recommendation_summary["cases"][0]["recommended_folding_candidate_id"] == recommendation_summary["cases"][0]["recommended_candidate_id"]
         first_case = candidate_diagnostics["cases"][0]
         assert first_case["pareto_quality"]["quality_schema"] == "agentic-rag-pareto-quality-v1"
         assert first_case["case_provenance"]["provenance_schema"] == "agentic-rag-optimizer-benchmark-case-provenance-v1"
         assert len(first_case["case_provenance"]["case_fingerprint"]) == 64
         assert first_case["recommended_folding_evidence"]["folding_schema"] == "agentic-rag-rna-folding-v1"
+        assert first_case["recommended_folding_evidence"]["candidate_id"] == first_case["recommended_candidate_id"]
         assert len(first_case["recommended_folding_evidence"]["folding_evidence_hash"]) == 64
         assert first_case["recommendation_audit"]["pareto_quality_hash"] == first_case["pareto_quality"]["quality_hash"]
         assert "case_fingerprint" in case_metrics
@@ -2035,7 +2037,10 @@ def test_optimizer_benchmark_bundle_includes_search_strategy_evidence() -> None:
         assert "pareto_quality_hash" in case_metrics
         assert "recommended_on_pareto_front" in case_metrics
         assert "recommended_folding_evidence_hash" in case_metrics
+        assert "recommended_folding_candidate_id" in case_metrics
         assert "recommended_folding_status" in case_metrics
+    assert verification["semantic_checks"]["recommended_folding_candidate_id"] == "pass"
+    assert verification["semantic_checks"]["case_metric_folding_candidate_id"] == "pass"
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_optimizer_benchmark_bundle",
