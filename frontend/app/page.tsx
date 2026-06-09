@@ -4556,6 +4556,10 @@ export default function Dashboard() {
               </span>
               <span>Verify checks {semanticCheckSummary(productionAudit?.verification?.semantic_checks, productionAudit?.verification?.semantic_summary)}</span>
               <span>
+                Verify summary {productionAudit?.verification?.semantic_summary?.status ?? "n/a"} / hash{" "}
+                {productionAudit?.verification?.semantic_summary?.summary_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
                 Gap hash {productionAudit?.production_gap_summary?.gap_summary_hash?.slice(0, 10) ?? "n/a"} / blocking{" "}
                 {productionAudit?.production_gap_summary?.blocking_count ?? "n/a"}
               </span>
