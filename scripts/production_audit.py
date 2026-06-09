@@ -485,6 +485,20 @@ def api_failures(name: str, details: Any) -> list[str]:
         failures.append("RAG diagnostics status is fail")
     if name == "optimizer_diagnostics" and payload.get("status") == "fail":
         failures.append("optimizer diagnostics status is fail")
+    if name == "storage_status":
+        postgres = payload.get("postgres") or {}
+        if payload.get("target_backend") != "postgres":
+            failures.append("storage target_backend is not postgres")
+        if payload.get("active_runtime_adapter") != "postgres":
+            failures.append("storage active_runtime_adapter is not postgres")
+        if not payload.get("database_url_configured"):
+            failures.append("storage DATABASE_URL is not configured")
+        if not postgres.get("schema_hash"):
+            failures.append("storage postgres schema_hash is missing")
+        if postgres.get("driver_available") is False:
+            failures.append("storage postgres driver is unavailable")
+        if "vector" not in (postgres.get("required_extensions") or []):
+            failures.append("storage postgres vector extension requirement is missing")
     if name == "security_status":
         if not payload.get("auth_enabled"):
             failures.append("API authentication is not enabled")
@@ -987,8 +1001,11 @@ def api_warnings(name: str, details: Any) -> list[str]:
             warnings.append("rate limiting is not enabled")
         if not (payload.get("artifact_signing_enabled") or payload.get("artifact_asymmetric_signing_enabled")):
             warnings.append("artifact signing is not enabled")
-    if name == "storage_status" and payload.get("backend") != "postgres":
-        warnings.append("runtime storage backend is not postgres")
+    if name == "storage_status":
+        if payload.get("target_backend") != "postgres" or payload.get("active_runtime_adapter") != "postgres":
+            warnings.append("runtime storage backend is not postgres")
+        if not payload.get("database_url_configured"):
+            warnings.append("DATABASE_URL is not configured")
     if name == "artifact_object_store_mirror_plan":
         status = payload.get("status")
         object_store = payload.get("object_store") or {}

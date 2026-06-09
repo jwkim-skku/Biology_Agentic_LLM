@@ -1363,6 +1363,40 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             }
         },
     ) == []
+    assert module.api_failures(
+        "storage_status",
+        {
+            "data": {
+                "status": "pass",
+                "target_backend": "postgres",
+                "active_runtime_adapter": "postgres",
+                "database_url_configured": True,
+                "postgres": {
+                    "schema_hash": valid_hash,
+                    "driver_available": True,
+                    "required_extensions": ["vector"],
+                },
+            }
+        },
+    ) == []
+    storage_failures = module.api_failures(
+        "storage_status",
+        {
+            "data": {
+                "status": "pass",
+                "target_backend": "sqlite",
+                "active_runtime_adapter": "sqlite",
+                "database_url_configured": False,
+                "postgres": {"schema_hash": "", "driver_available": False, "required_extensions": []},
+            }
+        },
+    )
+    assert "target_backend" in " ".join(storage_failures)
+    assert "active_runtime_adapter" in " ".join(storage_failures)
+    assert "DATABASE_URL" in " ".join(storage_failures)
+    assert "schema_hash" in " ".join(storage_failures)
+    assert "driver" in " ".join(storage_failures)
+    assert "vector extension" in " ".join(storage_failures)
     security_failures = module.api_failures(
         "security_status",
         {
