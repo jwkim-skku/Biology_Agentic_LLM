@@ -4375,6 +4375,11 @@ export default function Dashboard() {
                 Plan ops {deploymentGateDetail(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_operation_count")} /
                 validation {deploymentGateDetail(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_validation_status")}
               </span>
+              <span>
+                Plan dataset {deploymentGateDetail(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_dataset_id")} /
+                req {deploymentGateHash(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_request_hash")}
+              </span>
+              <span>Plan op hash {deploymentGateHash(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_operations_hash")}</span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
               <span>RAG eval {deploymentGateStatus(deploymentReadiness, "rag_evaluation_archive_semantics")}</span>
               <span>RAG source {deploymentGateHash(deploymentReadiness, "rag_evaluation_archive_semantics", "latest_source_provenance_hash")}</span>
