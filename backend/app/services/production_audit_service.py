@@ -751,6 +751,7 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
     }
     release = gates.get("data_release_archive_semantics") or {}
     refresh = gates.get("data_refresh_plan_archive_semantics") or {}
+    structured_import = gates.get("structured_import_archive_semantics") or {}
     rag_eval = gates.get("rag_evaluation_archive_semantics") or {}
     rag_regression = gates.get("rag_regression_archive_semantics") or {}
     qc = gates.get("qc_bundle_archive_semantics") or {}
@@ -773,6 +774,8 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("Refresh plan dataset", _markdown_value(refresh.get("latest_dataset_id"))),
         ("Refresh plan request hash", _short_hash(refresh.get("latest_request_hash"))),
         ("Refresh plan operations hash", _short_hash(refresh.get("latest_operations_hash"))),
+        ("Structured import manifest", _short_hash(structured_import.get("latest_structured_manifest_hash"))),
+        ("Structured import files", _markdown_value(structured_import.get("latest_checked_files"))),
         ("RAG evaluation source provenance", _short_hash(rag_eval.get("latest_source_provenance_hash"))),
         ("RAG regression case metrics", _short_hash(rag_regression.get("latest_case_metrics_hash"))),
         ("Optimizer recommended-front count", _markdown_value(optimizer.get("latest_recommended_on_pareto_front_count"))),

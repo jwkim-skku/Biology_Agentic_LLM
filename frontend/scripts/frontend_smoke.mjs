@@ -198,6 +198,7 @@ async function main() {
     assert(/Plan dataset\s+([\w.-]+|n\/a)\s+\/\s+req\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness refresh plan request evidence was not rendered: ${deploymentText}`);
     assert(/Plan op hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness refresh plan operations hash was not rendered: ${deploymentText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness import audit gate was not rendered: ${deploymentText}`);
+    assert(/Import manifest\s+([a-f0-9]{10}|n\/a)\s+\/\s+files\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness structured import manifest evidence was not rendered: ${deploymentText}`);
     assert(/RAG eval\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness RAG evaluation archive gate was not rendered: ${deploymentText}`);
     assert(/RAG source\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG source provenance hash was not rendered: ${deploymentText}`);
     assert(/Vector backend\s+(\w+|n\/a)\s+\/\s+migrate\s+(\w+|n\/a)/.test(deploymentText), `Deployment readiness vector backend evidence was not rendered: ${deploymentText}`);

@@ -4381,6 +4381,10 @@ export default function Dashboard() {
               </span>
               <span>Plan op hash {deploymentGateHash(deploymentReadiness, "data_refresh_plan_archive_semantics", "latest_operations_hash")}</span>
               <span>Import audit {deploymentGateStatus(deploymentReadiness, "structured_import_archive_semantics")}</span>
+              <span>
+                Import manifest {deploymentGateHash(deploymentReadiness, "structured_import_archive_semantics", "latest_structured_manifest_hash")} /
+                files {deploymentGateDetail(deploymentReadiness, "structured_import_archive_semantics", "latest_checked_files")}
+              </span>
               <span>RAG eval {deploymentGateStatus(deploymentReadiness, "rag_evaluation_archive_semantics")}</span>
               <span>RAG source {deploymentGateHash(deploymentReadiness, "rag_evaluation_archive_semantics", "latest_source_provenance_hash")}</span>
               <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>

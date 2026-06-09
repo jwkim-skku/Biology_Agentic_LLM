@@ -463,6 +463,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "Refresh plan dataset" in markdown
     assert "Refresh plan request hash" in markdown
     assert "Refresh plan operations hash" in markdown
+    assert "Structured import manifest" in markdown
+    assert "Structured import files" in markdown
     assert "RAG regression case metrics" in markdown
     assert "Optimizer recommended-front count" in markdown
     assert "Optimizer folding candidate matches" in markdown
@@ -571,6 +573,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "Refresh plan dataset" in bundled_markdown
         assert "Refresh plan request hash" in bundled_markdown
         assert "Refresh plan operations hash" in bundled_markdown
+        assert "Structured import manifest" in bundled_markdown
+        assert "Structured import files" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
@@ -897,6 +901,11 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert refresh_plan_gate["details"]["latest_validation_status"] in {None, "pass", "warning", "fail"}
     assert refresh_plan_gate["details"]["latest_dataset_id"] is None or refresh_plan_gate["details"]["latest_dataset_id"]
     assert refresh_plan_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
+    structured_import_gate = next(gate for gate in readiness["gates"] if gate["name"] == "structured_import_archive_semantics")
+    assert structured_import_gate["details"]["status"] in {"pass", "warning"}
+    assert structured_import_gate["details"]["latest_structured_manifest_hash"] is None or structured_import_gate["details"]["latest_structured_manifest_hash"]
+    assert structured_import_gate["details"]["latest_checked_files"] is None or structured_import_gate["details"]["latest_checked_files"] >= 1
+    assert structured_import_gate["details"]["latest_file_count"] is None or structured_import_gate["details"]["latest_file_count"] >= 1
     rag_evaluation_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "rag_evaluation_archive_semantics")
     assert rag_evaluation_archive_gate["details"]["status"] in {"pass", "warning"}
     assert rag_evaluation_archive_gate["details"]["latest_source_provenance_hash"] is None or len(rag_evaluation_archive_gate["details"]["latest_source_provenance_hash"]) == 64
@@ -1320,6 +1329,13 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "rag_regression_archive_semantics" in api_check_names
     assert "rag_vector_index_archive_semantics" in api_check_names
     assert "workflow_trace_archive_semantics" in api_check_names
+    structured_import_failures = module.api_failures(
+        "structured_import_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": [{"semantic_status": "pass"}]}},
+    )
+    assert "structured_manifest_hash" in " ".join(structured_import_failures)
+    assert "checked_files" in " ".join(structured_import_failures)
+    assert "file_count" in " ".join(structured_import_failures)
     assert module.api_failures(
         "data_release_bundle_verify",
         {

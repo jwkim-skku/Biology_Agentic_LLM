@@ -787,6 +787,15 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest RAG evaluation archive is missing source_provenance_hash")
         if checked_count and int(latest.get("source_provenance_count") or 0) < 1:
             failures.append("latest RAG evaluation archive is missing source_provenance_count")
+    if name == "structured_import_archive_semantics":
+        latest = (payload.get("latest_artifacts") or [{}])[0]
+        checked_count = int(payload.get("checked_count") or 0)
+        if checked_count and not latest.get("structured_manifest_hash"):
+            failures.append("latest structured import archive is missing structured_manifest_hash")
+        if checked_count and int(latest.get("checked_files") or 0) < 1:
+            failures.append("latest structured import archive is missing checked_files")
+        if checked_count and int(latest.get("file_count") or 0) < 1:
+            failures.append("latest structured import archive is missing file_count")
     if name == "rag_vector_index_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)
