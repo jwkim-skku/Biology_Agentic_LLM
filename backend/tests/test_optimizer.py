@@ -574,6 +574,10 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "Release source summary" in bundled_markdown
         assert "Release datasets" in bundled_markdown
         assert "Release source files" in bundled_markdown
+        assert "Snapshot manifest" in bundled_markdown
+        assert "Snapshot RAG index" in bundled_markdown
+        assert "Snapshot files" in bundled_markdown
+        assert "Snapshot external files" in bundled_markdown
         assert "QC readiness candidate" in bundled_markdown
         assert "QC folding candidate" in bundled_markdown
         assert "Refresh plan dataset" in bundled_markdown

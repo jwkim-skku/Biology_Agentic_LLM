@@ -4374,6 +4374,15 @@ export default function Dashboard() {
                 datasets {deploymentGateDetail(deploymentReadiness, "data_release_archive_semantics", "latest_dataset_count")} /
                 files {deploymentGateDetail(deploymentReadiness, "data_release_archive_semantics", "latest_source_file_count")}
               </span>
+              <span>Snapshot archive {deploymentGateStatus(deploymentReadiness, "data_snapshot_archive_semantics")}</span>
+              <span>
+                Snapshot manifest {deploymentGateHash(deploymentReadiness, "data_snapshot_archive_semantics", "latest_snapshot_manifest_hash")} /
+                RAG {deploymentGateHash(deploymentReadiness, "data_snapshot_archive_semantics", "latest_rag_index_hash")}
+              </span>
+              <span>
+                Snapshot files {deploymentGateDetail(deploymentReadiness, "data_snapshot_archive_semantics", "latest_snapshot_file_count")} /
+                external {deploymentGateDetail(deploymentReadiness, "data_snapshot_archive_semantics", "latest_external_snapshot_file_count")}
+              </span>
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Plan fresh {deploymentGateFreshness(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>

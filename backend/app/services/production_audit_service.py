@@ -750,6 +750,7 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         if isinstance(gate, dict) and gate.get("name")
     }
     release = gates.get("data_release_archive_semantics") or {}
+    snapshot = gates.get("data_snapshot_archive_semantics") or {}
     refresh = gates.get("data_refresh_plan_archive_semantics") or {}
     structured_import = gates.get("structured_import_archive_semantics") or {}
     rag_eval = gates.get("rag_evaluation_archive_semantics") or {}
@@ -770,6 +771,10 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("Release source summary", _short_hash(release.get("latest_record_source_summary_hash"))),
         ("Release datasets", _markdown_value(release.get("latest_dataset_count"))),
         ("Release source files", _markdown_value(release.get("latest_source_file_count"))),
+        ("Snapshot manifest", _short_hash(snapshot.get("latest_snapshot_manifest_hash"))),
+        ("Snapshot RAG index", _short_hash(snapshot.get("latest_rag_index_hash"))),
+        ("Snapshot files", _markdown_value(snapshot.get("latest_snapshot_file_count"))),
+        ("Snapshot external files", _markdown_value(snapshot.get("latest_external_snapshot_file_count"))),
         ("QC readiness candidate", _markdown_value(qc.get("latest_recommendation_readiness_candidate_id"))),
         ("QC folding candidate", _markdown_value(qc.get("latest_recommended_folding_candidate_id"))),
         ("Refresh plan operations", _markdown_value(refresh.get("latest_operation_count"))),
