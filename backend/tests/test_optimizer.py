@@ -1121,6 +1121,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert preflight_check["details"]["missing_command_checks"] == []
         assert preflight_check["details"]["missing_cwd_checks"] == []
         assert preflight_check["details"]["missing_duration_checks"] == []
+        assert preflight_check["details"]["missing_details_checks"] == []
+        assert preflight_check["details"]["missing_output_checks"] == []
         assert preflight_check["details"]["mode_hash"] == evidence["mode_hash"]
         assert preflight_check["details"]["skipped_hash"] == evidence["skipped_hash"]
         assert preflight_check["details"]["checks_hash"] == evidence["checks_hash"]
@@ -1200,6 +1202,18 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert tampered_check["status"] == "fail"
         assert "root does not match" in failures
         assert "output_json does not match" in failures
+        tampered = json.loads(json.dumps(evidence))
+        tampered["checks"][0].pop("details")
+        tampered["checks"][1].pop("stdout")
+        tampered["checks"][2]["stderr"] = None
+        tampered["checks_hash"] = module.hash_payload(tampered["checks"])
+        tampered["preflight_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "preflight_hash"})
+        evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
+        tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        failures = " ".join(tampered_check["failures"])
+        assert tampered_check["status"] == "fail"
+        assert "missing details evidence" in failures
+        assert "missing stdout/stderr evidence" in failures
     finally:
         evidence_path.unlink(missing_ok=True)
 

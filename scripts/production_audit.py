@@ -303,6 +303,18 @@ def extract_preflight_summary(
         for check in checks
         if isinstance(check, dict) and check.get("name") and not _valid_duration_evidence(check.get("duration_seconds"))
     )
+    missing_details_checks = sorted(
+        str(check.get("name"))
+        for check in checks
+        if isinstance(check, dict) and check.get("name") and "details" not in check
+    )
+    missing_output_checks = sorted(
+        str(check.get("name"))
+        for check in checks
+        if isinstance(check, dict)
+        and check.get("name")
+        and (not isinstance(check.get("stdout"), str) or not isinstance(check.get("stderr"), str))
+    )
     declared_failed_checks = sorted(stringify_list(failed))
     missing_checks = sorted(set(REQUIRED_PREFLIGHT_CHECKS) - set(check_names))
 
@@ -330,6 +342,10 @@ def extract_preflight_summary(
         failures.append(f"preflight checks are missing cwd evidence: {', '.join(missing_cwd_checks)}")
     if missing_duration_checks:
         failures.append(f"preflight checks are missing duration evidence: {', '.join(missing_duration_checks)}")
+    if missing_details_checks:
+        failures.append(f"preflight checks are missing details evidence: {', '.join(missing_details_checks)}")
+    if missing_output_checks:
+        failures.append(f"preflight checks are missing stdout/stderr evidence: {', '.join(missing_output_checks)}")
     if int_or_default(payload.get("skipped_count"), -1) != len(stringify_list(skipped)):
         failures.append("preflight skipped_count does not match skipped[].")
     if int_or_default(payload.get("passed_count"), -1) != sum(1 for check in checks if isinstance(check, dict) and check.get("returncode") == 0):
@@ -350,8 +366,6 @@ def extract_preflight_summary(
         failures.append(f"preflight failed checks are present: {', '.join(stringify_list(failed))}")
     if missing_checks:
         failures.append(f"preflight evidence is missing required checks: {', '.join(missing_checks)}")
-    if not any(isinstance(check, dict) and "details" in check for check in checks):
-        warnings.append("preflight evidence does not include parsed details fields")
     expected_checks_hash = hash_payload(checks)
     if checks_hash != expected_checks_hash:
         failures.append("preflight checks_hash is missing or does not match checks[].")
@@ -393,6 +407,8 @@ def extract_preflight_summary(
         "missing_command_checks": missing_command_checks,
         "missing_cwd_checks": missing_cwd_checks,
         "missing_duration_checks": missing_duration_checks,
+        "missing_details_checks": missing_details_checks,
+        "missing_output_checks": missing_output_checks,
         "skipped": skipped_list,
         "path_mtime": datetime.fromtimestamp(evidence_path.stat().st_mtime, tz=timezone.utc).isoformat() if evidence_path.exists() else None,
     }
