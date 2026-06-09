@@ -206,6 +206,8 @@ async function main() {
     assert(/QC folding\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC folding status was not rendered: ${deploymentText}`);
     assert(/QC candidate\s+([\w.-]+|n\/a)\s+\/\s+fold\s+([\w.-]+|n\/a)/.test(deploymentText), `Deployment readiness QC recommendation candidate IDs were not rendered: ${deploymentText}`);
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC folding hash was not rendered: ${deploymentText}`);
+    assert(/QC fold audit\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness candidate folding audit hash was not rendered: ${deploymentText}`);
+    assert(/QC fold signal\s+(\w+|n\/a)\s+\/\s+valid\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness candidate folding audit signal was not rendered: ${deploymentText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC rank evidence was not rendered: ${deploymentText}`);
     assert(/Release handoff\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness release handoff hash was not rendered: ${deploymentText}`);
     assert(/Release sources\s+([a-f0-9]{10}|n\/a)\s+\/\s+datasets\s+(\d+|n\/a)\s+\/\s+files\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness release source evidence was not rendered: ${deploymentText}`);
@@ -239,6 +241,7 @@ async function main() {
     assert(/QC candidate\s+([\w.-]+|n\/a)\s+\/\s+fold\s+([\w.-]+|n\/a)/.test(productionAuditText), `Production audit QC recommendation candidate IDs were not rendered: ${productionAuditText}`);
     assert(/QC folding\s+(pass|warning|fail|n\/a)\s+\/\s+(\w+|n\/a)/.test(productionAuditText), `Production audit QC folding status was not rendered: ${productionAuditText}`);
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC folding hash was not rendered: ${productionAuditText}`);
+    assert(/QC fold audit\s+([a-f0-9]{10}|n\/a)\s+\/\s+signal\s+(\w+|n\/a)/.test(productionAuditText), `Production audit candidate folding audit evidence was not rendered: ${productionAuditText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC rank evidence was not rendered: ${productionAuditText}`);
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit import archive status was not rendered: ${productionAuditText}`);
     assert(/RAG eval\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit RAG evaluation archive status was not rendered: ${productionAuditText}`);

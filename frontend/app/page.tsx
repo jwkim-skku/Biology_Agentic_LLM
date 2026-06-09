@@ -956,6 +956,9 @@ type ProductionAuditStatus = {
         recommendation_readiness_status?: string | null;
         recommendation_release_ready?: boolean | null;
         recommendation_readiness_candidate_id?: string | null;
+        candidate_folding_audit_hash?: string | null;
+        candidate_folding_audit_selection_signal?: string | null;
+        candidate_folding_audit_validated_backend_count?: number | null;
         recommended_folding_evidence_hash?: string | null;
         recommended_folding_status?: string | null;
         recommended_folding_backend?: string | null;
@@ -4433,6 +4436,11 @@ export default function Dashboard() {
                 fold {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_candidate_id")}
               </span>
               <span>QC fold hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
+              <span>QC fold audit {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_candidate_folding_audit_hash")}</span>
+              <span>
+                QC fold signal {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_candidate_folding_audit_selection_signal")} /
+                valid {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_candidate_folding_audit_validated_backend_count")}
+              </span>
               <span>
                 QC rank evidence {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_retrieval_quality_rank_evidence_count")} /
                 hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_retrieval_quality_rank_evidence_hash")}
@@ -4637,6 +4645,11 @@ export default function Dashboard() {
               <span>
                 QC fold hash{" "}
                 {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommended_folding_evidence_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                QC fold audit{" "}
+                {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.candidate_folding_audit_hash?.slice(0, 10) ?? "n/a"} /
+                signal {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.candidate_folding_audit_selection_signal ?? "n/a"}
               </span>
               <span>
                 QC retrieval {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.retrieval_quality_status ?? "n/a"} /

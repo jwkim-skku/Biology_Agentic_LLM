@@ -917,11 +917,14 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
         "latest_candidate_ranking_hash",
         "latest_recommendation_audit_hash",
         "latest_recommendation_readiness_hash",
+        "latest_candidate_folding_audit_hash",
     ]:
         assert qc_archive_gate["details"][field] is None or len(qc_archive_gate["details"][field]) == 64
     assert qc_archive_gate["details"]["latest_recommendation_readiness_status"] in {None, "pass", "warning"}
     assert qc_archive_gate["details"]["latest_recommendation_release_ready"] in {None, True, False}
     assert qc_archive_gate["details"]["latest_recommendation_readiness_candidate_id"] is None or qc_archive_gate["details"]["latest_recommendation_readiness_candidate_id"]
+    assert qc_archive_gate["details"]["latest_candidate_folding_audit_selection_signal"] in {None, "secondary_structure_proxy_score", "thermodynamic_risk_score"}
+    assert qc_archive_gate["details"]["latest_candidate_folding_audit_validated_backend_count"] is None or qc_archive_gate["details"]["latest_candidate_folding_audit_validated_backend_count"] >= 0
     assert qc_archive_gate["details"]["latest_recommended_folding_candidate_id"] is None or qc_archive_gate["details"]["latest_recommended_folding_candidate_id"]
     assert qc_archive_gate["details"]["latest_retrieval_quality_status"] in {None, "pass", "warning"}
     assert qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_count"] is None or qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_count"] >= 1
@@ -4101,6 +4104,9 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_readiness_hash"] == verification["recommendation_readiness_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_readiness_status"] in {"pass", "warning"}
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_readiness_candidate_id"] == design["recommended_candidate"]["candidate_id"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["candidate_folding_audit_hash"] == verification["candidate_folding_audit_hash"]
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["candidate_folding_audit_selection_signal"] in {"secondary_structure_proxy_score", "thermodynamic_risk_score"}
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["candidate_folding_audit_validated_backend_count"] >= 0
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_status"] in {"pass", "warning"}
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_candidate_id"] == design["recommended_candidate"]["candidate_id"]
@@ -4137,6 +4143,9 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         and item["qc_report_hash"] == verification["qc_report_hash"]
         and item["report_formats_summary_hash"] == verification["report_formats_summary_hash"]
         and item["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
+        and item["candidate_folding_audit_hash"] == verification["candidate_folding_audit_hash"]
+        and item["candidate_folding_audit_selection_signal"] in {"secondary_structure_proxy_score", "thermodynamic_risk_score"}
+        and item["candidate_folding_audit_validated_backend_count"] >= 0
         and item["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
         and item["recommended_folding_status"] in {"pass", "warning"}
         and item["recommended_folding_candidate_id"] == design["recommended_candidate"]["candidate_id"]
