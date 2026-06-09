@@ -58,6 +58,7 @@ QC_BUNDLE_AUDIT_PAYLOAD = {
 API_CHECKS = [
     {"name": "health_ready", "path": "/health/ready"},
     {"name": "deployment_readiness", "path": "/deployment/readiness"},
+    {"name": "production_audit_status", "path": "/deployment/audit?refresh=true"},
     {"name": "production_audit_bundle_verify", "path": "/deployment/audit/verify?refresh=true"},
     {"name": "security_status", "path": "/security/status"},
     {"name": "storage_status", "path": "/storage/status"},
@@ -626,6 +627,15 @@ def api_failures(name: str, details: Any) -> list[str]:
                 failures.append(f"deployment readiness required action detail_hash does not match gate {gate_name}")
         if sorted(action_gates) != sorted(str(name) for name in expected_attention_gates):
             failures.append("deployment readiness required_actions do not cover all non-pass gates")
+    if name == "production_audit_status":
+        summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+        gap_summary = payload.get("production_gap_summary") if isinstance(payload.get("production_gap_summary"), dict) else {}
+        evidence = payload.get("evidence") if isinstance(payload.get("evidence"), dict) else {}
+        if not payload.get("audit_hash") or len(str(payload.get("audit_hash"))) != 64:
+            failures.append("production audit status audit_hash is missing or invalid")
+        if summary.get("status") not in {"pass", "warning", "fail"}:
+            failures.append("production audit status summary status is missing or invalid")
+        failures.extend(production_gap_summary_failures(gap_summary, evidence.get("production_gap_summary")))
     if name == "production_audit_bundle_verify":
         semantic_summary = payload.get("semantic_summary") if isinstance(payload.get("semantic_summary"), dict) else {}
         semantic_checks = payload.get("semantic_checks") if isinstance(payload.get("semantic_checks"), dict) else {}
@@ -1181,6 +1191,56 @@ def api_failures(name: str, details: Any) -> list[str]:
         if checked_count and not latest.get("structured_manifest_hash"):
             failures.append("latest workflow trace archive is missing structured_manifest_hash")
     return failures
+
+
+def production_gap_summary_failures(summary: Any, embedded_summary: Any | None = None) -> list[str]:
+    failures: list[str] = []
+    if not isinstance(summary, dict):
+        return ["production audit status production_gap_summary is missing or invalid"]
+    if embedded_summary is not None and summary != embedded_summary:
+        failures.append("production audit status production_gap_summary does not match embedded evidence")
+    if summary.get("gap_schema") != "agentic-rag-production-gap-summary-v1":
+        failures.append("production audit status production_gap_summary schema is missing or invalid")
+    gaps = summary.get("gaps") if isinstance(summary.get("gaps"), list) else []
+    if safe_int(summary.get("gap_count"), -1) != len(gaps):
+        failures.append("production audit status gap_count does not match gaps")
+    if safe_int(summary.get("blocking_count"), -1) != sum(1 for gap in gaps if isinstance(gap, dict) and gap.get("priority") == "blocking"):
+        failures.append("production audit status blocking_count does not match gaps")
+    if safe_int(summary.get("promotion_count"), -1) != sum(1 for gap in gaps if isinstance(gap, dict) and gap.get("priority") == "promotion"):
+        failures.append("production audit status promotion_count does not match gaps")
+    expected_scope_counts = count_by(gaps, "resolution_scope")
+    expected_mode_counts = count_by(gaps, "resolution_mode")
+    if summary.get("resolution_scope_counts") != expected_scope_counts:
+        failures.append("production audit status resolution_scope_counts do not match gaps")
+    if summary.get("resolution_mode_counts") != expected_mode_counts:
+        failures.append("production audit status resolution_mode_counts do not match gaps")
+    for gap in gaps:
+        if not isinstance(gap, dict):
+            failures.append("production audit status production_gap_summary contains a non-object gap")
+            continue
+        missing = [
+            key
+            for key in ["area", "status", "priority", "resolution_scope", "resolution_mode", "proof_hint", "evidence_key", "check_detail_hash", "action"]
+            if not gap.get(key)
+        ]
+        if missing:
+            failures.append(f"production audit status gap {gap.get('area', 'unknown')!r} is missing fields: {', '.join(missing)}")
+        if gap.get("gap_hash") != compact_hash_payload({key: value for key, value in gap.items() if key != "gap_hash"}):
+            failures.append(f"production audit status gap_hash does not match gap {gap.get('area', 'unknown')!r}")
+    expected_summary_hash = compact_hash_payload({key: value for key, value in summary.items() if key != "gap_summary_hash"})
+    if summary.get("gap_summary_hash") != expected_summary_hash:
+        failures.append("production audit status gap_summary_hash does not match production_gap_summary")
+    return failures
+
+
+def count_by(items: list[Any], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        value = str(item.get(key) or "unknown")
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def api_warnings(name: str, details: Any) -> list[str]:

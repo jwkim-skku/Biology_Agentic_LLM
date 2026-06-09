@@ -1702,6 +1702,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "rag_embedding_status" in api_check_names
     assert "rna_folding_status" in api_check_names
     assert "artifact_object_store_mirror_plan" in api_check_names
+    assert "production_audit_status" in api_check_names
     assert "production_audit_bundle_verify" in api_check_names
     readiness_gates = [
         {"name": "structured_data", "status": "pass", "message": "Gate passed.", "details": {"records": 12}},
@@ -1751,6 +1752,61 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "attention_gates_hash" in " ".join(readiness_failures)
     assert "required_actions_hash" in " ".join(readiness_failures)
     assert "detail_hash" in " ".join(readiness_failures)
+    production_gap = {
+        "area": "rag_embedding_backend",
+        "status": "warning",
+        "priority": "promotion",
+        "resolution_scope": "operator_environment",
+        "resolution_mode": "managed_runtime",
+        "proof_hint": "Configure OpenAI or sentence-transformers and rebuild the index.",
+        "evidence_key": "rag_embedding",
+        "check_detail_hash": valid_hash,
+        "readiness_detail_hash": valid_hash,
+        "action": "Configure a production embedding backend.",
+    }
+    production_gap["gap_hash"] = module.compact_hash_payload(production_gap)
+    production_gap_summary = {
+        "gap_schema": "agentic-rag-production-gap-summary-v1",
+        "status": "warning",
+        "gap_count": 1,
+        "blocking_count": 0,
+        "promotion_count": 1,
+        "resolution_scope_counts": {"operator_environment": 1},
+        "resolution_mode_counts": {"managed_runtime": 1},
+        "evidence_keys": ["rag_embedding"],
+        "readiness_action_hash": valid_hash,
+        "promotion_required_action_count": 1,
+        "gaps": [production_gap],
+    }
+    production_gap_summary["gap_summary_hash"] = module.compact_hash_payload(production_gap_summary)
+    assert module.api_failures(
+        "production_audit_status",
+        {
+            "data": {
+                "audit_hash": valid_hash,
+                "summary": {"status": "warning"},
+                "production_gap_summary": production_gap_summary,
+                "evidence": {"production_gap_summary": production_gap_summary},
+            }
+        },
+    ) == []
+    tampered_gap_summary = {
+        **production_gap_summary,
+        "resolution_scope_counts": {"operator_environment": 2},
+    }
+    gap_failures = module.api_failures(
+        "production_audit_status",
+        {
+            "data": {
+                "audit_hash": valid_hash,
+                "summary": {"status": "warning"},
+                "production_gap_summary": tampered_gap_summary,
+                "evidence": {"production_gap_summary": production_gap_summary},
+            }
+        },
+    )
+    assert "production_gap_summary does not match embedded evidence" in " ".join(gap_failures)
+    assert "resolution_scope_counts" in " ".join(gap_failures)
     audit_semantic_checks = {
         "audit_hash": "pass",
         "evidence_hashes_manifest": "pass",
