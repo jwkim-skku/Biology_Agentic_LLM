@@ -51,6 +51,7 @@ QC_BUNDLE_AUDIT_PAYLOAD = {
 API_CHECKS = [
     {"name": "health_ready", "path": "/health/ready"},
     {"name": "deployment_readiness", "path": "/deployment/readiness"},
+    {"name": "production_audit_bundle_verify", "path": "/deployment/audit/verify?refresh=true"},
     {"name": "security_status", "path": "/security/status"},
     {"name": "storage_status", "path": "/storage/status"},
     {"name": "data_provenance", "path": "/data/provenance"},
@@ -522,6 +523,43 @@ def api_failures(name: str, details: Any) -> list[str]:
                 failures.append(f"deployment readiness required action detail_hash does not match gate {gate_name}")
         if sorted(action_gates) != sorted(str(name) for name in expected_attention_gates):
             failures.append("deployment readiness required_actions do not cover all non-pass gates")
+    if name == "production_audit_bundle_verify":
+        semantic_summary = payload.get("semantic_summary") if isinstance(payload.get("semantic_summary"), dict) else {}
+        semantic_checks = payload.get("semantic_checks") if isinstance(payload.get("semantic_checks"), dict) else {}
+        artifact_verification = payload.get("artifact_verification") if isinstance(payload.get("artifact_verification"), dict) else {}
+        if payload.get("status") != "pass":
+            failures.append("production audit bundle verification status is not pass")
+        if artifact_verification.get("status") != "pass":
+            failures.append("production audit bundle artifact verification did not pass")
+        if not payload.get("audit_hash") or len(str(payload.get("audit_hash"))) != 64:
+            failures.append("production audit bundle audit_hash is missing or invalid")
+        if semantic_summary.get("summary_schema") != "agentic-rag-production-audit-semantic-summary-v1":
+            failures.append("production audit bundle semantic_summary schema is missing or invalid")
+        if safe_int(semantic_summary.get("check_count")) < 1:
+            failures.append("production audit bundle semantic_summary check_count is missing")
+        if semantic_summary.get("status") != "pass":
+            failures.append("production audit bundle semantic_summary status is not pass")
+        if safe_int(semantic_summary.get("fail_count"), -1) != 0:
+            failures.append("production audit bundle semantic_summary fail_count is not zero")
+        if safe_int(semantic_summary.get("warning_count"), -1) != 0:
+            failures.append("production audit bundle semantic_summary warning_count is not zero")
+        if safe_int(semantic_summary.get("pass_count")) != safe_int(semantic_summary.get("check_count")):
+            failures.append("production audit bundle semantic_summary pass_count does not match check_count")
+        if not semantic_summary.get("summary_hash") or len(str(semantic_summary.get("summary_hash"))) != 64:
+            failures.append("production audit bundle semantic_summary summary_hash is missing or invalid")
+        required_audit_checks = [
+            "audit_hash",
+            "evidence_hashes_manifest",
+            "evidence_hashes_combined",
+            "check_detail_hashes",
+            "required_action_coverage",
+            "required_action_detail_hashes",
+            "markdown_recomputed",
+            "summary_recomputed",
+        ]
+        missing = [check for check in required_audit_checks if semantic_checks.get(check) != "pass"]
+        if missing:
+            failures.append(f"production audit bundle semantic checks did not pass: {', '.join(missing)}")
     if name == "data_provenance" and payload.get("status") == "fail":
         failures.append("data provenance status is fail")
     if name == "rag_diagnostics" and payload.get("status") == "fail":
@@ -1060,6 +1098,7 @@ def api_warnings(name: str, details: Any) -> list[str]:
     if name == "rna_folding_status" and payload.get("production_ready") is not True:
         warnings.append("RNA folding backend is not production_ready")
     if name in {
+        "production_audit_bundle_verify",
         "data_release_bundle_verify",
         "rag_evaluation_bundle_verify",
         "rag_regression_bundle_verify",

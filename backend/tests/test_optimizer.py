@@ -1390,6 +1390,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "rag_embedding_status" in api_check_names
     assert "rna_folding_status" in api_check_names
     assert "artifact_object_store_mirror_plan" in api_check_names
+    assert "production_audit_bundle_verify" in api_check_names
     readiness_gates = [
         {"name": "structured_data", "status": "pass", "message": "Gate passed.", "details": {"records": 12}},
         {"name": "rag_embedding_backend", "status": "warning", "message": "Pin embedding backend.", "details": {"active_backend": "hash_bow"}},
@@ -1438,6 +1439,62 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "attention_gates_hash" in " ".join(readiness_failures)
     assert "required_actions_hash" in " ".join(readiness_failures)
     assert "detail_hash" in " ".join(readiness_failures)
+    audit_semantic_checks = {
+        "audit_hash": "pass",
+        "evidence_hashes_manifest": "pass",
+        "evidence_hashes_combined": "pass",
+        "check_detail_hashes": "pass",
+        "required_action_coverage": "pass",
+        "required_action_detail_hashes": "pass",
+        "markdown_recomputed": "pass",
+        "summary_recomputed": "pass",
+    }
+    assert module.api_failures(
+        "production_audit_bundle_verify",
+        {
+            "data": {
+                "status": "pass",
+                "audit_hash": valid_hash,
+                "artifact_verification": {"status": "pass"},
+                "semantic_checks": audit_semantic_checks,
+                "semantic_summary": {
+                    "summary_schema": "agentic-rag-production-audit-semantic-summary-v1",
+                    "check_count": len(audit_semantic_checks),
+                    "pass_count": len(audit_semantic_checks),
+                    "fail_count": 0,
+                    "warning_count": 0,
+                    "status": "pass",
+                    "summary_hash": valid_hash,
+                },
+            }
+        },
+    ) == []
+    audit_verify_failures = module.api_failures(
+        "production_audit_bundle_verify",
+        {
+            "data": {
+                "status": "warning",
+                "audit_hash": "",
+                "artifact_verification": {"status": "warning"},
+                "semantic_checks": {**audit_semantic_checks, "required_action_coverage": "fail"},
+                "semantic_summary": {
+                    "summary_schema": "unexpected",
+                    "check_count": len(audit_semantic_checks),
+                    "pass_count": len(audit_semantic_checks) - 1,
+                    "fail_count": 1,
+                    "warning_count": 0,
+                    "status": "fail",
+                    "summary_hash": "",
+                },
+            }
+        },
+    )
+    assert "verification status" in " ".join(audit_verify_failures)
+    assert "artifact verification" in " ".join(audit_verify_failures)
+    assert "audit_hash" in " ".join(audit_verify_failures)
+    assert "semantic_summary" in " ".join(audit_verify_failures)
+    assert "summary_hash" in " ".join(audit_verify_failures)
+    assert "required_action_coverage" in " ".join(audit_verify_failures)
     assert module.api_failures(
         "rag_embedding_status",
         {
