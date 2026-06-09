@@ -114,6 +114,8 @@ def static_checks(failures: list[str]) -> None:
         "OPENAI_EMBEDDING_BUDGET_USD",
         "ARTIFACT_OBJECT_STORE_ENDPOINT is required for production compose",
         "ARTIFACT_OBJECT_STORE_BUCKET is required for production compose",
+        "ARTIFACT_OBJECT_STORE_PREFIX is required for production compose",
+        "ARTIFACT_OBJECT_STORE_REGION is required for production compose",
         "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID is required for production compose",
         "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY is required for production compose",
         "STORAGE_BACKEND: postgres",
@@ -187,6 +189,10 @@ def run_docker_compose_config(*, require_docker: bool, failures: list[str], warn
         require_config_token(production, "compose-preflight-artifact-signing-key", failures, "production config did not require artifact signing.")
         require_config_token(production, "https://s3.compose-preflight.example.com", failures, "production config did not require object-store endpoint.")
         require_config_token(production, "agentic-rag-compose-preflight", failures, "production config did not require object-store bucket.")
+        require_config_token(production, "agentic-rag/artifacts", failures, "production config did not pass object-store prefix.")
+        require_config_token(production, "us-east-1", failures, "production config did not pass object-store region.")
+        require_config_token(production, "compose-preflight-object-access-key", failures, "production config did not pass object-store access key.")
+        require_config_token(production, "compose-preflight-object-secret-key", failures, "production config did not pass object-store secret key.")
 
     return {
         "available": True,

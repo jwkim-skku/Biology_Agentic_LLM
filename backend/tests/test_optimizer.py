@@ -1165,6 +1165,7 @@ def test_compose_preflight_includes_required_external_service_env() -> None:
         "ARTIFACT_OBJECT_STORE_ENABLED",
         "ARTIFACT_OBJECT_STORE_ENDPOINT",
         "ARTIFACT_OBJECT_STORE_BUCKET",
+        "ARTIFACT_OBJECT_STORE_PREFIX",
         "ARTIFACT_OBJECT_STORE_REGION",
         "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID",
         "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY",
@@ -1172,6 +1173,10 @@ def test_compose_preflight_includes_required_external_service_env() -> None:
     assert required_object_store_keys.issubset(synthetic)
     assert synthetic["ARTIFACT_OBJECT_STORE_ENABLED"] == "true"
     assert synthetic["ARTIFACT_OBJECT_STORE_ENDPOINT"].startswith("https://")
+    assert synthetic["ARTIFACT_OBJECT_STORE_PREFIX"]
+    assert synthetic["ARTIFACT_OBJECT_STORE_REGION"]
+    assert synthetic["ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID"]
+    assert synthetic["ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY"]
 
     required_openai_embedding_keys = {
         "RAG_EMBEDDING_BACKEND",
