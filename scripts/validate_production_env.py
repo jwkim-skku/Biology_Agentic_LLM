@@ -149,7 +149,10 @@ def validate_template(values: dict[str, str], failures: list[str], warnings: lis
     _require(values.get("ARTIFACT_OBJECT_STORE_ENABLED", "").lower() == "true", failures, "template object-store mirror must be enabled.")
     _require(values.get("ARTIFACT_OBJECT_STORE_ENDPOINT", "").startswith("https://"), failures, "template object-store endpoint must be https://.")
     _require(bool(values.get("ARTIFACT_OBJECT_STORE_BUCKET")), failures, "template object-store bucket must be set.")
+    _require(bool(values.get("ARTIFACT_OBJECT_STORE_PREFIX")), failures, "template object-store prefix must be set.")
     _require(bool(values.get("ARTIFACT_OBJECT_STORE_REGION")), failures, "template object-store region must be set.")
+    _require(bool(values.get("ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID")), failures, "template object-store access key id must be set.")
+    _require(bool(values.get("ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY")), failures, "template object-store secret access key must be set.")
 
 
 def validate_strict(values: dict[str, str], failures: list[str], warnings: list[str]) -> None:

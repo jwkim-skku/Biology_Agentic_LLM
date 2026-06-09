@@ -1207,6 +1207,28 @@ def test_production_env_validator_tracks_openai_embedding_env() -> None:
     assert required_openai_embedding_keys.issubset(module.REQUIRED_KEYS)
 
 
+def test_production_env_template_requires_object_store_credentials() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "validate_production_env.py"
+    spec = importlib.util.spec_from_file_location("validate_production_env_template_unit", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    values = module.parse_env(root / ".env.production.example")
+    for key in [
+        "ARTIFACT_OBJECT_STORE_PREFIX",
+        "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID",
+        "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY",
+    ]:
+        broken = dict(values)
+        broken[key] = ""
+        failures: list[str] = []
+        warnings: list[str] = []
+        module.validate_template(broken, failures, warnings)
+        assert key.lower().replace("artifact_object_store_", "").replace("_", " ") in " ".join(failures).lower()
+
+
 def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
     with patch.dict(
         os.environ,
