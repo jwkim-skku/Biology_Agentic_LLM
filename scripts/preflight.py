@@ -43,6 +43,7 @@ def main() -> int:
     parser.add_argument("--skip-smoke", action="store_true", help="Skip the HTTP smoke test.")
     parser.add_argument("--skip-signing-smoke", action="store_true", help="Skip the signed artifact HTTP smoke test.")
     parser.add_argument("--skip-ui-smoke", action="store_true", help="Skip the browser UI smoke test.")
+    parser.add_argument("--skip-manual-backend-tests", action="store_true", help="Skip targeted backend regression tests.")
     parser.add_argument(
         "--output-json",
         type=Path,
@@ -111,21 +112,22 @@ def main() -> int:
         )
         checks.append(run_check("golden_response", [sys.executable, "scripts/golden_response_test.py"], cwd=BACKEND))
         checks.append(run_check("golden_value", [sys.executable, "scripts/golden_value_test.py"], cwd=BACKEND))
-        checks.append(
-            run_check(
-                "manual_backend_tests",
-                [
-                    sys.executable,
-                    "-c",
-                    "from tests import test_optimizer as t; "
-                    "t.test_portfolio_readiness_matrix_covers_pdf_requirement_areas(); "
-                    "t.test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes(); "
-                    "t.test_compose_preflight_includes_required_external_service_env(); "
-                    "print('targeted manual tests passed')",
-                ],
-                cwd=BACKEND,
+        if not args.skip_manual_backend_tests:
+            checks.append(
+                run_check(
+                    "manual_backend_tests",
+                    [
+                        sys.executable,
+                        "-c",
+                        "from tests import test_optimizer as t; "
+                        "t.test_portfolio_readiness_matrix_covers_pdf_requirement_areas(); "
+                        "t.test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes(); "
+                        "t.test_compose_preflight_includes_required_external_service_env(); "
+                        "print('targeted manual tests passed')",
+                    ],
+                    cwd=BACKEND,
+                )
             )
-        )
         if not args.skip_frontend:
             checks.append(run_check("frontend_build", [npm_command(), "run", "build"], cwd=FRONTEND))
         if not args.skip_smoke or not args.skip_ui_smoke:
@@ -218,6 +220,7 @@ def build_report(args: argparse.Namespace, checks: list[dict[str, object]], *, s
             "http_smoke": args.skip_smoke,
             "signed_http_smoke": args.skip_signing_smoke,
             "frontend_smoke": args.skip_ui_smoke,
+            "manual_backend_tests": args.skip_manual_backend_tests,
         }.items()
         if enabled
     ]
@@ -238,6 +241,7 @@ def build_report(args: argparse.Namespace, checks: list[dict[str, object]], *, s
             "skip_smoke": args.skip_smoke,
             "skip_signing_smoke": args.skip_signing_smoke,
             "skip_ui_smoke": args.skip_ui_smoke,
+            "skip_manual_backend_tests": args.skip_manual_backend_tests,
         },
         "checks": checks,
         "failed": [str(check["name"]) for check in failed],

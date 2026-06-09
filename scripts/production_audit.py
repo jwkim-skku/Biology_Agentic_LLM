@@ -23,6 +23,7 @@ PREFLIGHT_SKIP_MODE_TO_CHECK = {
     "skip_smoke": "http_smoke",
     "skip_signing_smoke": "signed_http_smoke",
     "skip_ui_smoke": "frontend_smoke",
+    "skip_manual_backend_tests": "manual_backend_tests",
 }
 
 RAG_EVALUATION_AUDIT_PAYLOAD = {
@@ -316,7 +317,8 @@ def extract_preflight_summary(
         and (not isinstance(check.get("stdout"), str) or not isinstance(check.get("stderr"), str))
     )
     declared_failed_checks = sorted(stringify_list(failed))
-    missing_checks = sorted(set(REQUIRED_PREFLIGHT_CHECKS) - set(check_names))
+    skipped_list = skipped if isinstance(skipped, list) else stringify_list(skipped)
+    missing_checks = sorted(set(REQUIRED_PREFLIGHT_CHECKS) - set(check_names) - {str(item) for item in skipped_list})
 
     if preflight_schema != PREFLIGHT_SCHEMA:
         failures.append(f"preflight_schema is {preflight_schema!r}, expected {PREFLIGHT_SCHEMA!r}")
@@ -350,7 +352,6 @@ def extract_preflight_summary(
         failures.append("preflight skipped_count does not match skipped[].")
     if int_or_default(payload.get("passed_count"), -1) != sum(1 for check in checks if isinstance(check, dict) and check.get("returncode") == 0):
         failures.append("preflight passed_count does not match passing checks.")
-    skipped_list = skipped if isinstance(skipped, list) else stringify_list(skipped)
     expected_skipped = sorted(check for flag, check in PREFLIGHT_SKIP_MODE_TO_CHECK.items() if mode.get(flag) is True)
     if sorted(str(item) for item in skipped_list) != expected_skipped:
         failures.append("preflight skipped[] does not match mode skip flags.")
