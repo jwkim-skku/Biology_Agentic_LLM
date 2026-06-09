@@ -154,7 +154,7 @@ def run_docker_compose_config(*, require_docker: bool, failures: list[str], warn
     try:
         base = compose_config(["-f", str(BASE_COMPOSE), "--env-file", str(env_path)], failures)
         production = compose_config(
-            ["-f", str(BASE_COMPOSE), "-f", str(PRODUCTION_COMPOSE), "--env-file", str(env_path)],
+            ["--profile", "postgres", "-f", str(BASE_COMPOSE), "-f", str(PRODUCTION_COMPOSE), "--env-file", str(env_path)],
             failures,
         )
     finally:
