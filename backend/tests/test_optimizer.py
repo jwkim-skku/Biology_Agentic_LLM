@@ -1740,8 +1740,14 @@ def test_production_promotion_runbook_groups_gap_evidence(tmp_path: Path) -> Non
     assert runbook["verification"]["status"] == "pass"
     assert runbook["resolution_scope_counts"] == {"operator_environment": 1}
     assert runbook["groups"][0]["resolution_scope"] == "operator_environment"
+    assert runbook["proof_checklist_count"] == 1
+    assert len(runbook["proof_checklist_hash"]) == 64
+    assert runbook["proof_checklist"][0]["proof_artifact"] == "evidence/rag_embedding.json"
+    assert runbook["proof_checklist"][0]["proof_command"] == "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status"
     assert "Production Promotion Runbook" in markdown
+    assert "Promotion Proof Checklist" in markdown
     assert "rag_embedding_backend" in markdown
+    assert "evidence/rag_embedding.json" in markdown
     assert len(runbook["runbook_hash"]) == 64
 
     tampered = dict(gap_summary)

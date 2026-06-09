@@ -78,6 +78,7 @@ def build_runbook(audit: dict[str, Any]) -> dict[str, Any]:
         }
         for scope, items in sorted(groups.items())
     ]
+    proof_checklist = _proof_checklist(grouped)
     payload = {
         "runbook_schema": RUNBOOK_SCHEMA,
         "source_audit_hash": audit.get("audit_hash"),
@@ -89,6 +90,9 @@ def build_runbook(audit: dict[str, Any]) -> dict[str, Any]:
         "promotion_count": safe_int(gap_summary.get("promotion_count")),
         "resolution_scope_counts": gap_summary.get("resolution_scope_counts") or {},
         "resolution_mode_counts": gap_summary.get("resolution_mode_counts") or {},
+        "proof_checklist_count": len(proof_checklist),
+        "proof_checklist_hash": hash_payload(proof_checklist),
+        "proof_checklist": proof_checklist,
         "groups": grouped,
         "verification": verification,
     }
@@ -97,17 +101,68 @@ def build_runbook(audit: dict[str, Any]) -> dict[str, Any]:
 
 
 def _runbook_item(gap: dict[str, Any]) -> dict[str, Any]:
+    proof = _proof_evidence(gap)
     return {
         "area": gap.get("area"),
         "priority": gap.get("priority"),
         "status": gap.get("status"),
         "resolution_mode": gap.get("resolution_mode"),
         "proof_hint": gap.get("proof_hint"),
+        "proof_artifact": proof["artifact"],
+        "proof_command": proof["command"],
         "action": gap.get("action"),
         "evidence_key": gap.get("evidence_key"),
         "check_detail_hash": gap.get("check_detail_hash"),
         "readiness_detail_hash": gap.get("readiness_detail_hash"),
         "gap_hash": gap.get("gap_hash"),
+    }
+
+
+def _proof_checklist(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for group in groups:
+        for item in group.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            items.append(
+                {
+                    "area": item.get("area"),
+                    "priority": item.get("priority"),
+                    "resolution_scope": group.get("resolution_scope"),
+                    "resolution_mode": item.get("resolution_mode"),
+                    "proof_artifact": item.get("proof_artifact"),
+                    "proof_command": item.get("proof_command"),
+                    "gap_hash": item.get("gap_hash"),
+                }
+            )
+    return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
+
+
+def _proof_evidence(gap: dict[str, Any]) -> dict[str, str]:
+    area = str(gap.get("area") or "unknown")
+    evidence_key = str(gap.get("evidence_key") or area)
+    resolution_mode = str(gap.get("resolution_mode") or "")
+    area_commands = {
+        "deployment_readiness": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/deployment/readiness",
+        "rag_embedding_backend": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status",
+        "rna_folding_backend": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/optimizer/rna-folding/status",
+        "artifact_object_store": "Invoke-RestMethod 'http://127.0.0.1:8000/api/v1/artifacts/object-store/mirror/plan?limit=500'",
+        "optimizer_diagnostics": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/optimizer/diagnostics",
+        "security": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/security/status",
+        "storage": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/storage/migration/sqlite/parity",
+    }
+    mode_commands = {
+        "artifact_refresh": "Invoke-WebRequest http://127.0.0.1:8000/api/v1/deployment/audit/export.zip -OutFile production_audit.zip",
+        "data_promotion": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/data/coverage",
+        "managed_runtime": "python scripts/production_audit.py --require-api",
+        "configuration": "python scripts/production_audit.py --require-api",
+        "benchmark_calibration": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/optimizer/benchmark",
+        "readiness_rollup": "python scripts/production_audit.py --require-api",
+    }
+    command = area_commands.get(area) or mode_commands.get(resolution_mode) or "python scripts/production_audit.py --require-api"
+    return {
+        "artifact": f"evidence/{evidence_key}.json",
+        "command": command,
     }
 
 
@@ -133,6 +188,9 @@ def verify_gap_summary(summary: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(gap, dict):
             errors.append("production_gap_summary contains a non-object gap.")
             continue
+        for required in ("area", "priority", "resolution_scope", "resolution_mode", "proof_hint", "evidence_key", "action"):
+            if not gap.get(required):
+                errors.append(f"gap {gap.get('area', 'unknown')!r} is missing {required}.")
         if gap.get("gap_hash") != hash_payload({key: value for key, value in gap.items() if key != "gap_hash"}):
             errors.append(f"gap_hash does not match gap {gap.get('area', 'unknown')!r}.")
     if summary.get("gap_summary_hash") != hash_payload({key: value for key, value in summary.items() if key != "gap_summary_hash"}):
@@ -157,24 +215,48 @@ def render_markdown(runbook: dict[str, Any]) -> str:
         f"- Verification: `{(runbook.get('verification') or {}).get('status')}`",
         f"- Resolution scopes: `{format_counts(runbook.get('resolution_scope_counts') or {})}`",
         f"- Resolution modes: `{format_counts(runbook.get('resolution_mode_counts') or {})}`",
+        f"- Proof checklist: `{runbook.get('proof_checklist_count')}` items; hash `{runbook.get('proof_checklist_hash')}`",
         "",
     ]
+    if runbook.get("proof_checklist"):
+        lines.extend(
+            [
+                "## Promotion Proof Checklist",
+                "",
+                "| Area | Priority | Scope | Mode | Artifact | Command |",
+                "| --- | --- | --- | --- | --- | --- |",
+            ]
+        )
+        for item in runbook.get("proof_checklist") or []:
+            lines.append(
+                "| {area} | {priority} | {scope} | {mode} | {artifact} | {command} |".format(
+                    area=escape_cell(item.get("area")),
+                    priority=escape_cell(item.get("priority")),
+                    scope=escape_cell(item.get("resolution_scope")),
+                    mode=escape_cell(item.get("resolution_mode")),
+                    artifact=escape_cell(item.get("proof_artifact")),
+                    command=escape_cell(item.get("proof_command")),
+                )
+            )
+        lines.append("")
     for group in runbook.get("groups") or []:
         lines.extend(
             [
                 f"## {group.get('resolution_scope')} ({group.get('count')})",
                 "",
-                "| Area | Priority | Mode | Evidence | Proof hint | Action |",
-                "| --- | --- | --- | --- | --- | --- |",
+                "| Area | Priority | Mode | Evidence | Proof artifact | Proof command | Proof hint | Action |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
         )
         for item in group.get("items") or []:
             lines.append(
-                "| {area} | {priority} | {mode} | {evidence} | {proof_hint} | {action} |".format(
+                "| {area} | {priority} | {mode} | {evidence} | {proof_artifact} | {proof_command} | {proof_hint} | {action} |".format(
                     area=escape_cell(item.get("area")),
                     priority=escape_cell(item.get("priority")),
                     mode=escape_cell(item.get("resolution_mode")),
                     evidence=escape_cell(item.get("evidence_key")),
+                    proof_artifact=escape_cell(item.get("proof_artifact")),
+                    proof_command=escape_cell(item.get("proof_command")),
                     proof_hint=escape_cell(item.get("proof_hint")),
                     action=escape_cell(item.get("action")),
                 )

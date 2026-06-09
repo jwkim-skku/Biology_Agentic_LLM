@@ -85,7 +85,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
         "evidence": [
             {"path": "scripts/preflight.py", "contains": ["preflight_hash", "frontend_smoke"]},
             {"path": "scripts/production_audit.py", "contains": ["audit_hash", "preflight_evidence"]},
-            {"path": "scripts/production_promotion_runbook.py", "contains": ["production_gap_summary", "runbook_hash"]},
+            {"path": "scripts/production_promotion_runbook.py", "contains": ["production_gap_summary", "runbook_hash", "proof_checklist_hash"]},
             {"path": "scripts/verify_production_audit_write_result.py", "contains": ["WRITE_RESULT_SCHEMA", "json_sha256"]},
             {"path": ".github/workflows/ci.yml", "contains": ["production_audit_write_result", "backend-production-promotion-runbook"]},
             {"path": "backend/tests/test_optimizer.py", "contains": ["production_audit", "rag_vector_index", "qc_report"]},
