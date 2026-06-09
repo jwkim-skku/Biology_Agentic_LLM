@@ -770,6 +770,8 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
         assert qc_archive_gate["details"][field] is None or len(qc_archive_gate["details"][field]) == 64
     assert qc_archive_gate["details"]["latest_recommendation_readiness_status"] in {None, "pass", "warning"}
     assert qc_archive_gate["details"]["latest_recommendation_release_ready"] in {None, True, False}
+    assert qc_archive_gate["details"]["latest_recommendation_readiness_candidate_id"] is None or qc_archive_gate["details"]["latest_recommendation_readiness_candidate_id"]
+    assert qc_archive_gate["details"]["latest_recommended_folding_candidate_id"] is None or qc_archive_gate["details"]["latest_recommended_folding_candidate_id"]
     assert qc_archive_gate["details"]["latest_retrieval_quality_status"] in {None, "pass", "warning"}
     assert qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_count"] is None or qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_count"] >= 1
     assert qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_hash"] is None or len(qc_archive_gate["details"]["latest_retrieval_quality_rank_evidence_hash"]) == 64
@@ -2995,9 +2997,11 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["recommendation_audit_hash"] == bundle_manifest["recommendation_audit_hash"]
     assert verification["recommendation_readiness_hash"] == bundle_manifest["recommendation_readiness_hash"]
     assert verification["recommendation_readiness_status"] in {"pass", "warning"}
+    assert verification["recommendation_readiness_candidate_id"] == design["recommended_candidate"]["candidate_id"]
     assert verification["recommended_folding_evidence_hash"] == bundle_manifest["recommended_folding_evidence_hash"]
     assert verification["recommended_folding_status"] in {"pass", "warning"}
     assert verification["recommended_folding_backend"] in {"rnafold", "deterministic_proxy"}
+    assert verification["recommended_folding_candidate_id"] == design["recommended_candidate"]["candidate_id"]
     assert verification["retrieval_quality_rank_evidence_count"] >= 1
     assert len(verification["retrieval_quality_rank_evidence_hash"]) == 64
     assert verification["semantic_checks"]["request_hash"] == "pass"
@@ -3053,8 +3057,10 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_readiness_hash"] == verification["recommendation_readiness_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_readiness_status"] in {"pass", "warning"}
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["recommendation_readiness_candidate_id"] == design["recommended_candidate"]["candidate_id"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_status"] in {"pass", "warning"}
+    assert archived["metadata"]["qc_bundle_semantic_verification"]["recommended_folding_candidate_id"] == design["recommended_candidate"]["candidate_id"]
     assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_status"] in {"pass", "warning"}
     assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_source_count"] >= 1
     assert archived["metadata"]["qc_bundle_semantic_verification"]["retrieval_quality_rank_evidence_count"] >= 1
@@ -3083,12 +3089,14 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         and item["recommendation_audit_hash"] == verification["recommendation_audit_hash"]
         and item["recommendation_readiness_hash"] == verification["recommendation_readiness_hash"]
         and item["recommendation_readiness_status"] in {"pass", "warning"}
+        and item["recommendation_readiness_candidate_id"] == design["recommended_candidate"]["candidate_id"]
         and item["request_hash"] == verification["request_hash"]
         and item["qc_report_hash"] == verification["qc_report_hash"]
         and item["report_formats_summary_hash"] == verification["report_formats_summary_hash"]
         and item["candidate_ranking_hash"] == verification["candidate_ranking_hash"]
         and item["recommended_folding_evidence_hash"] == verification["recommended_folding_evidence_hash"]
         and item["recommended_folding_status"] in {"pass", "warning"}
+        and item["recommended_folding_candidate_id"] == design["recommended_candidate"]["candidate_id"]
         and item["retrieval_quality_source_count"] >= 1
         and item["retrieval_quality_rank_evidence_count"] >= 1
         and len(item["retrieval_quality_rank_evidence_hash"]) == 64
