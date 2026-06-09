@@ -1101,6 +1101,23 @@ def test_compose_preflight_includes_required_external_service_env() -> None:
     assert float(synthetic["OPENAI_EMBEDDING_BUDGET_USD"]) > 0
 
 
+def test_production_env_validator_tracks_openai_embedding_env() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "validate_production_env.py"
+    spec = importlib.util.spec_from_file_location("validate_production_env_unit", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    required_openai_embedding_keys = {
+        "OPENAI_API_KEY",
+        "OPENAI_EMBEDDING_BASE_URL",
+        "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS",
+        "OPENAI_EMBEDDING_BUDGET_USD",
+    }
+    assert required_openai_embedding_keys.issubset(module.REQUIRED_KEYS)
+
+
 def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
     with patch.dict(
         os.environ,
