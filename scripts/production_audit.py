@@ -696,8 +696,12 @@ def api_failures(name: str, details: Any) -> list[str]:
                 failures.append(f"latest QC archive is missing {hash_field}")
         if checked_count and latest.get("recommendation_readiness_status") not in {"pass", "warning"}:
             failures.append("latest QC archive is missing pass/warning recommendation_readiness_status")
+        if checked_count and not latest.get("recommendation_readiness_candidate_id"):
+            failures.append("latest QC archive is missing recommendation_readiness_candidate_id")
         if checked_count and latest.get("recommended_folding_status") not in {"pass", "warning"}:
             failures.append("latest QC archive is missing pass/warning recommended_folding_status")
+        if checked_count and not latest.get("recommended_folding_candidate_id"):
+            failures.append("latest QC archive is missing recommended_folding_candidate_id")
         if checked_count and latest.get("retrieval_quality_status") not in {"pass", "warning"}:
             failures.append("latest QC archive is missing pass/warning retrieval_quality_status")
         if checked_count and int(latest.get("retrieval_quality_source_count") or 0) < 1:
