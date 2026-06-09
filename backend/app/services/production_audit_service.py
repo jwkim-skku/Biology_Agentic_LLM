@@ -753,6 +753,7 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
     refresh = gates.get("data_refresh_plan_archive_semantics") or {}
     rag_eval = gates.get("rag_evaluation_archive_semantics") or {}
     rag_regression = gates.get("rag_regression_archive_semantics") or {}
+    qc = gates.get("qc_bundle_archive_semantics") or {}
     optimizer = gates.get("optimizer_benchmark_archive_semantics") or {}
     workflow = gates.get("workflow_trace_archive_semantics") or {}
     memory = gates.get("agent_memory") or {}
@@ -765,6 +766,8 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("Object-store lifecycle", _short_hash(object_store.get("lifecycle_policy_hash"))),
         ("RAG embedding fingerprint", _short_hash(rag_embedding.get("model_fingerprint_hash"))),
         ("Release handoff hash", _short_hash(release.get("latest_release_handoff_hash"))),
+        ("QC readiness candidate", _markdown_value(qc.get("latest_recommendation_readiness_candidate_id"))),
+        ("QC folding candidate", _markdown_value(qc.get("latest_recommended_folding_candidate_id"))),
         ("Refresh plan operations", _markdown_value(refresh.get("latest_operation_count"))),
         ("Refresh plan validation", _markdown_value(refresh.get("latest_validation_status"))),
         ("RAG evaluation source provenance", _short_hash(rag_eval.get("latest_source_provenance_hash"))),
