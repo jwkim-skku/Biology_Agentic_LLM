@@ -148,10 +148,13 @@ This writes JSON and Markdown reports under `backend/app/data/runtime/production
 Individual contract and golden checks are also available from the repository root:
 
 ```powershell
+python scripts/portfolio_readiness_matrix.py --strict
 python scripts/api_contract_test.py
 python scripts/golden_response_test.py
 python scripts/golden_value_test.py
 ```
+
+`portfolio_readiness_matrix.py` emits a hash-pinned JSON evidence matrix for the PDF scope: real data ingestion, Agentic RAG retrieval/evaluation, multi-objective codon optimization, QC export, operator UI, deployment operations, and automated audit/CI coverage.
 
 Backend smoke and manual regression checks can be run from `backend`:
 

@@ -21,6 +21,7 @@ jobs:
       - run: python scripts/golden_response_test.py
       - run: python scripts/golden_value_test.py
       - run: python -c "from tests import test_optimizer as t; [getattr(t, name)() for name in dir(t) if name.startswith('test_')]; print('manual tests passed')"
+      - run: python ../scripts/portfolio_readiness_matrix.py --strict > app/data/runtime/portfolio_readiness_matrix.json
       - run: python ../scripts/preflight.py --skip-frontend --skip-smoke --skip-signing-smoke --skip-ui-smoke --output-json backend/app/data/runtime/preflight_ci.json
       - run: |
           python ../scripts/production_audit.py --template --skip-api --preflight-evidence backend/app/data/runtime/preflight_ci.json > app/data/runtime/production_audit_write_result.json
@@ -30,6 +31,11 @@ jobs:
         with:
           name: backend-preflight-evidence
           path: backend/app/data/runtime/preflight_ci.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-portfolio-readiness-matrix
+          path: backend/app/data/runtime/portfolio_readiness_matrix.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

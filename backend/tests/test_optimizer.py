@@ -1403,6 +1403,35 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
         preflight_path.unlink(missing_ok=True)
 
 
+def test_portfolio_readiness_matrix_covers_pdf_requirement_areas() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "portfolio_readiness_matrix.py"
+    spec = importlib.util.spec_from_file_location("portfolio_readiness_matrix", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    matrix = module.build_matrix(root)
+    requirement_ids = {item["id"] for item in matrix["requirements"]}
+    assert matrix["schema"] == module.MATRIX_SCHEMA
+    assert matrix["summary"]["status"] == "pass"
+    assert matrix["summary"]["requirement_count"] == len(module.REQUIREMENTS)
+    assert len(matrix["matrix_hash"]) == 64
+    assert {
+        "real_data_ingestion",
+        "agentic_rag_search",
+        "multi_objective_optimizer",
+        "qc_export_artifacts",
+        "operator_ui",
+        "operations_and_deployment",
+        "verification_and_audit",
+    }.issubset(requirement_ids)
+    for requirement in matrix["requirements"]:
+        assert requirement["status"] == "pass"
+        assert requirement["evidence_count"] == requirement["passing_evidence_count"]
+        assert len(requirement["evidence_hash"]) == 64
+
+
 def test_compose_preflight_includes_required_external_service_env() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "compose_preflight.py"
