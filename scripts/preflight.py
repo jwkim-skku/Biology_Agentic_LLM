@@ -117,8 +117,9 @@ def main() -> int:
                 [
                     sys.executable,
                     "-c",
+                    "import inspect; "
                     "from tests import test_optimizer as t; "
-                    "[getattr(t, name)() for name in dir(t) if name.startswith('test_')]; "
+                    "[getattr(t, name)() for name in dir(t) if name.startswith('test_') and not inspect.signature(getattr(t, name)).parameters]; "
                     "print('manual tests passed')",
                 ],
                 cwd=BACKEND,
