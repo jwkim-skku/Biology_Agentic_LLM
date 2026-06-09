@@ -165,7 +165,7 @@ def main() -> int:
         md_path = args.output_dir / f"{stem}.md"
         json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         md_path.write_text(render_markdown(report), encoding="utf-8")
-        print(json.dumps({"summary": summary, "json_path": str(json_path), "markdown_path": str(md_path)}, indent=2, sort_keys=True))
+        print(json.dumps(write_result(report, json_path=json_path, markdown_path=md_path), indent=2, sort_keys=True))
 
     return 1 if summary["failures"] else 0
 
@@ -1280,6 +1280,20 @@ def audit_hash(report: dict[str, Any]) -> str:
     unsigned = {key: value for key, value in report.items() if key != "audit_hash"}
     canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return sha256(canonical).hexdigest()
+
+
+def write_result(report: dict[str, Any], *, json_path: Path, markdown_path: Path) -> dict[str, Any]:
+    preflight = next((check for check in report.get("checks", []) if isinstance(check, dict) and check.get("name") == "preflight_evidence"), None)
+    preflight_details = preflight.get("details") if isinstance(preflight, dict) and isinstance(preflight.get("details"), dict) else {}
+    return {
+        "summary": report.get("summary"),
+        "audit_hash": report.get("audit_hash"),
+        "json_path": str(json_path),
+        "markdown_path": str(markdown_path),
+        "preflight_evidence": (report.get("mode") or {}).get("preflight_evidence") if isinstance(report.get("mode"), dict) else None,
+        "preflight_hash": preflight_details.get("preflight_hash"),
+        "preflight_checks_hash": preflight_details.get("checks_hash"),
+    }
 
 
 def hash_payload(payload: Any) -> str:

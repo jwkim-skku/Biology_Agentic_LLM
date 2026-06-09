@@ -1110,6 +1110,7 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         }
         report["audit_hash"] = module.audit_hash(report)
         markdown = module.render_markdown(report)
+        write_result = module.write_result(report, json_path=root / "audit.json", markdown_path=root / "audit.md")
 
         assert preflight_check["status"] == "pass"
         assert preflight_check["details"]["preflight_schema"] == module.PREFLIGHT_SCHEMA
@@ -1129,6 +1130,9 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert preflight_check["details"]["preflight_hash"] == evidence["preflight_hash"]
         assert len(preflight_check["details"]["required_checks"]) == len(module.REQUIRED_PREFLIGHT_CHECKS)
         assert module.audit_hash(report) == report["audit_hash"]
+        assert write_result["audit_hash"] == report["audit_hash"]
+        assert write_result["preflight_hash"] == evidence["preflight_hash"]
+        assert write_result["preflight_checks_hash"] == evidence["checks_hash"]
         assert report["audit_hash"] in markdown
         assert "## API Evidence" in markdown
         assert "API checks: `1`" in markdown
