@@ -196,5 +196,5 @@ jobs:
           EOF
       - run: docker compose --env-file .env.compose-ci config
       - run: |
-          docker compose --env-file .env.compose-ci -f docker-compose.yml -f docker-compose.production.yml config
-      - run: docker compose --env-file .env.compose-ci build
+          docker compose --profile postgres --env-file .env.compose-ci -f docker-compose.yml -f docker-compose.production.yml config
+      - run: docker compose --profile postgres --env-file .env.compose-ci build

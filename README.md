@@ -109,7 +109,7 @@ For a production-like Compose plan with Postgres, auth, retention, and artifact 
 Copy-Item .env.production.example .env.production
 python scripts/validate_production_env.py --path .env.production
 python scripts/compose_preflight.py
-docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.production.yml up --build
+docker compose --profile postgres --env-file .env.production -f docker-compose.yml -f docker-compose.production.yml up --build
 ```
 
 Then open:

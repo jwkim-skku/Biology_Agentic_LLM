@@ -116,12 +116,12 @@ def main() -> int:
                 "manual_backend_tests",
                 [
                     sys.executable,
-                    "-m",
-                    "pytest",
-                    "tests/test_optimizer.py",
-                    "-q",
-                    "-k",
-                    "portfolio_readiness_matrix or production_audit_write_result or compose_preflight",
+                    "-c",
+                    "from tests import test_optimizer as t; "
+                    "t.test_portfolio_readiness_matrix_covers_pdf_requirement_areas(); "
+                    "t.test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes(); "
+                    "t.test_compose_preflight_includes_required_external_service_env(); "
+                    "print('targeted manual tests passed')",
                 ],
                 cwd=BACKEND,
             )

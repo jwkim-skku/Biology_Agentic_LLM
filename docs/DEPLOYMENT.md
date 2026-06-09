@@ -21,7 +21,7 @@ Validate the Compose deployment graph before starting containers:
 
 ```powershell
 python scripts/compose_preflight.py
-docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.production.yml config
+docker compose --profile postgres --env-file .env.production -f docker-compose.yml -f docker-compose.production.yml config
 ```
 
 `docker-compose.production.yml` is an override for production-like launches. It requires Postgres storage, API keys with explicit role mapping, artifact signing, nonzero retention settings, a configured frontend API URL, and a healthy Postgres service before the backend starts.
@@ -252,7 +252,7 @@ Invoke-WebRequest http://127.0.0.1:8000/api/v1/storage/migration/sqlite/export.z
 Invoke-RestMethod http://127.0.0.1:8000/api/v1/storage/migration/sqlite/parity
 Invoke-RestMethod -Method Post "http://127.0.0.1:8000/api/v1/storage/migration/sqlite/import?dry_run=true"
 docker compose --profile postgres up postgres
-docker compose --env-file .env.production -f docker-compose.yml -f docker-compose.production.yml up --build
+docker compose --profile postgres --env-file .env.production -f docker-compose.yml -f docker-compose.production.yml up --build
 ```
 
 SQLite remains the default for local reproducibility. When `STORAGE_BACKEND=postgres` and `DATABASE_URL` are set, run/job/audit stores use the Postgres adapter and apply the published schema automatically. The published Postgres DDL also includes the `vector` extension and `rag_chunks` table for `RAG_VECTOR_BACKEND=pgvector`. The migration bundle exports SQLite rows as JSONL plus manifest hashes; the import endpoint defaults to dry-run and only writes to Postgres when called with `dry_run=false` in a configured environment. The parity endpoint compares record counts and row-level canonical SHA-256 hashes when a target Postgres database is reachable.

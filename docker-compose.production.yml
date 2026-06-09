@@ -45,7 +45,6 @@ services:
       NEXT_PUBLIC_API_KEY: ${NEXT_PUBLIC_API_KEY:-}
 
   postgres:
-    profiles: []
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required for production compose}
       POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required for production compose}
