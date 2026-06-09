@@ -479,8 +479,49 @@ def api_failures(name: str, details: Any) -> list[str]:
     failures: list[str] = []
     if name == "health_ready" and payload.get("status") != "ready":
         failures.append("health readiness endpoint is not ready")
-    if name == "deployment_readiness" and not payload.get("deployment_ready"):
-        failures.append("deployment readiness has blocking failures")
+    if name == "deployment_readiness":
+        if not payload.get("deployment_ready"):
+            failures.append("deployment readiness has blocking failures")
+        gates = payload.get("gates") if isinstance(payload.get("gates"), list) else []
+        summary = payload.get("summary") if isinstance(payload.get("summary"), dict) else {}
+        attention_gates = payload.get("attention_gates") if isinstance(payload.get("attention_gates"), list) else []
+        required_actions = payload.get("required_actions") if isinstance(payload.get("required_actions"), list) else []
+        gate_status_counts = {
+            "pass": sum(1 for gate in gates if isinstance(gate, dict) and gate.get("status") == "pass"),
+            "warning": sum(1 for gate in gates if isinstance(gate, dict) and gate.get("status") == "warning"),
+            "fail": sum(1 for gate in gates if isinstance(gate, dict) and gate.get("status") == "fail"),
+        }
+        expected_attention_gates = [gate.get("name") for gate in gates if isinstance(gate, dict) and gate.get("status") != "pass"]
+        if not gates:
+            failures.append("deployment readiness does not expose gates")
+        if not summary:
+            failures.append("deployment readiness does not expose summary counts")
+        elif any(safe_int(summary.get(key), -1) != value for key, value in gate_status_counts.items()):
+            failures.append("deployment readiness summary counts do not match gates")
+        if attention_gates != expected_attention_gates:
+            failures.append("deployment readiness attention_gates do not match non-pass gates")
+        if payload.get("attention_gates_hash") != compact_hash_payload(expected_attention_gates):
+            failures.append("deployment readiness attention_gates_hash is missing or does not match attention_gates")
+        if payload.get("required_actions_hash") != compact_hash_payload(required_actions):
+            failures.append("deployment readiness required_actions_hash is missing or does not match required_actions")
+        gates_by_name = {str(gate.get("name")): gate for gate in gates if isinstance(gate, dict) and gate.get("name")}
+        action_gates = []
+        for action in required_actions:
+            if not isinstance(action, dict):
+                failures.append("deployment readiness required_actions contains a non-object item")
+                continue
+            gate_name = str(action.get("gate") or "")
+            action_gates.append(gate_name)
+            gate = gates_by_name.get(gate_name)
+            if not gate:
+                failures.append(f"deployment readiness required action references unknown gate {gate_name!r}")
+                continue
+            if action.get("status") != gate.get("status"):
+                failures.append(f"deployment readiness required action status does not match gate {gate_name}")
+            if action.get("detail_hash") != compact_hash_payload(gate.get("details") or {}):
+                failures.append(f"deployment readiness required action detail_hash does not match gate {gate_name}")
+        if sorted(action_gates) != sorted(str(name) for name in expected_attention_gates):
+            failures.append("deployment readiness required_actions do not cover all non-pass gates")
     if name == "data_provenance" and payload.get("status") == "fail":
         failures.append("data provenance status is fail")
     if name == "rag_diagnostics" and payload.get("status") == "fail":
@@ -1104,6 +1145,10 @@ def audit_hash(report: dict[str, Any]) -> str:
 
 def hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def compact_hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def summarize(checks: list[dict[str, Any]]) -> dict[str, Any]:

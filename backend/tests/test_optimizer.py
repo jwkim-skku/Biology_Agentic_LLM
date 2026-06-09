@@ -1350,6 +1350,54 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "rag_embedding_status" in api_check_names
     assert "rna_folding_status" in api_check_names
     assert "artifact_object_store_mirror_plan" in api_check_names
+    readiness_gates = [
+        {"name": "structured_data", "status": "pass", "message": "Gate passed.", "details": {"records": 12}},
+        {"name": "rag_embedding_backend", "status": "warning", "message": "Pin embedding backend.", "details": {"active_backend": "hash_bow"}},
+    ]
+    readiness_attention = ["rag_embedding_backend"]
+    readiness_actions = [
+        {
+            "gate": "rag_embedding_backend",
+            "status": "warning",
+            "priority": "promotion",
+            "message": "Pin embedding backend.",
+            "action": "Configure a production embedding backend.",
+            "detail_hash": module.compact_hash_payload({"active_backend": "hash_bow"}),
+        }
+    ]
+    assert module.api_failures(
+        "deployment_readiness",
+        {
+            "data": {
+                "deployment_ready": True,
+                "summary": {"pass": 1, "warning": 1, "fail": 0},
+                "gates": readiness_gates,
+                "attention_gates": readiness_attention,
+                "attention_gates_hash": module.compact_hash_payload(readiness_attention),
+                "required_actions": readiness_actions,
+                "required_actions_hash": module.compact_hash_payload(readiness_actions),
+            }
+        },
+    ) == []
+    readiness_failures = module.api_failures(
+        "deployment_readiness",
+        {
+            "data": {
+                "deployment_ready": True,
+                "summary": {"pass": 2, "warning": 0, "fail": 0},
+                "gates": readiness_gates,
+                "attention_gates": [],
+                "attention_gates_hash": "",
+                "required_actions": [{**readiness_actions[0], "detail_hash": "0" * 64}],
+                "required_actions_hash": "",
+            }
+        },
+    )
+    assert "summary counts" in " ".join(readiness_failures)
+    assert "attention_gates" in " ".join(readiness_failures)
+    assert "attention_gates_hash" in " ".join(readiness_failures)
+    assert "required_actions_hash" in " ".join(readiness_failures)
+    assert "detail_hash" in " ".join(readiness_failures)
     assert module.api_failures(
         "rag_embedding_status",
         {
