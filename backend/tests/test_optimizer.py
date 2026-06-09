@@ -1353,6 +1353,56 @@ def test_cli_production_audit_requires_preflight_data_evidence_details() -> None
         evidence_path.unlink(missing_ok=True)
 
 
+def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "verify_production_audit_write_result.py"
+    spec = importlib.util.spec_from_file_location("production_audit_write_result_verifier", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    runtime_dir = root / "backend" / "app" / "data" / "runtime"
+    audit_json_path = runtime_dir / f"production_audit_verifier_{uuid.uuid4().hex}.json"
+    audit_md_path = runtime_dir / f"production_audit_verifier_{uuid.uuid4().hex}.md"
+    preflight_path = runtime_dir / f"preflight_verifier_{uuid.uuid4().hex}.json"
+    try:
+        audit_json_path.write_text('{"summary":{"status":"pass"}}', encoding="utf-8")
+        audit_md_path.write_text("# Production Audit\n", encoding="utf-8")
+        preflight_path.write_text('{"status":"pass"}', encoding="utf-8")
+        payload = {
+            "result_schema": module.WRITE_RESULT_SCHEMA,
+            "summary": {"status": "pass"},
+            "audit_hash": "a" * 64,
+            "json_path": str(audit_json_path),
+            "json_sha256": module.file_sha256(audit_json_path),
+            "markdown_path": str(audit_md_path),
+            "markdown_sha256": module.file_sha256(audit_md_path),
+            "preflight_evidence": str(preflight_path),
+            "preflight_status": "pass",
+            "preflight_failure_count": 0,
+            "preflight_warning_count": 0,
+            "preflight_hash": "b" * 64,
+            "preflight_checks_hash": "c" * 64,
+        }
+
+        assert module.validate_write_result(payload, base_dir=root) == []
+        tampered = {**payload, "json_sha256": "0" * 64}
+        assert "json_sha256 mismatch" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        tampered = {**payload, "preflight_status": "warning"}
+        assert "preflight_status must be pass" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        tampered = {**payload, "preflight_failure_count": 1}
+        assert "preflight_failure_count must be 0" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        write_result_path = runtime_dir / f"production_audit_write_result_{uuid.uuid4().hex}.json"
+        write_result_path.write_text(json.dumps(payload), encoding="utf-16")
+        assert module.load_payload(write_result_path)["result_schema"] == module.WRITE_RESULT_SCHEMA
+    finally:
+        if "write_result_path" in locals():
+            write_result_path.unlink(missing_ok=True)
+        audit_json_path.unlink(missing_ok=True)
+        audit_md_path.unlink(missing_ok=True)
+        preflight_path.unlink(missing_ok=True)
+
+
 def test_compose_preflight_includes_required_external_service_env() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "compose_preflight.py"

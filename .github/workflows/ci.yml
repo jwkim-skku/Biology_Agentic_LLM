@@ -22,7 +22,9 @@ jobs:
       - run: python scripts/golden_value_test.py
       - run: python -c "from tests import test_optimizer as t; [getattr(t, name)() for name in dir(t) if name.startswith('test_')]; print('manual tests passed')"
       - run: python ../scripts/preflight.py --skip-frontend --skip-smoke --skip-signing-smoke --skip-ui-smoke --output-json backend/app/data/runtime/preflight_ci.json
-      - run: python ../scripts/production_audit.py --template --skip-api --preflight-evidence backend/app/data/runtime/preflight_ci.json
+      - run: |
+          python ../scripts/production_audit.py --template --skip-api --preflight-evidence backend/app/data/runtime/preflight_ci.json > app/data/runtime/production_audit_write_result.json
+          python ../scripts/verify_production_audit_write_result.py --path app/data/runtime/production_audit_write_result.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -33,6 +35,11 @@ jobs:
         with:
           name: backend-production-audit
           path: backend/app/data/runtime/production_audits/*
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-production-audit-write-result
+          path: backend/app/data/runtime/production_audit_write_result.json
       - run: |
           export ARTIFACT_SIGNING_KEY=ci-artifact-signing-secret
           export ARTIFACT_SIGNING_KEY_ID=ci-hmac-key
