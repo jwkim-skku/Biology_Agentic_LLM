@@ -1282,6 +1282,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"- Evidence path: `{details.get('path', preflight.get('path', 'n/a'))}`",
                 f"- Generated at: `{details.get('generated_at', 'n/a')}`",
                 f"- Age hours: `{details.get('age_hours', 'n/a')}`",
+                f"- Mode hash: `{details.get('mode_hash', 'n/a')}`",
+                f"- Skipped hash: `{details.get('skipped_hash', 'n/a')}`",
                 f"- Checks hash: `{details.get('checks_hash', 'n/a')}`",
                 f"- Preflight hash: `{details.get('preflight_hash', 'n/a')}`",
                 f"- Required checks: `{len(details.get('required_checks') or [])}`",
