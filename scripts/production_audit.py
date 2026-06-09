@@ -187,6 +187,8 @@ def compose_command(args: argparse.Namespace) -> list[str]:
     command = [sys.executable, "scripts/compose_preflight.py"]
     if args.require_docker:
         command.append("--require-docker")
+    else:
+        command.append("--static-only")
     return command
 
 

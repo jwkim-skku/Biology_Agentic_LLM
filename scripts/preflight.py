@@ -60,7 +60,7 @@ def main() -> int:
     try:
         checks.append(run_check("backend_compile", [sys.executable, "-m", "compileall", "app", "scripts"], cwd=BACKEND))
         checks.append(run_check("production_env_template", [sys.executable, "scripts/validate_production_env.py", "--template"], cwd=ROOT))
-        checks.append(run_check("compose_preflight", [sys.executable, "scripts/compose_preflight.py"], cwd=ROOT))
+        checks.append(run_check("compose_preflight", [sys.executable, "scripts/compose_preflight.py", "--static-only"], cwd=ROOT))
         checks.append(
             run_check(
                 "production_audit_template",
