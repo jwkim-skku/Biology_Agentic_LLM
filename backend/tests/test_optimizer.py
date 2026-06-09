@@ -1150,6 +1150,18 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
         assert tampered_check["status"] == "fail"
         assert "skipped[] does not match mode skip flags" in " ".join(tampered_check["failures"])
+        tampered = json.loads(json.dumps(evidence))
+        tampered["checks"][0]["returncode"] = 1
+        tampered["checks"][0]["status"] = "fail"
+        tampered["passed_count"] = len(tampered["checks"]) - 1
+        tampered["failed"] = []
+        tampered["failed_count"] = 0
+        tampered["checks_hash"] = module.hash_payload(tampered["checks"])
+        tampered["preflight_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "preflight_hash"})
+        evidence_path.write_text(json.dumps(tampered), encoding="utf-8")
+        tampered_check = module.validate_preflight_evidence(evidence_path, max_age_hours=24.0)
+        assert tampered_check["status"] == "fail"
+        assert "failed[] does not match checks with nonzero returncode" in " ".join(tampered_check["failures"])
     finally:
         evidence_path.unlink(missing_ok=True)
 

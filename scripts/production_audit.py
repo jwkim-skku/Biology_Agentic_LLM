@@ -274,6 +274,12 @@ def extract_preflight_summary(
     preflight_schema = payload.get("preflight_schema")
     required_checks = payload.get("required_checks")
     check_names = [str(check.get("name")) for check in checks if isinstance(check, dict) and check.get("name")]
+    actual_failed_checks = sorted(
+        str(check.get("name"))
+        for check in checks
+        if isinstance(check, dict) and check.get("name") and int_or_default(check.get("returncode"), 0) != 0
+    )
+    declared_failed_checks = sorted(stringify_list(failed))
     missing_checks = sorted(set(REQUIRED_PREFLIGHT_CHECKS) - set(check_names))
 
     if preflight_schema != PREFLIGHT_SCHEMA:
@@ -286,6 +292,8 @@ def extract_preflight_summary(
         failures.append("preflight check_count does not match checks[].")
     if int_or_default(payload.get("failed_count"), -1) != len(stringify_list(failed)):
         failures.append("preflight failed_count does not match failed[].")
+    if declared_failed_checks != actual_failed_checks:
+        failures.append("preflight failed[] does not match checks with nonzero returncode.")
     if int_or_default(payload.get("skipped_count"), -1) != len(stringify_list(skipped)):
         failures.append("preflight skipped_count does not match skipped[].")
     if int_or_default(payload.get("passed_count"), -1) != sum(1 for check in checks if isinstance(check, dict) and check.get("returncode") == 0):
@@ -342,6 +350,7 @@ def extract_preflight_summary(
         "required_checks": REQUIRED_PREFLIGHT_CHECKS,
         "missing_required_checks": missing_checks,
         "failed": failed if isinstance(failed, list) else stringify_list(failed),
+        "actual_failed_checks": actual_failed_checks,
         "skipped": skipped_list,
         "path_mtime": datetime.fromtimestamp(evidence_path.stat().st_mtime, tz=timezone.utc).isoformat() if evidence_path.exists() else None,
     }
