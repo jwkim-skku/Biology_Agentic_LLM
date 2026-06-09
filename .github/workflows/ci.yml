@@ -20,7 +20,7 @@ jobs:
       - run: python scripts/api_contract_test.py
       - run: python scripts/golden_response_test.py
       - run: python scripts/golden_value_test.py
-      - run: python -c "from tests import test_optimizer as t; [getattr(t, name)() for name in dir(t) if name.startswith('test_')]; print('manual tests passed')"
+      - run: python -m pytest tests/test_optimizer.py
       - run: python ../scripts/portfolio_readiness_matrix.py --strict > app/data/runtime/portfolio_readiness_matrix.json
       - run: python ../scripts/preflight.py --skip-frontend --skip-smoke --skip-signing-smoke --skip-ui-smoke --output-json backend/app/data/runtime/preflight_ci.json
       - run: |
@@ -173,6 +173,26 @@ jobs:
           ARTIFACT_SIGNING_KEY_ID=compose-ci-hmac-key
           ARTIFACT_RETENTION_DAYS=365
           ARTIFACT_RETENTION_KEEP_MIN=1000
+          ARTIFACT_OBJECT_STORE_ENABLED=true
+          ARTIFACT_OBJECT_STORE_ENDPOINT=https://s3.compose-ci.example.com
+          ARTIFACT_OBJECT_STORE_BUCKET=agentic-rag-compose-ci
+          ARTIFACT_OBJECT_STORE_PREFIX=agentic-rag/artifacts
+          ARTIFACT_OBJECT_STORE_REGION=us-east-1
+          ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID=compose-ci-object-access-key
+          ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY=compose-ci-object-secret-key
+          RAG_VECTOR_BACKEND=pgvector
+          RAG_PGVECTOR_TABLE=rag_chunks
+          RAG_EMBEDDING_BACKEND=openai
+          RAG_EMBEDDING_MODEL=text-embedding-3-small
+          RAG_EMBEDDING_DIMENSIONS=128
+          OPENAI_API_KEY=compose-ci-openai-key
+          OPENAI_EMBEDDING_BASE_URL=https://api.openai.com/v1
+          OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS=0.001
+          OPENAI_EMBEDDING_BUDGET_USD=0.05
+          RNA_FOLDING_BACKEND=rnafold
+          RNAFOLD_EXECUTABLE=RNAfold
+          RNAFOLD_TIMEOUT_SECONDS=10
+          RNAFOLD_WINDOW_NT=180
           EOF
           docker compose --env-file .env.compose-ci -f docker-compose.yml -f docker-compose.production.yml config
       - run: docker compose build
