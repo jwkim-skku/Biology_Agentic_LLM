@@ -878,6 +878,8 @@ type ProductionAuditStatus = {
     gap_count?: number;
     blocking_count?: number;
     promotion_count?: number;
+    resolution_scope_counts?: Record<string, number>;
+    resolution_mode_counts?: Record<string, number>;
     gap_summary_hash?: string;
     gaps?: Array<{
       area?: string;
@@ -4584,6 +4586,10 @@ export default function Dashboard() {
                 Gap scope {productionAudit?.production_gap_summary?.gaps?.[0]?.resolution_scope ?? "n/a"} / mode{" "}
                 {productionAudit?.production_gap_summary?.gaps?.[0]?.resolution_mode ?? "n/a"}
               </span>
+              <span>
+                Scopes {formatCountMap(productionAudit?.production_gap_summary?.resolution_scope_counts)} / Modes{" "}
+                {formatCountMap(productionAudit?.production_gap_summary?.resolution_mode_counts)}
+              </span>
               <span>{productionAudit?.production_gap_summary?.gaps?.[0]?.proof_hint ?? "No production proof hint recorded"}</span>
               <span>{productionAudit?.production_gap_summary?.gaps?.[0]?.action ?? "No production gaps recorded"}</span>
               <span>
@@ -6118,6 +6124,15 @@ function semanticCheckSummary(
   const fail = values.filter((value) => value === "fail").length;
   const warning = values.filter((value) => value === "warning").length;
   return `P ${pass} / F ${fail} / W ${warning}`;
+}
+
+function formatCountMap(counts?: Record<string, number>) {
+  const entries = Object.entries(counts ?? {});
+  if (!entries.length) return "n/a";
+  return entries
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, value]) => `${key}:${value}`)
+    .join(", ");
 }
 
 function deploymentGateStatus(readiness: DeploymentReadinessStatus | null | undefined, name: string) {

@@ -691,6 +691,9 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
             "",
             "## Production Gaps",
             "",
+            f"- Resolution scopes: `{_format_count_map(gap_summary.get('resolution_scope_counts') or {})}`",
+            f"- Resolution modes: `{_format_count_map(gap_summary.get('resolution_mode_counts') or {})}`",
+            "",
             "| Area | Priority | Status | Scope | Mode | Proof hint | Action |",
             "| --- | --- | --- | --- | --- | --- | --- |",
         ]
@@ -823,6 +826,12 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("Workflow trace hash", _short_hash(workflow.get("latest_trace_hash"))),
     ]
     return [(label, value) for label, value in rows if value != "n/a"]
+
+
+def _format_count_map(counts: dict[str, Any]) -> str:
+    if not counts:
+        return "none"
+    return ", ".join(f"{key}={value}" for key, value in sorted(counts.items()))
 
 
 def _markdown_value(value: Any) -> str:
@@ -1037,6 +1046,8 @@ def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dic
         "gap_count": len(gaps),
         "blocking_count": sum(1 for gap in gaps if gap["priority"] == "blocking"),
         "promotion_count": sum(1 for gap in gaps if gap["priority"] == "promotion"),
+        "resolution_scope_counts": _count_by(gaps, "resolution_scope"),
+        "resolution_mode_counts": _count_by(gaps, "resolution_mode"),
         "evidence_keys": sorted({str(gap["evidence_key"]) for gap in gaps if gap.get("evidence_key")}),
         "readiness_action_hash": readiness.get("required_actions_hash"),
         "promotion_required_action_count": len(promotion_summary.get("required_actions") or []),
@@ -1057,6 +1068,14 @@ def _gap_summary_hash_matches(summary: dict[str, Any]) -> bool:
     expected_summary = summary.get("gap_summary_hash")
     payload = {key: value for key, value in summary.items() if key != "gap_summary_hash"}
     return bool(expected_summary) and expected_summary == _hash_payload(payload)
+
+
+def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        value = str(item.get(key) or "unknown")
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def _evidence_key_for_check(name: str) -> str:
@@ -1100,6 +1119,12 @@ def _gap_resolution(name: str) -> dict[str, str]:
             "scope": "aggregate_gate",
             "mode": "readiness_rollup",
             "proof_hint": "Resolve the non-pass deployment readiness gates listed in required_actions and rerun production audit.",
+        }
+    if name == "optimizer_diagnostics":
+        return {
+            "scope": "optimizer_validation",
+            "mode": "benchmark_calibration",
+            "proof_hint": "Rerun optimizer diagnostics after production embedding, RNAfold, data-quality, and benchmark evidence are configured.",
         }
     if name in env_gaps:
         mode, proof_hint = env_gaps[name]

@@ -1624,6 +1624,13 @@ def test_production_gap_summary_classifies_resolution_scope() -> None:
             "message": "Data release archive is stale.",
             "detail_hash": module._hash_payload({"status": "warning"}),
         },
+        {
+            "name": "optimizer_diagnostics",
+            "status": "warning",
+            "blocking": False,
+            "message": "Optimizer diagnostics have promotion warnings.",
+            "detail_hash": module._hash_payload({"status": "warning", "area": "optimizer"}),
+        },
     ]
     readiness = {
         "required_actions": [
@@ -1657,6 +1664,21 @@ def test_production_gap_summary_classifies_resolution_scope() -> None:
     assert gaps["data_release_archive_semantics"]["resolution_scope"] == "reproducible_artifact"
     assert gaps["data_release_archive_semantics"]["resolution_mode"] == "artifact_refresh"
     assert "fresh data release bundle" in gaps["data_release_archive_semantics"]["proof_hint"]
+    assert gaps["optimizer_diagnostics"]["resolution_scope"] == "optimizer_validation"
+    assert gaps["optimizer_diagnostics"]["resolution_mode"] == "benchmark_calibration"
+    assert "optimizer diagnostics" in gaps["optimizer_diagnostics"]["proof_hint"]
+    assert summary["resolution_scope_counts"] == {
+        "aggregate_gate": 1,
+        "operator_environment": 1,
+        "optimizer_validation": 1,
+        "reproducible_artifact": 1,
+    }
+    assert summary["resolution_mode_counts"] == {
+        "artifact_refresh": 1,
+        "benchmark_calibration": 1,
+        "managed_runtime": 1,
+        "readiness_rollup": 1,
+    }
     assert module._gap_summary_hash_matches(summary)
 
 
