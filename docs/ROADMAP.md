@@ -34,7 +34,7 @@ Implemented:
 - optimizer stress gates for AAV budget, sequence-policy motifs, secondary-structure proxy, low complexity, rare-codon clusters, diversity, and recommendation regret
 - optimizer diagnostics for objective inventory, benchmark quality bands, weak cases, runtime, and tuning recommendations
 - optimizer benchmark audit bundles with case metrics CSV, benchmark case provenance fingerprints, candidate diagnostics, config snapshots, structured manifest, archive storage, and semantic cross-checks
-- configurable RNA folding backend boundary with ViennaRNA RNAfold status/evaluation endpoints, optimizer diagnostics evidence, benchmark ZIP evidence, and deployment audit gates
+- configurable RNA folding backend boundary with ViennaRNA RNAfold status/evaluation endpoints, candidate-level folding audit, RNAfold-aware recommendation reranking, optimizer diagnostics evidence, benchmark ZIP evidence, and deployment audit gates
 - detailed sequence-policy audit for polyA signal, restriction-site, and splice donor/acceptor proxy findings
 - file-level SHA-256 artifact manifests for run, job, and data snapshot exports
 - SQLite operational audit log for report/export/verify/job/data-refresh actions

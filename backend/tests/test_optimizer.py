@@ -77,7 +77,7 @@ from app.services.metrics_service import metrics_prometheus, metrics_snapshot, r
 from app.services.optimizer_benchmark_bundle_service import build_optimizer_benchmark_bundle, verify_optimizer_benchmark_bundle
 from app.services.optimizer_benchmark_service import evaluate_optimizer_benchmark, optimizer_benchmark_cases
 from app.services.optimizer_diagnostics_service import optimizer_diagnostics
-from app.services import deployment_readiness_service, rna_folding_service
+from app.services import deployment_readiness_service, design_service, rna_folding_service
 from app.services.deployment_readiness_service import deployment_readiness
 from app.services.production_audit_service import (
     build_production_audit,
@@ -3075,6 +3075,11 @@ def test_design_service_returns_report_shape() -> None:
     assert design["recommended_candidate"] is not None
     assert design["recommended_candidate"]["selection_trace"]
     assert design["recommended_candidate"]["constraint_risk"]["status"] in {"pass", "warning", "fail"}
+    assert design["candidate_folding_audit"]["audit_schema"] == "agentic-rag-candidate-folding-audit-v1"
+    assert design["candidate_folding_audit"]["candidate_count"] == len(design["candidates"])
+    assert design["candidate_folding_audit"]["evaluated_count"] == len(design["candidates"])
+    assert design["candidate_folding_audit"]["selection_signal"] in {"secondary_structure_proxy_score", "thermodynamic_risk_score"}
+    assert len(design["candidate_folding_audit"]["audit_hash"]) == 64
     assert design["candidate_diagnostics"]["candidate_count"] == len(design["candidates"])
     assert "constraint_risk_summary" in design["candidate_diagnostics"]
     assert design["candidate_diagnostics"]["pareto_front"]["size"] >= 1
@@ -3091,10 +3096,56 @@ def test_design_service_returns_report_shape() -> None:
     assert design["validation"]["native"]["status"] in {"pass", "warning"}
     assert design["qc_gate"]["status"] in {"pass", "warning", "fail"}
     report = generate_qc_report(design)
+    assert report["candidate_folding_audit"]["audit_hash"] == design["candidate_folding_audit"]["audit_hash"]
     assert report["recommendation_readiness"]["readiness_schema"] == "agentic-rag-recommendation-readiness-v1"
     assert len(report["recommendation_readiness"]["readiness_hash"]) == 64
     assert report["recommendation_readiness"]["recommended_candidate_id"] == design["recommended_candidate"]["candidate_id"]
     assert "provenance" in design
+
+
+def test_design_recommendation_uses_validated_rnafold_risk_when_available() -> None:
+    candidates = [
+        {
+            "candidate_id": "cand_high_composite",
+            "rank": 1,
+            "scores": {
+                "composite_quality": 0.90,
+                "aav_budget_pass": True,
+                "motif_violations": 0,
+                "polyadenylation_signal_count": 0,
+                "restriction_site_count": 0,
+                "splice_donor_motif_count": 0,
+                "splice_acceptor_motif_count": 0,
+                "hairpin_proxy_score": 0.10,
+                "secondary_structure_proxy_score": 0.10,
+                "low_complexity_penalty": 0.10,
+            },
+        },
+        {
+            "candidate_id": "cand_low_thermo_risk",
+            "rank": 2,
+            "scores": {
+                "composite_quality": 0.86,
+                "aav_budget_pass": True,
+                "motif_violations": 0,
+                "polyadenylation_signal_count": 0,
+                "restriction_site_count": 0,
+                "splice_donor_motif_count": 0,
+                "splice_acceptor_motif_count": 0,
+                "hairpin_proxy_score": 0.10,
+                "secondary_structure_proxy_score": 0.10,
+                "low_complexity_penalty": 0.10,
+            },
+        },
+    ]
+    folding_audit = {
+        "candidate_evaluations": [
+            {"candidate_id": "cand_high_composite", "validated_backend": True, "thermodynamic_risk_score": 0.90},
+            {"candidate_id": "cand_low_thermo_risk", "validated_backend": True, "thermodynamic_risk_score": 0.05},
+        ]
+    }
+    recommended = design_service._recommend_candidate(candidates, folding_audit)
+    assert recommended["candidate_id"] == "cand_low_thermo_risk"
 
 
 def test_design_service_applies_structured_custom_prior() -> None:
@@ -3931,11 +3982,13 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert "optimizer_reproducibility.json" in names
         assert "recommendation_audit.json" in names
         assert "recommendation_readiness.json" in names
+        assert "candidate_folding_audit.json" in names
         assert "recommended_folding_evidence.json" in names
         assert "candidate_ranking.csv" in names
         optimizer_manifest = json.loads(archive.read("optimizer_reproducibility.json"))
         recommendation_audit = json.loads(archive.read("recommendation_audit.json"))
         recommendation_readiness = json.loads(archive.read("recommendation_readiness.json"))
+        candidate_folding_audit = json.loads(archive.read("candidate_folding_audit.json"))
         recommended_folding_evidence = json.loads(archive.read("recommended_folding_evidence.json"))
         report_formats_summary = json.loads(archive.read("report_formats_summary.json"))
         request = json.loads(archive.read("request.json"))
@@ -3948,6 +4001,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert recommendation_readiness["recommended_candidate_id"] == design["recommended_candidate"]["candidate_id"]
         assert recommendation_readiness["readiness_status"] in {"pass", "warning"}
         assert len(recommendation_readiness["readiness_hash"]) == 64
+        assert candidate_folding_audit["audit_schema"] == "agentic-rag-candidate-folding-audit-v1"
+        assert candidate_folding_audit["audit_hash"] == design["candidate_folding_audit"]["audit_hash"]
         assert recommended_folding_evidence["folding_schema"] == "agentic-rag-rna-folding-v1"
         assert recommended_folding_evidence["candidate_id"] == design["recommended_candidate"]["candidate_id"]
         assert recommended_folding_evidence["folding_evidence_hash"] == design["recommended_folding_evidence"]["folding_evidence_hash"]
@@ -3964,6 +4019,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert len(bundle_manifest["candidate_ranking_hash"]) == 64
         assert len(bundle_manifest["recommendation_audit_hash"]) == 64
         assert len(bundle_manifest["recommendation_readiness_hash"]) == 64
+        assert len(bundle_manifest["candidate_folding_audit_hash"]) == 64
         assert len(bundle_manifest["recommended_folding_evidence_hash"]) == 64
         candidate_csv = archive.read("candidate_ranking.csv").decode("utf-8")
         assert "constraint_risk_status" in candidate_csv
@@ -3980,6 +4036,8 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["recommendation_readiness_hash"] == bundle_manifest["recommendation_readiness_hash"]
     assert verification["recommendation_readiness_status"] in {"pass", "warning"}
     assert verification["recommendation_readiness_candidate_id"] == design["recommended_candidate"]["candidate_id"]
+    assert verification["candidate_folding_audit_hash"] == bundle_manifest["candidate_folding_audit_hash"]
+    assert verification["candidate_folding_audit_selection_signal"] in {"secondary_structure_proxy_score", "thermodynamic_risk_score"}
     assert verification["recommended_folding_evidence_hash"] == bundle_manifest["recommended_folding_evidence_hash"]
     assert verification["recommended_folding_status"] in {"pass", "warning"}
     assert verification["recommended_folding_backend"] in {"rnafold", "deterministic_proxy"}
@@ -4006,6 +4064,9 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["semantic_checks"]["recommendation_readiness_candidate"] == "pass"
     assert verification["semantic_checks"]["recommendation_readiness_folding_candidate"] == "pass"
     assert verification["semantic_checks"]["recommendation_readiness_status"] == "pass"
+    assert verification["semantic_checks"]["candidate_folding_audit_schema"] == "pass"
+    assert verification["semantic_checks"]["candidate_folding_audit_report"] == "pass"
+    assert verification["semantic_checks"]["candidate_folding_audit_payload_hash"] == "pass"
     assert verification["semantic_checks"]["recommended_folding_evidence_schema"] == "pass"
     assert verification["semantic_checks"]["recommended_folding_evidence_report"] == "pass"
     assert verification["semantic_checks"]["recommended_folding_evidence_payload_hash"] == "pass"

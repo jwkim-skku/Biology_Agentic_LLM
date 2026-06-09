@@ -184,6 +184,7 @@ def generate_qc_report(design: dict[str, Any]) -> dict[str, Any]:
             "native": audit_sequence_policy((design.get("native") or {}).get("cds", ""), score_config),
             "recommended": audit_sequence_policy(best.get("cds", ""), score_config) if best else {},
         },
+        "candidate_folding_audit": design.get("candidate_folding_audit", {}),
         "recommended_folding_evidence": folding_evidence,
         "candidate_ranking": [
             {

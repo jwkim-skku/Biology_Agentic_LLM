@@ -44,7 +44,8 @@ def optimize_design(
     native = score_cds(normalized, optimization_config.score_config)
     candidates = optimize_cds(normalized, optimization_config)
     candidate_payloads = [candidate.to_dict() for candidate in candidates]
-    recommended = _recommend_candidate(candidate_payloads)
+    candidate_folding_audit = _candidate_folding_audit(candidate_payloads)
+    recommended = _recommend_candidate(candidate_payloads, candidate_folding_audit)
     _annotate_candidate_selection(candidate_payloads, recommended)
     candidate_diagnostics = _candidate_diagnostics(candidate_payloads, recommended, optimization_config.score_config)
     recommendation_audit = _recommendation_audit(candidate_payloads, recommended, candidate_diagnostics)
@@ -59,6 +60,7 @@ def optimize_design(
         "optimization_config": optimization_config.to_dict(),
         "candidates": candidate_payloads,
         "recommended_candidate": recommended,
+        "candidate_folding_audit": candidate_folding_audit,
         "candidate_diagnostics": candidate_diagnostics,
         "recommendation_audit": recommendation_audit,
         "recommended_folding_evidence": recommended_folding_evidence,
@@ -77,6 +79,42 @@ def optimize_design(
     }
     design["qc_gate"] = qc_gate_for_design(design)
     return design
+
+
+def _candidate_folding_audit(candidates: list[dict]) -> dict:
+    evaluations: list[dict] = []
+    for candidate in candidates:
+        candidate_id = candidate.get("candidate_id")
+        payload = evaluate_rna_folding(str(candidate.get("cds") or ""))
+        evidence = {
+            "candidate_id": candidate_id,
+            "status": payload.get("status"),
+            "active_backend": payload.get("active_backend"),
+            "fallback_active": payload.get("fallback_active"),
+            "validated_backend": payload.get("active_backend") == "rnafold" and payload.get("status") == "pass",
+            "proxy": payload.get("proxy"),
+            "thermodynamic_mfe_delta_g": payload.get("thermodynamic_mfe_delta_g"),
+            "thermodynamic_risk_score": payload.get("thermodynamic_risk_score"),
+            "warnings": payload.get("warnings") or [],
+            "folding_evidence_hash": _hash_payload(payload),
+        }
+        evaluations.append(evidence)
+    validated = [item for item in evaluations if item.get("validated_backend") is True]
+    payload = {
+        "audit_schema": "agentic-rag-candidate-folding-audit-v1",
+        "candidate_count": len(candidates),
+        "evaluated_count": len(evaluations),
+        "validated_backend_count": len(validated),
+        "selection_signal": "thermodynamic_risk_score" if validated else "secondary_structure_proxy_score",
+        "selection_influences_recommendation": bool(validated),
+        "best_thermodynamic_candidate": min(
+            (item for item in validated if item.get("thermodynamic_risk_score") is not None),
+            key=lambda item: float(item.get("thermodynamic_risk_score") or 0.0),
+            default=None,
+        ),
+        "candidate_evaluations": evaluations,
+    }
+    return {**payload, "audit_hash": _hash_payload(payload)}
 
 
 def _recommended_folding_evidence(recommended: dict | None) -> dict:
@@ -130,11 +168,18 @@ def _warnings(native_scores: dict, candidates: list[dict], evidence_used: bool) 
     return warnings
 
 
-def _recommend_candidate(candidates: list[dict]) -> dict | None:
+def _recommend_candidate(candidates: list[dict], folding_audit: dict | None = None) -> dict | None:
     if not candidates:
         return None
     feasible = [candidate for candidate in candidates if _is_feasible_candidate(candidate)]
     pool = feasible or candidates
+    folding_by_candidate = {
+        item.get("candidate_id"): item
+        for item in (folding_audit or {}).get("candidate_evaluations") or []
+        if item.get("validated_backend") is True and item.get("thermodynamic_risk_score") is not None
+    }
+    if folding_by_candidate:
+        return max(pool, key=lambda candidate: _folding_aware_recommendation_score(candidate, folding_by_candidate))
     return max(pool, key=lambda candidate: candidate["scores"]["composite_quality"])
 
 
@@ -154,7 +199,7 @@ def _annotate_candidate_selection(candidates: list[dict], recommended: dict | No
             "feasible under hard selection criteria" if candidate.get("candidate_id") in feasible_ids else "kept as Pareto trade-off despite constraint risk",
         ]
         if candidate.get("candidate_id") == recommended_id:
-            trace.append("selected as recommended candidate by highest feasible composite score")
+            trace.append("selected as recommended candidate by highest feasible deployment-aware score")
         if float(scores.get("composite_quality", 0.0)) >= best_composite:
             trace.append("best composite_quality among returned candidates")
         if float(scores.get("cai", 0.0)) >= best_cai:
@@ -164,6 +209,14 @@ def _annotate_candidate_selection(candidates: list[dict], recommended: dict | No
         if scores.get("tissue_codon_adaptation", 0) and float(scores.get("tissue_codon_adaptation", 0.0)) > 1.0:
             trace.append("uses target-context codon availability prior")
         candidate["selection_trace"] = trace
+
+
+def _folding_aware_recommendation_score(candidate: dict, folding_by_candidate: dict) -> float:
+    scores = candidate.get("scores") or {}
+    composite = float(scores.get("composite_quality", 0.0))
+    folding = folding_by_candidate.get(candidate.get("candidate_id")) or {}
+    thermodynamic_risk = float(folding.get("thermodynamic_risk_score") or 0.0)
+    return composite - (thermodynamic_risk * 0.08)
 
 
 def _is_feasible_candidate(candidate: dict) -> bool:
@@ -235,7 +288,7 @@ def _candidate_diagnostics(candidates: list[dict], recommended: dict | None, sco
         "feasible_count": len(feasible),
         "recommended_candidate_id": (recommended or {}).get("candidate_id"),
         "recommended_rank": (recommended or {}).get("rank"),
-        "selection_policy": "highest composite_quality among feasible candidates; fallback to full Pareto-ranked pool",
+        "selection_policy": "highest composite_quality among feasible candidates; when validated RNAfold evidence is available, penalize thermodynamic_risk_score; fallback to full Pareto-ranked pool",
         "constraint_risk_summary": _constraint_risk_summary(candidates),
         "feasibility_criteria": [
             "AAV payload pass",

@@ -43,6 +43,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
             {"path": "backend/app/optimizer/scoring.py", "contains": ["codon_pair", "secondary_structure"]},
             {"path": "backend/app/services/optimizer_benchmark_bundle_service.py", "contains": ["recommendation_summary", "candidate_diagnostics"]},
             {"path": "backend/app/services/rna_folding_service.py", "contains": ["RNAfold", "production_ready"]},
+            {"path": "backend/app/services/design_service.py", "contains": ["candidate_folding_audit", "thermodynamic_risk_score"]},
             {"path": "backend/tests/test_optimizer.py", "contains": ["optimizer_benchmark", "recommendation_readiness"]},
         ],
     },
@@ -51,7 +52,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
         "title": "QC reports, candidate evidence, and export bundles",
         "evidence": [
             {"path": "backend/app/services/report_service.py", "contains": ["recommendation_readiness", "candidate_ranking", "PDF"]},
-            {"path": "backend/app/services/qc_report_bundle_service.py", "contains": ["recommendation_readiness_hash", "recommended_folding_evidence"]},
+            {"path": "backend/app/services/qc_report_bundle_service.py", "contains": ["recommendation_readiness_hash", "candidate_folding_audit"]},
             {"path": "backend/app/services/export_manifest_service.py", "contains": ["artifact_manifest", "sha256"]},
             {"path": "backend/tests/test_optimizer.py", "contains": ["qc_report.pdf", "candidate_ranking.csv"]},
         ],

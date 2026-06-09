@@ -30,6 +30,7 @@ REQUIRED_QC_BUNDLE_FILES = {
     "optimizer_reproducibility.json",
     "recommendation_audit.json",
     "recommendation_readiness.json",
+    "candidate_folding_audit.json",
     "recommended_folding_evidence.json",
     "data_quality.json",
     "optimizer_stress.json",
@@ -63,6 +64,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
     candidate_csv = _candidate_csv(design.get("candidates") or [])
     recommendation_audit = _recommendation_audit_payload(design, report)
     recommendation_readiness = _recommendation_readiness_payload(design, report)
+    candidate_folding_audit = _candidate_folding_audit_payload(design, report)
     folding_evidence = _recommended_folding_evidence_payload(design, report)
     report_formats_summary = _report_formats_summary(
         {
@@ -86,6 +88,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         "candidate_ranking_hash": _hash_text(candidate_csv),
         "recommendation_audit_hash": _hash_payload(recommendation_audit),
         "recommendation_readiness_hash": _hash_payload(recommendation_readiness),
+        "candidate_folding_audit_hash": _hash_payload(candidate_folding_audit),
         "recommended_folding_evidence_hash": _hash_payload(folding_evidence),
         "recommended_candidate_id": (design.get("recommended_candidate") or {}).get("candidate_id"),
     }
@@ -106,6 +109,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         bundle.writestr("optimizer_reproducibility.json", _json(report.get("optimizer_reproducibility") or optimizer_reproducibility_manifest(design)))
         bundle.writestr("recommendation_audit.json", _json(recommendation_audit))
         bundle.writestr("recommendation_readiness.json", _json(recommendation_readiness))
+        bundle.writestr("candidate_folding_audit.json", _json(candidate_folding_audit))
         bundle.writestr("recommended_folding_evidence.json", _json(folding_evidence))
         bundle.writestr("data_quality.json", _json(data_quality))
         bundle.writestr("optimizer_stress.json", _json(optimizer_stress))
@@ -152,6 +156,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             optimizer_manifest = _read_json_member(archive, "optimizer_reproducibility.json")
             recommendation_audit_file = _read_json_member(archive, "recommendation_audit.json")
             recommendation_readiness_file = _read_json_member(archive, "recommendation_readiness.json")
+            candidate_folding_audit_file = _read_json_member(archive, "candidate_folding_audit.json")
             recommended_folding_evidence_file = _read_json_member(archive, "recommended_folding_evidence.json")
             data_quality = _read_json_member(archive, "data_quality.json")
             optimizer_stress = _read_json_member(archive, "optimizer_stress.json")
@@ -175,6 +180,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     target_definition = qc_report.get("target_definition") or {}
     evidence_summary = qc_report.get("evidence_summary") or {}
     report_folding_evidence = qc_report.get("recommended_folding_evidence") or {}
+    report_candidate_folding_audit = qc_report.get("candidate_folding_audit") or {}
     report_recommendation_readiness = qc_report.get("recommendation_readiness") or {}
     retrieval_quality = evidence_summary.get("retrieval_quality") or {}
     report_candidate_rows = qc_report.get("candidate_ranking") or []
@@ -191,6 +197,9 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "candidate_ranking_hash": _hash_text(candidate_csv_text),
             "recommendation_audit_hash": _hash_payload(recommendation_audit_file),
             "recommendation_readiness_hash": _hash_payload(recommendation_readiness_file),
+            "candidate_folding_audit_hash": _hash_payload(candidate_folding_audit_file),
+            "candidate_folding_audit_selection_signal": candidate_folding_audit_file.get("selection_signal"),
+            "candidate_folding_audit_validated_backend_count": candidate_folding_audit_file.get("validated_backend_count"),
             "recommendation_readiness_status": recommendation_readiness_file.get("readiness_status"),
             "recommendation_release_ready": recommendation_readiness_file.get("release_ready"),
             "recommendation_readiness_candidate_id": recommendation_readiness_file.get("recommended_candidate_id"),
@@ -380,6 +389,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
     _expect_equal(
         semantic_checks,
         semantic_errors,
+        "candidate_folding_audit_hash",
+        bundle_manifest.get("candidate_folding_audit_hash"),
+        _hash_payload(candidate_folding_audit_file),
+        "bundle_manifest.json candidate_folding_audit_hash does not match candidate_folding_audit.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
         "recommended_folding_evidence_hash",
         bundle_manifest.get("recommended_folding_evidence_hash"),
         _hash_payload(recommended_folding_evidence_file),
@@ -459,6 +476,30 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         design_summary.get("recommended_candidate_id"),
         recommended_candidate_id,
         "design_summary.json recommended_candidate_id does not match qc_report.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "candidate_folding_audit_schema",
+        candidate_folding_audit_file.get("audit_schema"),
+        "agentic-rag-candidate-folding-audit-v1",
+        "candidate_folding_audit.json audit_schema is not recognized.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "candidate_folding_audit_report",
+        _hash_payload(candidate_folding_audit_file),
+        _hash_payload(report_candidate_folding_audit),
+        "candidate_folding_audit.json does not match qc_report.json candidate_folding_audit.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "candidate_folding_audit_payload_hash",
+        candidate_folding_audit_file.get("audit_hash"),
+        _hash_payload_compact(_without_key(candidate_folding_audit_file, "audit_hash")),
+        "candidate_folding_audit.json audit_hash does not match its payload.",
     )
     _expect_equal(
         semantic_checks,
@@ -762,6 +803,10 @@ def _recommendation_audit_payload(design: dict[str, Any], report: dict[str, Any]
 
 def _recommended_folding_evidence_payload(design: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
     return design.get("recommended_folding_evidence") or report.get("recommended_folding_evidence") or {}
+
+
+def _candidate_folding_audit_payload(design: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
+    return design.get("candidate_folding_audit") or report.get("candidate_folding_audit") or {}
 
 
 def _recommendation_readiness_payload(design: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
