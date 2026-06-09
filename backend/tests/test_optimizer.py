@@ -588,6 +588,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "Structured import manifest" in bundled_markdown
         assert "Structured import files" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
+        assert "Readiness attention hash" in bundled_markdown
+        assert "Readiness action coverage" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
         deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json"))
@@ -627,6 +629,37 @@ def test_production_audit_bundle_rejects_tampered_action_detail_hash() -> None:
     verification = verify_production_audit_bundle(buffer.getvalue())
     assert verification["semantic_checks"]["required_action_detail_hashes"] == "fail"
     assert "detail_hash" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_missing_readiness_action_coverage() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    deployment_readiness = json.loads(source.read("evidence/deployment_readiness.json").decode("utf-8"))
+    assert deployment_readiness["required_actions"]
+
+    deployment_readiness["required_actions"] = deployment_readiness["required_actions"][:-1]
+    deployment_readiness["required_actions_hash"] = deployment_readiness_service._hash_payload(deployment_readiness["required_actions"])
+    audit["evidence"]["deployment_readiness"] = deployment_readiness
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/deployment_readiness.json":
+                tampered.writestr(item, json.dumps(deployment_readiness, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["required_actions_hash"] == "pass"
+    assert verification["semantic_checks"]["required_action_coverage"] == "fail"
+    assert "required_actions do not cover" in " ".join(verification["errors"])
 
 
 def test_production_audit_bundle_rejects_tampered_markdown() -> None:

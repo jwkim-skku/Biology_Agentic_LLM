@@ -600,6 +600,15 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 deployment_readiness.get("required_actions_hash") == _hash_payload(deployment_readiness.get("required_actions") or []),
                 "deployment readiness required_actions_hash does not match required_actions.",
             )
+            action_coverage_mismatches = _required_action_coverage_mismatches(deployment_readiness)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "required_action_coverage",
+                not action_coverage_mismatches,
+                "deployment readiness required_actions do not cover non-pass gates: "
+                + ", ".join(action_coverage_mismatches[:8]),
+            )
             action_detail_mismatches = _required_action_detail_hash_mismatches(deployment_readiness)
             _record_semantic_check(
                 semantic_checks,
@@ -654,6 +663,8 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
         f"- Remaining production actions: `{len(promotion.get('required_actions') or [])}`",
         f"- Production gaps: `{((audit.get('production_gap_summary') or {}).get('gap_count', 'n/a'))}`",
         f"- Readiness action hash: `{((audit.get('evidence') or {}).get('deployment_readiness') or {}).get('required_actions_hash', 'n/a')}`",
+        f"- Readiness attention hash: `{readiness.get('attention_gates_hash', 'n/a')}`",
+        f"- Readiness action coverage: `{len(readiness.get('required_actions') or [])}/{len(readiness.get('attention_gates') or [])}`",
         "",
         "## Promotion Summary",
         "",
@@ -1132,6 +1143,22 @@ def _required_action_detail_hash_mismatches(deployment_readiness: dict[str, Any]
         if action.get("detail_hash") != expected_hash:
             mismatches.append(gate_name)
     return mismatches
+
+
+def _required_action_coverage_mismatches(deployment_readiness: dict[str, Any]) -> list[str]:
+    expected = {
+        str(gate.get("name"))
+        for gate in deployment_readiness.get("gates") or []
+        if isinstance(gate, dict) and gate.get("name") and gate.get("status") != "pass"
+    }
+    actual = {
+        str(action.get("gate"))
+        for action in deployment_readiness.get("required_actions") or []
+        if isinstance(action, dict) and action.get("gate")
+    }
+    missing = sorted(expected - actual)
+    extra = sorted(actual - expected)
+    return [f"missing:{name}" for name in missing] + [f"extra:{name}" for name in extra]
 
 
 def _check_detail_hash_mismatches(checks: list[dict[str, Any]], evidence: dict[str, Any]) -> list[str]:
