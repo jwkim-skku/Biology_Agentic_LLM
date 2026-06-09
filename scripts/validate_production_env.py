@@ -55,6 +55,9 @@ REQUIRED_KEYS = {
     "ARTIFACT_OBJECT_STORE_REGION",
     "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID",
     "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_URL",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID",
 }
 
 PLACEHOLDER_PATTERNS = (
@@ -153,6 +156,9 @@ def validate_template(values: dict[str, str], failures: list[str], warnings: lis
     _require(bool(values.get("ARTIFACT_OBJECT_STORE_REGION")), failures, "template object-store region must be set.")
     _require(bool(values.get("ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID")), failures, "template object-store access key id must be set.")
     _require(bool(values.get("ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY")), failures, "template object-store secret access key must be set.")
+    _require(values.get("ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED", "").lower() == "true", failures, "template external timestamping must be required.")
+    _require(values.get("ARTIFACT_EXTERNAL_TIMESTAMP_URL", "").startswith("https://"), failures, "template external timestamp URL must be https://.")
+    _require(bool(values.get("ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID")), failures, "template external timestamp key id must be set.")
 
 
 def validate_strict(values: dict[str, str], failures: list[str], warnings: list[str]) -> None:
@@ -251,6 +257,16 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
         _require(bool(values.get("ARTIFACT_OBJECT_STORE_REGION")), failures, "ARTIFACT_OBJECT_STORE_REGION must be set.")
         _require(bool(values.get("ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID")), failures, "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID must be set.")
         _require(bool(values.get("ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY")), failures, "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY must be set.")
+
+    timestamp_required = values.get("ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED", "").lower() in {"1", "true", "yes", "on"}
+    if timestamp_required:
+        timestamp_url = values.get("ARTIFACT_EXTERNAL_TIMESTAMP_URL", "")
+        timestamp_parsed = urlparse(timestamp_url)
+        _require(timestamp_parsed.scheme == "https", failures, "ARTIFACT_EXTERNAL_TIMESTAMP_URL must be an https:// URL when timestamping is required.")
+        _require(bool(timestamp_parsed.hostname), failures, "ARTIFACT_EXTERNAL_TIMESTAMP_URL must include a hostname when timestamping is required.")
+        _require(bool(values.get("ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID")), failures, "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID must be set when timestamping is required.")
+    else:
+        warnings.append("ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED is not enabled; configure a managed timestamp provider for regulated promotion.")
 
     cors = split_csv(values.get("CORS_ORIGINS", ""))
     _require(bool(cors), failures, "CORS_ORIGINS must include at least one deployed dashboard origin.")

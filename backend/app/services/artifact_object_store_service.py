@@ -27,9 +27,13 @@ def artifact_object_store_status() -> dict[str, Any]:
     configured = _configured(settings)
     missing = _missing_settings(settings)
     lifecycle_policy = _lifecycle_policy(settings, configured)
+    external_timestamp = _external_timestamp_policy(settings)
+    status = "disabled"
+    if settings.artifact_object_store_enabled:
+        status = "ready" if configured and external_timestamp["status"] != "fail" else "misconfigured"
     return {
         "status_schema": OBJECT_STORE_SCHEMA,
-        "status": "disabled" if not settings.artifact_object_store_enabled else "ready" if configured else "misconfigured",
+        "status": status,
         "enabled": settings.artifact_object_store_enabled,
         "configured": configured,
         "endpoint": _redacted_endpoint(settings.artifact_object_store_endpoint),
@@ -43,6 +47,8 @@ def artifact_object_store_status() -> dict[str, Any]:
             "head_verify": configured,
             "path_style": True,
         },
+        "external_timestamp": external_timestamp,
+        "external_timestamp_hash": _hash_payload(external_timestamp),
         "lifecycle_policy": lifecycle_policy,
         "lifecycle_policy_hash": _hash_payload(lifecycle_policy),
         "recommendation": _recommendation(settings, missing),
@@ -242,6 +248,9 @@ def _missing_settings(settings: Any) -> list[str]:
         "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID": settings.artifact_object_store_access_key_id,
         "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY": settings.artifact_object_store_secret_access_key,
     }
+    if settings.artifact_external_timestamp_required:
+        required["ARTIFACT_EXTERNAL_TIMESTAMP_URL"] = settings.artifact_external_timestamp_url
+        required["ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID"] = settings.artifact_external_timestamp_key_id
     return [key for key, value in required.items() if not value]
 
 
@@ -269,6 +278,24 @@ def _lifecycle_policy(settings: Any, configured: bool) -> dict[str, Any]:
         "object_store_mirror_ready": mirror_ready,
         "mirror_before_retention": True,
         "immutability_expectation": "mirror ZIP bundles and manifest hashes to managed object storage before local retention deletion",
+    }
+
+
+def _external_timestamp_policy(settings: Any) -> dict[str, Any]:
+    endpoint_configured = bool(settings.artifact_external_timestamp_url)
+    key_configured = bool(settings.artifact_external_timestamp_key_id)
+    required = bool(settings.artifact_external_timestamp_required)
+    ready = endpoint_configured and key_configured
+    return {
+        "timestamp_schema": "agentic-rag-artifact-external-timestamp-v1",
+        "status": "pass" if ready else "warning" if not required else "fail",
+        "required": required,
+        "endpoint": _redacted_endpoint(settings.artifact_external_timestamp_url),
+        "key_id": settings.artifact_external_timestamp_key_id or None,
+        "endpoint_configured": endpoint_configured,
+        "key_id_configured": key_configured,
+        "provider_validation": "configured" if ready else "not_configured",
+        "evidence_scope": "configuration evidence only; provider-issued timestamp tokens must be validated during managed deployment promotion",
     }
 
 

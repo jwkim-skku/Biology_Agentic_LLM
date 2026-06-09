@@ -407,6 +407,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "prefix": object_store["prefix"],
                 "region": object_store["region"],
                 "missing_settings": object_store["missing_settings"],
+                "external_timestamp": object_store.get("external_timestamp", {}),
+                "external_timestamp_hash": object_store.get("external_timestamp_hash"),
                 "lifecycle_policy": object_store.get("lifecycle_policy", {}),
                 "lifecycle_policy_hash": object_store.get("lifecycle_policy_hash"),
                 "mirror_plan_status": object_store_mirror_plan["status"],

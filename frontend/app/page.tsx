@@ -1562,6 +1562,13 @@ type ArtifactArchiveSummary = {
       object_store_mirror_ready: boolean;
     };
     lifecycle_policy_hash?: string | null;
+    external_timestamp?: {
+      status: string;
+      required: boolean;
+      endpoint?: string | null;
+      key_id?: string | null;
+    };
+    external_timestamp_hash?: string | null;
   };
 };
 
@@ -1599,6 +1606,13 @@ type ArtifactObjectStoreMirrorPlan = {
       object_store_mirror_ready: boolean;
     };
     lifecycle_policy_hash?: string | null;
+    external_timestamp?: {
+      status: string;
+      required: boolean;
+      endpoint?: string | null;
+      key_id?: string | null;
+    };
+    external_timestamp_hash?: string | null;
     recommendation?: string;
   };
 };
@@ -4877,6 +4891,10 @@ export default function Dashboard() {
               <span>
                 Lifecycle {artifactSummary?.object_store?.lifecycle_policy?.status ?? objectStorePlan?.object_store?.lifecycle_policy?.status ?? "n/a"} / hash{" "}
                 {(artifactSummary?.object_store?.lifecycle_policy_hash ?? objectStorePlan?.object_store?.lifecycle_policy_hash ?? "").slice(0, 10) || "n/a"}
+              </span>
+              <span>
+                Timestamp {artifactSummary?.object_store?.external_timestamp?.status ?? objectStorePlan?.object_store?.external_timestamp?.status ?? "n/a"} / hash{" "}
+                {(artifactSummary?.object_store?.external_timestamp_hash ?? objectStorePlan?.object_store?.external_timestamp_hash ?? "").slice(0, 10) || "n/a"}
               </span>
               <span>{objectStorePlan?.object_store?.recommendation ?? "Archive mirror status not checked"}</span>
             </div>

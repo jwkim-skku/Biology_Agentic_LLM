@@ -211,6 +211,9 @@ jobs:
           ARTIFACT_OBJECT_STORE_REGION=us-east-1
           ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID=compose-ci-object-access-key
           ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY=compose-ci-object-secret-key
+          ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED=true
+          ARTIFACT_EXTERNAL_TIMESTAMP_URL=https://timestamp.compose-ci.example.com/rfc3161
+          ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID=compose-ci-rfc3161
           RAG_VECTOR_BACKEND=pgvector
           RAG_PGVECTOR_TABLE=rag_chunks
           RAG_EMBEDDING_BACKEND=openai

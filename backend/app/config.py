@@ -29,6 +29,9 @@ class AppSettings:
     artifact_object_store_region: str
     artifact_object_store_access_key_id: str
     artifact_object_store_secret_access_key: str
+    artifact_external_timestamp_required: bool
+    artifact_external_timestamp_url: str
+    artifact_external_timestamp_key_id: str
     rag_vector_backend: str
     rag_pgvector_table: str
     qdrant_url: str
@@ -90,6 +93,9 @@ def get_settings() -> AppSettings:
     artifact_object_store_region = os.getenv("ARTIFACT_OBJECT_STORE_REGION", "us-east-1").strip() or "us-east-1"
     artifact_object_store_access_key_id = os.getenv("ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID", "").strip()
     artifact_object_store_secret_access_key = os.getenv("ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY", "").strip()
+    artifact_external_timestamp_required = _bool_env("ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED", False)
+    artifact_external_timestamp_url = os.getenv("ARTIFACT_EXTERNAL_TIMESTAMP_URL", "").strip().rstrip("/")
+    artifact_external_timestamp_key_id = os.getenv("ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID", "").strip()
     rag_vector_backend = os.getenv("RAG_VECTOR_BACKEND", "local_json").strip().lower() or "local_json"
     if rag_vector_backend not in {"local_json", "pgvector", "qdrant"}:
         rag_vector_backend = "local_json"
@@ -145,6 +151,9 @@ def get_settings() -> AppSettings:
         artifact_object_store_region=artifact_object_store_region,
         artifact_object_store_access_key_id=artifact_object_store_access_key_id,
         artifact_object_store_secret_access_key=artifact_object_store_secret_access_key,
+        artifact_external_timestamp_required=artifact_external_timestamp_required,
+        artifact_external_timestamp_url=artifact_external_timestamp_url,
+        artifact_external_timestamp_key_id=artifact_external_timestamp_key_id,
         rag_vector_backend=rag_vector_backend,
         rag_pgvector_table=rag_pgvector_table,
         qdrant_url=qdrant_url,

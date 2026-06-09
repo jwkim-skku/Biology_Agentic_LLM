@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from app.config import get_settings
 from app.services.export_manifest_service import verify_artifact_bundle
@@ -1394,6 +1395,7 @@ def archive_summary() -> dict[str, Any]:
         }
         latest = conn.execute("select * from archived_artifacts order by created_at desc limit 1").fetchone()
     lifecycle_policy = _archive_lifecycle_policy(settings)
+    external_timestamp = _archive_external_timestamp_policy(settings)
     return {
         "total_artifacts": total,
         "total_bytes": total_bytes,
@@ -1418,6 +1420,8 @@ def archive_summary() -> dict[str, Any]:
             "bucket": settings.artifact_object_store_bucket or None,
             "prefix": settings.artifact_object_store_prefix,
             "region": settings.artifact_object_store_region,
+            "external_timestamp": external_timestamp,
+            "external_timestamp_hash": _hash_payload(external_timestamp),
             "lifecycle_policy": lifecycle_policy,
             "lifecycle_policy_hash": _hash_payload(lifecycle_policy),
         },
@@ -1649,6 +1653,33 @@ def _archive_lifecycle_policy(settings: Any) -> dict[str, Any]:
         "mirror_before_retention": True,
         "immutability_expectation": "mirror ZIP bundles and manifest hashes to managed object storage before local retention deletion",
     }
+
+
+def _archive_external_timestamp_policy(settings: Any) -> dict[str, Any]:
+    endpoint_configured = bool(settings.artifact_external_timestamp_url)
+    key_configured = bool(settings.artifact_external_timestamp_key_id)
+    required = bool(settings.artifact_external_timestamp_required)
+    ready = endpoint_configured and key_configured
+    return {
+        "timestamp_schema": "agentic-rag-artifact-external-timestamp-v1",
+        "status": "pass" if ready else "warning" if not required else "fail",
+        "required": required,
+        "endpoint": _redacted_endpoint(settings.artifact_external_timestamp_url),
+        "key_id": settings.artifact_external_timestamp_key_id or None,
+        "endpoint_configured": endpoint_configured,
+        "key_id_configured": key_configured,
+        "provider_validation": "configured" if ready else "not_configured",
+        "evidence_scope": "configuration evidence only; provider-issued timestamp tokens must be validated during managed deployment promotion",
+    }
+
+
+def _redacted_endpoint(endpoint: str) -> str | None:
+    if not endpoint:
+        return None
+    parsed = urlparse(endpoint)
+    if not parsed.netloc:
+        return endpoint
+    return f"{parsed.scheme}://{parsed.netloc}"
 
 
 def _connect() -> sqlite3.Connection:

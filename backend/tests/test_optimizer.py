@@ -1452,6 +1452,9 @@ def test_compose_preflight_includes_required_external_service_env() -> None:
         "ARTIFACT_OBJECT_STORE_REGION",
         "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID",
         "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY",
+        "ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED",
+        "ARTIFACT_EXTERNAL_TIMESTAMP_URL",
+        "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID",
     }
     assert required_object_store_keys.issubset(synthetic)
     assert synthetic["ARTIFACT_OBJECT_STORE_ENABLED"] == "true"
@@ -1460,6 +1463,9 @@ def test_compose_preflight_includes_required_external_service_env() -> None:
     assert synthetic["ARTIFACT_OBJECT_STORE_REGION"]
     assert synthetic["ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID"]
     assert synthetic["ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY"]
+    assert synthetic["ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED"] == "true"
+    assert synthetic["ARTIFACT_EXTERNAL_TIMESTAMP_URL"].startswith("https://")
+    assert synthetic["ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID"]
 
     required_openai_embedding_keys = {
         "RAG_EMBEDDING_BACKEND",
@@ -1508,13 +1514,15 @@ def test_production_env_template_requires_object_store_credentials() -> None:
         "ARTIFACT_OBJECT_STORE_PREFIX",
         "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID",
         "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY",
+        "ARTIFACT_EXTERNAL_TIMESTAMP_URL",
+        "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID",
     ]:
         broken = dict(values)
         broken[key] = ""
         failures: list[str] = []
         warnings: list[str] = []
         module.validate_template(broken, failures, warnings)
-        assert key.lower().replace("artifact_object_store_", "").replace("_", " ") in " ".join(failures).lower()
+        assert key.lower().replace("artifact_object_store_", "").replace("artifact_external_timestamp_", "").replace("_", " ") in " ".join(failures).lower()
 
 
 def test_production_env_strict_requires_hmac_signing_key_id() -> None:
@@ -1564,6 +1572,9 @@ def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
             "ARTIFACT_OBJECT_STORE_REGION": "us-east-1",
             "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID": "unit-test-access-key",
             "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY": "unit-test-secret-key",
+            "ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED": "true",
+            "ARTIFACT_EXTERNAL_TIMESTAMP_URL": "https://timestamp.example.com/rfc3161",
+            "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID": "unit-test-rfc3161",
         },
     ):
         status = artifact_object_store_status()
@@ -1575,9 +1586,16 @@ def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
     assert lifecycle["retention_days"] == 365
     assert lifecycle["keep_min"] == 1000
     assert lifecycle["object_store_mirror_ready"] is True
+    assert status["external_timestamp"]["status"] == "pass"
+    assert status["external_timestamp"]["required"] is True
+    assert status["external_timestamp"]["endpoint"] == "https://timestamp.example.com"
+    assert status["external_timestamp"]["key_id"] == "unit-test-rfc3161"
+    assert len(status["external_timestamp_hash"]) == 64
     assert len(status["lifecycle_policy_hash"]) == 64
     assert summary_object_store["lifecycle_policy"]["status"] == "pass"
     assert summary_object_store["lifecycle_policy_hash"] == status["lifecycle_policy_hash"]
+    assert summary_object_store["external_timestamp"]["status"] == "pass"
+    assert summary_object_store["external_timestamp_hash"] == status["external_timestamp_hash"]
 
 
 def test_cli_production_audit_requires_bundle_hash_evidence() -> None:

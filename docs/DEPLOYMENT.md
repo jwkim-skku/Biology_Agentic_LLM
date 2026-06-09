@@ -25,7 +25,7 @@ docker compose --profile postgres --env-file .env.production -f docker-compose.y
 ```
 
 `docker-compose.production.yml` is an override for production-like launches. It requires Postgres storage, API keys with explicit role mapping, artifact signing, nonzero retention settings, a configured frontend API URL, and a healthy Postgres service before the backend starts.
-`scripts/compose_preflight.py` uses a synthetic production env with Postgres, signing, rate-limit, OpenAI embedding, and object-store mirror values, so `docker compose config` checks the same required variables that production startup demands.
+`scripts/compose_preflight.py` uses a synthetic production env with Postgres, signing, rate-limit, OpenAI embedding, object-store mirror, and external timestamp-provider values, so `docker compose config` checks the same required variables that production startup demands.
 
 Create a deployment audit artifact before promotion:
 
@@ -72,7 +72,9 @@ Useful runtime variables:
 - `ARTIFACT_OBJECT_STORE_PREFIX`: destination object key prefix.
 - `ARTIFACT_OBJECT_STORE_REGION`: SigV4 region used for object-store requests.
 - `ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID` and `ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY`: object-store credentials used by the mirror endpoint.
-  `/api/v1/artifacts/object-store/status`, `/api/v1/artifacts/object-store/mirror/plan`, deployment readiness, the production audit API, and the static production audit CLI expose a lifecycle-policy summary plus `lifecycle_policy_hash`, mirror candidate count, and mirror candidate bytes so promotion reviewers can verify archive retention intent and off-host mirror backlog without inspecting secrets.
+- `ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED`: set `true` when regulated promotion requires an external timestamp provider for archive evidence.
+- `ARTIFACT_EXTERNAL_TIMESTAMP_URL` and `ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID`: HTTPS timestamp-provider endpoint and public key/provider identifier. The application exposes configuration evidence and hashes; provider-issued timestamp token validation remains a managed deployment promotion step.
+  `/api/v1/artifacts/object-store/status`, `/api/v1/artifacts/object-store/mirror/plan`, deployment readiness, the production audit API, and the static production audit CLI expose a lifecycle-policy summary plus `lifecycle_policy_hash`, external timestamp status plus `external_timestamp_hash`, mirror candidate count, and mirror candidate bytes so promotion reviewers can verify archive retention intent, timestamp-provider configuration, and off-host mirror backlog without inspecting secrets.
 - `NEXT_PUBLIC_API_BASE_URL`: frontend API base URL.
 
 Operational endpoints:
@@ -202,6 +204,7 @@ The strict production gates expect:
 - `API_KEYS`, explicit `API_KEY_ROLES`, and `RATE_LIMIT_PER_MINUTE > 0`.
 - `ARTIFACT_SIGNING_KEY` plus key id, or Ed25519 signing/verification with `ARTIFACT_ED25519_KEY_ID`.
 - `ARTIFACT_OBJECT_STORE_ENABLED=true` with HTTPS endpoint, bucket, prefix, region, and credentials for immutable archive mirroring.
+- `ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED=true` with an HTTPS timestamp endpoint and key/provider id for regulated archive promotion evidence.
 - zero structured-data validation warnings and a clean artifact archive ledger.
 
 Governance attestation:

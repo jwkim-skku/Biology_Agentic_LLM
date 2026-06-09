@@ -259,6 +259,7 @@ async function main() {
     const archiveText = await sectionText(page, "Immutable artifact archive");
     assert(/Total\s+\d+/.test(archiveText), `Artifact archive total was not rendered: ${archiveText}`);
     assert(/Ledger\s+(pass|warning|fail|n\/a)/.test(archiveText), `Artifact archive ledger status was not rendered: ${archiveText}`);
+    assert(/Timestamp\s+(pass|warning|fail|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `Artifact archive timestamp evidence was not rendered: ${archiveText}`);
     assert(/QC semantic\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `QC bundle archive semantic summary was not rendered: ${archiveText}`);
     assert(/Request\s+(pass|fail|n\/a)\s+\/\s+target\s+(\d+\s+pass\s+\/\s+\d+\s+fail|n\/a)/.test(archiveText), `QC request provenance summary was not rendered: ${archiveText}`);
     assert(/Ready\s+(pass|warning|fail|n\/a)\s+\/\s+release\s+(yes|no|n\/a)/.test(archiveText), `QC recommendation readiness summary was not rendered: ${archiveText}`);

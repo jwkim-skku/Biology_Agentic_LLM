@@ -784,6 +784,7 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("Agent memory genes", _markdown_value(memory.get("distinct_genes"))),
         ("Agent memory aggregate", _short_hash(memory.get("memory_hash_aggregate"))),
         ("Object-store lifecycle", _short_hash(object_store.get("lifecycle_policy_hash"))),
+        ("External timestamp evidence", _short_hash(object_store.get("external_timestamp_hash"))),
         (
             "Object-store mirror candidates",
             _markdown_value(_first_present(object_store, "mirror_plan_candidate_count", "mirror_plan", "candidate_count")),

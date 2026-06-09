@@ -43,6 +43,7 @@ This repository implements a production-oriented prototype of the PDF proposal f
 - Immutable local artifact archive for exported run/job/data snapshot/QC report bundles with SHA-256 indexing, archive re-verification endpoints, and QC bundle semantic re-checks.
 - Append-only artifact archive ledger with hash-chain verification for stored export history.
 - Dry-run-first artifact retention cleanup with ledger tombstones for auditable archive pruning.
+- External timestamp provider configuration evidence for regulated artifact archive promotion review.
 - JSON and Prometheus-style metrics for request, run, job, RAG, and structured-data observability.
 - Local agentic workflow orchestration for planner, retriever, optimizer, and QC writer roles.
 - Docker Compose configuration for backend/frontend deployment.

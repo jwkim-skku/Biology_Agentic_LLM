@@ -61,6 +61,9 @@ SYNTHETIC_ENV = {
     "ARTIFACT_OBJECT_STORE_REGION": "us-east-1",
     "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID": "compose-preflight-object-access-key",
     "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY": "compose-preflight-object-secret-key",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED": "true",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_URL": "https://timestamp.compose-preflight.example.com/rfc3161",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID": "compose-preflight-rfc3161",
 }
 
 
@@ -104,6 +107,9 @@ def static_checks(failures: list[str]) -> None:
         "${OPENAI_EMBEDDING_BASE_URL:-https://api.openai.com/v1}",
         "${OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS:-0}",
         "${OPENAI_EMBEDDING_BUDGET_USD:-0}",
+        "${ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED:-false}",
+        "${ARTIFACT_EXTERNAL_TIMESTAMP_URL:-}",
+        "${ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID:-}",
         "condition: service_healthy",
     ]
     required_production_tokens = [
@@ -124,6 +130,8 @@ def static_checks(failures: list[str]) -> None:
         "ARTIFACT_OBJECT_STORE_REGION is required for production compose",
         "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID is required for production compose",
         "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY is required for production compose",
+        "ARTIFACT_EXTERNAL_TIMESTAMP_URL is required for production compose",
+        "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID is required for production compose",
         "STORAGE_BACKEND: postgres",
     ]
     failures.extend(f"base compose missing token: {token}" for token in required_base_tokens if token not in base)
@@ -206,6 +214,18 @@ def run_docker_compose_config(*, require_docker: bool, failures: list[str], warn
         require_config_token(production, "us-east-1", failures, "production config did not pass object-store region.")
         require_config_token(production, "compose-preflight-object-access-key", failures, "production config did not pass object-store access key.")
         require_config_token(production, "compose-preflight-object-secret-key", failures, "production config did not pass object-store secret key.")
+        require_any_config_token(
+            production,
+            [
+                "ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED: \"true\"",
+                "ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED: 'true'",
+                "ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED: true",
+            ],
+            failures,
+            "production config did not require external timestamping.",
+        )
+        require_config_token(production, "https://timestamp.compose-preflight.example.com/rfc3161", failures, "production config did not pass external timestamp URL.")
+        require_config_token(production, "compose-preflight-rfc3161", failures, "production config did not pass external timestamp key id.")
 
     return {
         "available": True,
