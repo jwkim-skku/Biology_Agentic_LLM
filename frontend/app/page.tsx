@@ -883,6 +883,9 @@ type ProductionAuditStatus = {
       area?: string;
       status?: string;
       priority?: string;
+      resolution_scope?: string;
+      resolution_mode?: string;
+      proof_hint?: string;
       action?: string;
       gap_hash?: string;
     }>;
@@ -4577,6 +4580,11 @@ export default function Dashboard() {
                 Gap hash {productionAudit?.production_gap_summary?.gap_summary_hash?.slice(0, 10) ?? "n/a"} / blocking{" "}
                 {productionAudit?.production_gap_summary?.blocking_count ?? "n/a"}
               </span>
+              <span>
+                Gap scope {productionAudit?.production_gap_summary?.gaps?.[0]?.resolution_scope ?? "n/a"} / mode{" "}
+                {productionAudit?.production_gap_summary?.gaps?.[0]?.resolution_mode ?? "n/a"}
+              </span>
+              <span>{productionAudit?.production_gap_summary?.gaps?.[0]?.proof_hint ?? "No production proof hint recorded"}</span>
               <span>{productionAudit?.production_gap_summary?.gaps?.[0]?.action ?? "No production gaps recorded"}</span>
               <span>
                 Bundle {productionAudit?.verification?.artifact_verification?.checked_files ?? "n/a"}/

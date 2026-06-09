@@ -691,16 +691,19 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
             "",
             "## Production Gaps",
             "",
-            "| Area | Priority | Status | Action |",
-            "| --- | --- | --- | --- |",
+            "| Area | Priority | Status | Scope | Mode | Proof hint | Action |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for item in gap_summary.get("gaps") or []:
         lines.append(
-            "| {area} | {priority} | {status} | {action} |".format(
+            "| {area} | {priority} | {status} | {scope} | {mode} | {proof_hint} | {action} |".format(
                 area=_escape_cell(str(item.get("area") or "unknown")),
                 priority=_escape_cell(str(item.get("priority") or "unknown")),
                 status=_escape_cell(str(item.get("status") or "unknown")),
+                scope=_escape_cell(str(item.get("resolution_scope") or "unknown")),
+                mode=_escape_cell(str(item.get("resolution_mode") or "unknown")),
+                proof_hint=_escape_cell(str(item.get("proof_hint") or "")),
                 action=_escape_cell(str(item.get("action") or "")),
             )
         )
@@ -1013,10 +1016,14 @@ def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dic
             or "Review this production audit check before promotion."
         )
         evidence_key = _evidence_key_for_check(name)
+        resolution = _gap_resolution(name)
         gap = {
             "area": name,
             "status": check.get("status"),
             "priority": "blocking" if check.get("blocking") else "promotion",
+            "resolution_scope": resolution["scope"],
+            "resolution_mode": resolution["mode"],
+            "proof_hint": resolution["proof_hint"],
             "evidence_key": evidence_key,
             "check_detail_hash": check.get("detail_hash"),
             "readiness_detail_hash": (readiness_action or {}).get("detail_hash"),
@@ -1059,6 +1066,61 @@ def _evidence_key_for_check(name: str) -> str:
         "rna_folding_backend": "rna_folding",
         "governance_attestation": "governance_attestation_verification",
     }.get(name, name)
+
+
+def _gap_resolution(name: str) -> dict[str, str]:
+    env_gaps = {
+        "security": ("configuration", "Set API_KEYS/API_KEY_ROLES/RATE_LIMIT_PER_MINUTE and rerun deployment readiness."),
+        "storage": ("managed_runtime", "Set STORAGE_BACKEND=postgres with DATABASE_URL and verify migration parity."),
+        "rag_embedding_backend": ("managed_runtime", "Configure OpenAI or a pinned local sentence-transformers backend, rebuild the RAG index, and rerun regression."),
+        "rna_folding_backend": ("managed_runtime", "Install ViennaRNA RNAfold, set RNA_FOLDING_BACKEND=rnafold, and rerun optimizer diagnostics."),
+        "artifact_object_store": ("managed_runtime", "Configure object-store credentials, lifecycle retention, timestamp provider, and mirror pending archives."),
+        "artifact_signing": ("configuration", "Configure HMAC or Ed25519 signing keys and rerun signed artifact smoke."),
+    }
+    data_gaps = {
+        "data_provenance": ("data_promotion", "Import release-pinned quantitative matrices and regenerate provenance/release evidence."),
+        "structured_quality": ("data_promotion", "Replace seed/local priors with release-pinned structured records and rerun quality gates."),
+        "data_release_bundle": ("data_promotion", "Regenerate the data release bundle after source snapshot and tRNA caveat review."),
+        "external_source_coverage": ("data_promotion", "Backfill referenced source snapshots and rerun data release verification."),
+    }
+    artifact_gaps = {
+        "qc_bundle_archive_semantics": ("artifact_refresh", "Export and archive a fresh QC report bundle."),
+        "data_release_archive_semantics": ("artifact_refresh", "Export and archive a fresh data release bundle."),
+        "data_snapshot_archive_semantics": ("artifact_refresh", "Export and archive a fresh data snapshot bundle."),
+        "data_refresh_plan_archive_semantics": ("artifact_refresh", "Export and archive a fresh data refresh plan bundle."),
+        "structured_import_archive_semantics": ("artifact_refresh", "Archive the latest structured import audit bundle."),
+        "rag_evaluation_archive_semantics": ("artifact_refresh", "Export and archive a fresh RAG evaluation bundle."),
+        "rag_regression_archive_semantics": ("artifact_refresh", "Export and archive a fresh RAG regression bundle."),
+        "rag_vector_index_archive_semantics": ("artifact_refresh", "Export and archive a fresh RAG vector index bundle."),
+        "workflow_trace_archive_semantics": ("artifact_refresh", "Export and archive a fresh workflow trace bundle."),
+        "optimizer_benchmark_archive_semantics": ("artifact_refresh", "Export and archive a fresh optimizer benchmark bundle."),
+    }
+    if name == "deployment_readiness":
+        return {
+            "scope": "aggregate_gate",
+            "mode": "readiness_rollup",
+            "proof_hint": "Resolve the non-pass deployment readiness gates listed in required_actions and rerun production audit.",
+        }
+    if name in env_gaps:
+        mode, proof_hint = env_gaps[name]
+        return {"scope": "operator_environment", "mode": mode, "proof_hint": proof_hint}
+    if name in data_gaps:
+        mode, proof_hint = data_gaps[name]
+        return {"scope": "source_data", "mode": mode, "proof_hint": proof_hint}
+    if name in artifact_gaps:
+        mode, proof_hint = artifact_gaps[name]
+        return {"scope": "reproducible_artifact", "mode": mode, "proof_hint": proof_hint}
+    if name.endswith("_archive_semantics"):
+        return {
+            "scope": "reproducible_artifact",
+            "mode": "artifact_refresh",
+            "proof_hint": "Export, verify, and archive a fresh semantic evidence bundle.",
+        }
+    return {
+        "scope": "application",
+        "mode": "code_or_evidence_review",
+        "proof_hint": "Inspect this check's detail hash and rerun production audit after remediation.",
+    }
 
 
 def _timed(name: str, timings: dict[str, Any], factory: Any) -> Any:

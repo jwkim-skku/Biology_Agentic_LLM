@@ -1598,6 +1598,68 @@ def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
     assert summary_object_store["external_timestamp_hash"] == status["external_timestamp_hash"]
 
 
+def test_production_gap_summary_classifies_resolution_scope() -> None:
+    from app.services import production_audit_service as module
+
+    detail_hash = module._hash_payload({"active_backend": "hash-bow-v1"})
+    checks = [
+        {
+            "name": "deployment_readiness",
+            "status": "warning",
+            "blocking": False,
+            "message": "Deployment readiness has promotion warnings.",
+            "detail_hash": module._hash_payload({"warning": 1}),
+        },
+        {
+            "name": "rag_embedding_backend",
+            "status": "warning",
+            "blocking": False,
+            "message": "Embedding backend is not production configured.",
+            "detail_hash": detail_hash,
+        },
+        {
+            "name": "data_release_archive_semantics",
+            "status": "warning",
+            "blocking": False,
+            "message": "Data release archive is stale.",
+            "detail_hash": module._hash_payload({"status": "warning"}),
+        },
+    ]
+    readiness = {
+        "required_actions": [
+            {
+                "gate": "rag_embedding_backend",
+                "action": "Configure a production embedding backend.",
+                "detail_hash": detail_hash,
+            }
+        ],
+        "required_actions_hash": module._hash_payload(["rag_embedding_backend"]),
+    }
+    promotion = {
+        "items": [
+            {
+                "area": "data_release_archive_semantics",
+                "action": "Archive a fresh data release bundle.",
+            }
+        ],
+        "required_actions": ["Configure a production embedding backend."],
+    }
+
+    summary = module._production_gap_summary(checks, promotion, readiness)
+    gaps = {gap["area"]: gap for gap in summary["gaps"]}
+
+    assert gaps["deployment_readiness"]["resolution_scope"] == "aggregate_gate"
+    assert gaps["deployment_readiness"]["resolution_mode"] == "readiness_rollup"
+    assert "required_actions" in gaps["deployment_readiness"]["proof_hint"]
+    assert gaps["rag_embedding_backend"]["resolution_scope"] == "operator_environment"
+    assert gaps["rag_embedding_backend"]["resolution_mode"] == "managed_runtime"
+    assert "rebuild the RAG index" in gaps["rag_embedding_backend"]["proof_hint"]
+    assert gaps["data_release_archive_semantics"]["resolution_scope"] == "reproducible_artifact"
+    assert gaps["data_release_archive_semantics"]["resolution_mode"] == "artifact_refresh"
+    assert "fresh data release bundle" in gaps["data_release_archive_semantics"]["proof_hint"]
+    assert module._gap_summary_hash_matches(summary)
+
+
 def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "production_audit.py"

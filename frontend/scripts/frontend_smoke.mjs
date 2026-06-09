@@ -254,6 +254,7 @@ async function main() {
     assert(/Verify checks\s+P\s+(\d+|n\/a)\s+\/\s+F\s+(\d+|n\/a)\s+\/\s+W\s+(\d+|n\/a)/.test(productionAuditText), `Production audit verifier check counts were not rendered: ${productionAuditText}`);
     assert(/Verify summary\s+(pass|warning|fail|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit verifier summary hash was not rendered: ${productionAuditText}`);
     assert(/Gap hash\s+([a-f0-9]{10}|n\/a)\s+\/\s+blocking\s+(\d+|n\/a)/.test(productionAuditText), `Production audit gap summary hash was not rendered: ${productionAuditText}`);
+    assert(/Gap scope\s+(\w+|n\/a)\s+\/\s+mode\s+(\w+|n\/a)/.test(productionAuditText), `Production audit gap resolution class was not rendered: ${productionAuditText}`);
     const productionAuditResponse = apiResponses.find((item) => item.url === `${API_BASE}/deployment/audit`);
     assert(productionAuditResponse?.status === 200, "Frontend did not load /deployment/audit successfully.");
     const archiveText = await sectionText(page, "Immutable artifact archive");
