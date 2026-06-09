@@ -709,6 +709,43 @@ def test_production_audit_bundle_rejects_tampered_gap_summary() -> None:
     assert "production_gap_summary" in " ".join(verification["errors"])
 
 
+def test_production_audit_bundle_rejects_missing_vector_archive_evidence() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    vector_archive = json.loads(source.read("evidence/rag_vector_index_archive_semantics.json").decode("utf-8"))
+    assert int(vector_archive.get("checked_count") or 0) > 0
+    assert vector_archive["latest_artifacts"]
+
+    latest = vector_archive["latest_artifacts"][0]
+    latest.pop("recommended_backend", None)
+    latest.pop("migration_target_backend", None)
+    latest["parity_status"] = "fail"
+    latest.pop("vector_row_hash", None)
+    audit["evidence"]["rag_vector_index_archive_semantics"] = vector_archive
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/rag_vector_index_archive_semantics.json":
+                tampered.writestr(item, json.dumps(vector_archive, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["rag_vector_index_archive_evidence"] == "pass"
+    assert verification["semantic_checks"]["rag_vector_index_archive_migration_backend"] == "fail"
+    assert verification["semantic_checks"]["rag_vector_index_archive_parity"] == "fail"
+    assert verification["semantic_checks"]["rag_vector_index_archive_row_hash"] == "fail"
+    assert "RAG vector index archive" in " ".join(verification["errors"])
+
+
 def test_production_audit_bundle_rejects_tampered_summary() -> None:
     from app.services.production_audit_service import verify_production_audit_bundle
 
