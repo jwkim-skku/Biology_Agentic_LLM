@@ -26,7 +26,7 @@ from app.services.artifact_archive_service import (
     verify_artifact_ledger,
     workflow_trace_archive_summary,
 )
-from app.services.artifact_object_store_service import artifact_object_store_status
+from app.services.artifact_object_store_service import artifact_object_store_status, plan_artifact_object_store_mirror
 from app.services.audit_log_service import audit_summary
 from app.services.data_provenance_service import data_provenance_audit
 from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
@@ -110,6 +110,12 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
     ledger = _timed("artifact_ledger", timings, verify_artifact_ledger)
     archive = _timed("artifact_archive", timings, archive_summary)
     object_store = _timed("artifact_object_store", timings, artifact_object_store_status)
+    object_store_mirror_plan = _timed(
+        "artifact_object_store_mirror_plan",
+        timings,
+        lambda: _object_store_mirror_plan_summary(plan_artifact_object_store_mirror(limit=500)),
+    )
+    object_store = {**object_store, "mirror_plan": object_store_mirror_plan}
     qc_archive = _timed("qc_bundle_archive_semantics", timings, lambda: qc_bundle_archive_semantic_summary(limit=3, verify_files=False))
     data_refresh_plan_archive = _timed(
         "data_refresh_plan_archive_semantics",
@@ -196,7 +202,7 @@ def _build_production_audit_uncached(openapi_spec: dict[str, Any], *, cache_key:
         _check(
             "artifact_object_store",
             object_store.get("status") in {"disabled", "ready"},
-            object_store.get("status") == "ready",
+            object_store.get("status") == "ready" and object_store_mirror_plan["candidate_count"] == 0,
             object_store,
         ),
         _check("qc_bundle_archive_semantics", qc_archive.get("status") in {"pass", "warning"}, qc_archive.get("status") == "pass", qc_archive),
@@ -766,6 +772,14 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("Agent memory genes", _markdown_value(memory.get("distinct_genes"))),
         ("Agent memory aggregate", _short_hash(memory.get("memory_hash_aggregate"))),
         ("Object-store lifecycle", _short_hash(object_store.get("lifecycle_policy_hash"))),
+        (
+            "Object-store mirror candidates",
+            _markdown_value(_first_present(object_store, "mirror_plan_candidate_count", "mirror_plan", "candidate_count")),
+        ),
+        (
+            "Object-store mirror bytes",
+            _markdown_value(_first_present(object_store, "mirror_plan_candidate_bytes", "mirror_plan", "candidate_bytes")),
+        ),
         ("RAG embedding fingerprint", _short_hash(rag_embedding.get("model_fingerprint_hash"))),
         ("Release handoff hash", _short_hash(release.get("latest_release_handoff_hash"))),
         ("Release source summary", _short_hash(release.get("latest_record_source_summary_hash"))),
@@ -799,6 +813,15 @@ def _markdown_value(value: Any) -> str:
     if value is None or value == "":
         return "n/a"
     return str(value)
+
+
+def _first_present(payload: dict[str, Any], flat_key: str, nested_key: str, child_key: str) -> Any:
+    if flat_key in payload:
+        return payload.get(flat_key)
+    nested = payload.get(nested_key)
+    if isinstance(nested, dict):
+        return nested.get(child_key)
+    return None
 
 
 def _short_hash(value: Any, length: int = 12) -> str:
@@ -904,13 +927,21 @@ def _promotion_summary(
         ),
         _promotion_item(
             "artifact_object_store",
-            "pass" if object_store.get("status") == "ready" else object_store.get("status"),
-            "enabled {enabled}; bucket {bucket}; lifecycle {lifecycle}".format(
+            "pass"
+            if object_store.get("status") == "ready" and ((object_store.get("mirror_plan") or {}).get("candidate_count") or 0) == 0
+            else object_store.get("status"),
+            "enabled {enabled}; bucket {bucket}; lifecycle {lifecycle}; mirror candidates {candidates}".format(
                 enabled=object_store.get("enabled"),
                 bucket=object_store.get("bucket") or "n/a",
                 lifecycle=(object_store.get("lifecycle_policy") or {}).get("status", "n/a"),
+                candidates=((object_store.get("mirror_plan") or {}).get("candidate_count") or 0),
             ),
-            object_store.get("recommendation") or "Configure managed object-store mirroring for immutable retention.",
+            (
+                f"Mirror {((object_store.get('mirror_plan') or {}).get('candidate_count') or 0)} pending archive(s), "
+                f"{((object_store.get('mirror_plan') or {}).get('candidate_bytes') or 0)} bytes."
+                if ((object_store.get("mirror_plan") or {}).get("candidate_count") or 0) > 0
+                else object_store.get("recommendation") or "Configure managed object-store mirroring for immutable retention."
+            ),
         ),
     ]
     required_actions = [item["action"] for item in items if item["status"] != "pass" and item.get("action")]
@@ -933,6 +964,15 @@ def _promotion_item(area: str, status: Any, detail: str, action: str) -> dict[st
     if normalized in {"disabled", "proxy", "fallback", "missing", "unsigned"}:
         normalized = "warning"
     return {"area": area, "status": normalized, "detail": detail, "action": action}
+
+
+def _object_store_mirror_plan_summary(plan: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": plan.get("status"),
+        "candidate_count": int(plan.get("candidate_count") or 0),
+        "candidate_bytes": int(plan.get("candidate_bytes") or 0),
+        "limit": (plan.get("filters") or {}).get("limit"),
+    }
 
 
 def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dict[str, Any], readiness: dict[str, Any]) -> dict[str, Any]:

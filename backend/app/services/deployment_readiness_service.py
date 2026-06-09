@@ -20,7 +20,7 @@ from app.services.artifact_archive_service import (
     verify_artifact_ledger,
     workflow_trace_archive_summary,
 )
-from app.services.artifact_object_store_service import artifact_object_store_status
+from app.services.artifact_object_store_service import artifact_object_store_status, plan_artifact_object_store_mirror
 from app.services.data_provenance_service import data_provenance_audit
 from app.services.data_release_bundle_service import build_data_release_bundle, verify_data_release_bundle
 from app.services.data_snapshot_service import build_data_snapshot_bundle, verify_data_snapshot_bundle
@@ -69,6 +69,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
     governance = verify_governance_attestation_bundle(build_governance_attestation_bundle(openapi_spec))
     archive = archive_summary()
     object_store = artifact_object_store_status()
+    object_store_mirror_plan = _object_store_mirror_plan_summary(plan_artifact_object_store_mirror(limit=500))
     ledger = verify_artifact_ledger()
     qc_archive = qc_bundle_archive_semantic_summary(limit=3, verify_files=False)
     data_refresh_plan_archive = data_refresh_plan_archive_summary(limit=3, verify_files=False)
@@ -397,7 +398,7 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
         _gate(
             "artifact_object_store",
             object_store["status"] in {"disabled", "ready"},
-            _warning=object_store["status"] == "ready",
+            _warning=object_store["status"] == "ready" and object_store_mirror_plan["candidate_count"] == 0,
             details={
                 "status": object_store["status"],
                 "enabled": object_store["enabled"],
@@ -408,10 +409,14 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "missing_settings": object_store["missing_settings"],
                 "lifecycle_policy": object_store.get("lifecycle_policy", {}),
                 "lifecycle_policy_hash": object_store.get("lifecycle_policy_hash"),
+                "mirror_plan_status": object_store_mirror_plan["status"],
+                "mirror_plan_candidate_count": object_store_mirror_plan["candidate_count"],
+                "mirror_plan_candidate_bytes": object_store_mirror_plan["candidate_bytes"],
+                "mirror_plan_limit": object_store_mirror_plan["limit"],
                 "recommendation": object_store["recommendation"],
             },
             fail_message="Artifact object-store mirror is enabled but misconfigured.",
-            warn_message="Artifact archive is local-only; configure object-store mirroring for production retention.",
+            warn_message="Artifact archive is local-only or has pending object-store mirror candidates.",
         ),
         _gate(
             "qc_bundle_archive_semantics",
@@ -670,6 +675,15 @@ def _archive_freshness_details(summary: dict[str, Any]) -> dict[str, Any]:
         "latest_created_at": summary.get("latest_created_at"),
         "latest_age_hours": summary.get("latest_age_hours"),
         "freshness_warning_hours": policy.get("warning_hours"),
+    }
+
+
+def _object_store_mirror_plan_summary(plan: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "status": plan.get("status"),
+        "candidate_count": int(plan.get("candidate_count") or 0),
+        "candidate_bytes": int(plan.get("candidate_bytes") or 0),
+        "limit": (plan.get("filters") or {}).get("limit"),
     }
 
 

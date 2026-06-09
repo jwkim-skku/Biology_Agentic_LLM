@@ -898,6 +898,21 @@ type ProductionAuditStatus = {
       slowest?: Array<{ name: string; duration_seconds: number }>;
     };
     production_gap_summary?: ProductionAuditStatus["production_gap_summary"];
+    artifact_object_store?: {
+      status?: string;
+      enabled?: boolean;
+      configured?: boolean;
+      bucket?: string | null;
+      prefix?: string;
+      region?: string;
+      lifecycle_policy_hash?: string | null;
+      mirror_plan?: {
+        status?: string;
+        candidate_count?: number;
+        candidate_bytes?: number;
+        limit?: number;
+      };
+    };
     qc_bundle_archive_semantics?: ArchiveSemanticFreshness & {
       status: string;
       checked_count: number;
@@ -4351,6 +4366,12 @@ export default function Dashboard() {
               <span>Fail {deploymentReadiness?.summary?.fail ?? "n/a"}</span>
               <span>Actions {deploymentReadiness?.required_actions?.length ?? "n/a"}</span>
               <span>Action hash {deploymentReadiness?.required_actions_hash?.slice(0, 10) ?? "n/a"}</span>
+              <span>Object mirror {deploymentGateStatus(deploymentReadiness, "artifact_object_store")}</span>
+              <span>
+                Mirror candidates {deploymentGateDetail(deploymentReadiness, "artifact_object_store", "mirror_plan_candidate_count")} /
+                bytes {deploymentGateDetail(deploymentReadiness, "artifact_object_store", "mirror_plan_candidate_bytes")}
+              </span>
+              <span>Mirror lifecycle {deploymentGateHash(deploymentReadiness, "artifact_object_store", "lifecycle_policy_hash")}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
               <span>QC ready {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_readiness_status")}</span>
               <span>QC ready hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_readiness_hash")}</span>
@@ -4494,6 +4515,11 @@ export default function Dashboard() {
               <span>Trace fresh {formatArchiveFreshness(productionAudit?.evidence?.workflow_trace_archive_semantics)}</span>
               <span>Import audit {productionAudit?.evidence?.structured_import_archive_semantics?.status ?? "n/a"}</span>
               <span>Import checked {productionAudit?.evidence?.structured_import_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>Object mirror {productionAudit?.evidence?.artifact_object_store?.status ?? "n/a"}</span>
+              <span>
+                Mirror candidates {productionAudit?.evidence?.artifact_object_store?.mirror_plan?.candidate_count ?? "n/a"} /
+                bytes {productionAudit?.evidence?.artifact_object_store?.mirror_plan?.candidate_bytes ?? "n/a"}
+              </span>
               <span>Audit {formatSeconds(productionAudit?.evidence?.timings?.total_seconds)}</span>
               <span>Gap status {productionAudit?.production_gap_summary?.status ?? "n/a"}</span>
             </div>

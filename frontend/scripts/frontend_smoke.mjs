@@ -186,6 +186,9 @@ async function main() {
     const deploymentText = await sectionText(page, "Deployment readiness");
     assert(/Status\s+(pass|warning|fail)/.test(deploymentText), `Deployment readiness status was not rendered: ${deploymentText}`);
     assert(/Deploy\s+(ready|hold)/.test(deploymentText), `Deployment readiness deploy flag was not rendered: ${deploymentText}`);
+    assert(/Object mirror\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness object mirror gate was not rendered: ${deploymentText}`);
+    assert(/Mirror candidates\s+(\d+|n\/a)\s+\/\s+bytes\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness object mirror plan was not rendered: ${deploymentText}`);
+    assert(/Mirror lifecycle\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness object mirror lifecycle hash was not rendered: ${deploymentText}`);
     assert(/QC archive\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC archive gate was not rendered: ${deploymentText}`);
     assert(/QC ready\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC recommendation readiness status was not rendered: ${deploymentText}`);
     assert(/QC ready hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC recommendation readiness hash was not rendered: ${deploymentText}`);
@@ -231,6 +234,8 @@ async function main() {
     assert(/RAG source\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit RAG source provenance hash was not rendered: ${productionAuditText}`);
     assert(/RAG regress\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit RAG regression archive status was not rendered: ${productionAuditText}`);
     assert(/RAG metrics\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit RAG metrics hash was not rendered: ${productionAuditText}`);
+    assert(/Object mirror\s+(ready|disabled|misconfigured|pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit object mirror status was not rendered: ${productionAuditText}`);
+    assert(/Mirror candidates\s+(\d+|n\/a)\s+\/\s+bytes\s+(\d+|n\/a)/.test(productionAuditText), `Production audit object mirror plan was not rendered: ${productionAuditText}`);
     assert(/Bench fold match\s+(\d+|n\/a)/.test(productionAuditText), `Production audit optimizer folding candidate match count was not rendered: ${productionAuditText}`);
     assert(/QC semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit QC semantic counts were not rendered: ${productionAuditText}`);
     assert(/Import semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit import semantic counts were not rendered: ${productionAuditText}`);

@@ -570,6 +570,8 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "## Readiness Evidence" in bundled_markdown
         assert "Agent memory aggregate" in bundled_markdown
         assert "Object-store lifecycle" in bundled_markdown
+        assert "Object-store mirror candidates" in bundled_markdown
+        assert "Object-store mirror bytes" in bundled_markdown
         assert "RAG embedding fingerprint" in bundled_markdown
         assert "Release source summary" in bundled_markdown
         assert "Release datasets" in bundled_markdown
@@ -860,6 +862,12 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert embedding_requirements["openai"]["api_key_configured"] is True
     assert embedding_requirements["openai"]["price_configured"] is True
     assert embedding_requirements["openai"]["budget_configured"] is True
+    object_store_gate = next(gate for gate in readiness["gates"] if gate["name"] == "artifact_object_store")
+    assert object_store_gate["details"]["mirror_plan_status"] in {"ready", "disabled", "misconfigured"}
+    assert object_store_gate["details"]["mirror_plan_candidate_count"] >= 0
+    assert object_store_gate["details"]["mirror_plan_candidate_bytes"] >= 0
+    assert object_store_gate["details"]["mirror_plan_limit"] >= 1
+    assert len(object_store_gate["details"]["lifecycle_policy_hash"]) == 64
     qc_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "qc_bundle_archive_semantics")
     assert qc_archive_gate["details"]["status"] in {"pass", "warning"}
     for field in [
