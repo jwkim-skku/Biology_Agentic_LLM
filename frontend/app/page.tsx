@@ -1150,6 +1150,7 @@ type ProductionAuditStatus = {
   verification?: {
     status?: string;
     audit_hash?: string | null;
+    semantic_checks?: Record<string, string>;
     artifact_verification?: {
       file_count?: number;
       checked_files?: number;
@@ -4535,6 +4536,14 @@ export default function Dashboard() {
               <span>
                 Evidence alg {productionAudit?.evidence_hashes?.algorithm ?? "n/a"} /{" "}
                 {productionAudit?.evidence_hashes?.hash_schema ?? "n/a"}
+              </span>
+              <span>
+                Verify hashes {productionAudit?.verification?.semantic_checks?.audit_hash ?? "n/a"} / evidence{" "}
+                {productionAudit?.verification?.semantic_checks?.evidence_hashes_manifest ?? "n/a"}
+              </span>
+              <span>
+                Verify details {productionAudit?.verification?.semantic_checks?.check_detail_hashes ?? "n/a"} / actions{" "}
+                {productionAudit?.verification?.semantic_checks?.required_action_coverage ?? "n/a"}
               </span>
               <span>
                 Gap hash {productionAudit?.production_gap_summary?.gap_summary_hash?.slice(0, 10) ?? "n/a"} / blocking{" "}
