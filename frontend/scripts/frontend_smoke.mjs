@@ -30,23 +30,23 @@ async function main() {
   });
 
   try {
-    const metricsReady = waitForApi(page, "/metrics");
-    const deploymentReady = waitForApi(page, "/deployment/readiness");
-    const productionAuditReady = waitForApi(page, "/deployment/audit", 180_000);
-    const productionAuditVerifyReady = waitForApi(page, "/deployment/audit/verify", 180_000);
-    const artifactsReady = waitForApi(page, "/artifacts?limit=6");
-    const structuredManifestReady = waitForApi(page, "/structured/manifest");
-    const dataCoverageReady = waitForApi(page, "/data/coverage");
-    const qcBundleSemanticsReady = waitForApi(page, "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false");
-    const structuredImportSemanticsReady = waitForApi(page, "/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false");
-    const dataReleaseSemanticsReady = waitForApi(page, "/artifacts/data-releases/semantic-summary?limit=6&verify_files=false");
-    const dataSnapshotSemanticsReady = waitForApi(page, "/artifacts/data-snapshots/semantic-summary?limit=6&verify_files=false");
-    const dataRefreshPlanSemanticsReady = waitForApi(page, "/artifacts/data-refresh-plans/semantic-summary?limit=6&verify_files=false");
-    const ragEvaluationSemanticsReady = waitForApi(page, "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false");
-    const ragRegressionSemanticsReady = waitForApi(page, "/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false");
-    const ragVectorIndexSemanticsReady = waitForApi(page, "/artifacts/rag-vector-indexes/semantic-summary?limit=6&verify_files=false");
-    const optimizerBenchmarkSemanticsReady = waitForApi(page, "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false");
-    const workflowTraceSemanticsReady = waitForApi(page, "/artifacts/workflow-traces/semantic-summary?limit=6&verify_files=false");
+    const metricsReady = waitForApi(page, "/metrics", 90_000, { allowDirect: true });
+    const deploymentReady = waitForApi(page, "/deployment/readiness", 90_000, { allowDirect: true });
+    const productionAuditReady = waitForApi(page, "/deployment/audit", 180_000, { allowDirect: true });
+    const productionAuditVerifyReady = waitForApi(page, "/deployment/audit/verify", 180_000, { allowDirect: true });
+    const artifactsReady = waitForApi(page, "/artifacts?limit=6", 90_000, { allowDirect: true });
+    const structuredManifestReady = waitForApi(page, "/structured/manifest", 90_000, { allowDirect: true });
+    const dataCoverageReady = waitForApi(page, "/data/coverage", 90_000, { allowDirect: true });
+    const qcBundleSemanticsReady = waitForApi(page, "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const structuredImportSemanticsReady = waitForApi(page, "/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const dataReleaseSemanticsReady = waitForApi(page, "/artifacts/data-releases/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const dataSnapshotSemanticsReady = waitForApi(page, "/artifacts/data-snapshots/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const dataRefreshPlanSemanticsReady = waitForApi(page, "/artifacts/data-refresh-plans/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const ragEvaluationSemanticsReady = waitForApi(page, "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const ragRegressionSemanticsReady = waitForApi(page, "/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const ragVectorIndexSemanticsReady = waitForApi(page, "/artifacts/rag-vector-indexes/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const optimizerBenchmarkSemanticsReady = waitForApi(page, "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
+    const workflowTraceSemanticsReady = waitForApi(page, "/artifacts/workflow-traces/semantic-summary?limit=6&verify_files=false", 90_000, { allowDirect: true });
     await page.goto(FRONTEND_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await Promise.all([
       metricsReady,
@@ -114,7 +114,7 @@ async function main() {
     await optimizerBundleVerifyReady;
     const verifiedQualityText = await sectionText(page, "Quality gates");
     assert(/Bundle\s+(pass|warning|fail)/.test(verifiedQualityText), `Optimizer benchmark bundle semantic status was not rendered: ${verifiedQualityText}`);
-    assert(/Hash\s+([a-f0-9]{10}|n\/a)/.test(verifiedQualityText), `Optimizer benchmark cases hash was not rendered: ${verifiedQualityText}`);
+    assert(/Case hash\s+([a-f0-9]{10}|n\/a)/.test(verifiedQualityText), `Optimizer benchmark cases hash was not rendered: ${verifiedQualityText}`);
     assert(/Strategy\s+pass/.test(verifiedQualityText), `Optimizer benchmark search strategy semantic check was not rendered: ${verifiedQualityText}`);
     const ragSection = page.locator('section[aria-label="RAG inspector"]');
     const ragEvaluationReady = waitForApi(page, "/rag/evaluate");
@@ -148,14 +148,14 @@ async function main() {
     assert(/Candidate Ranking/.test(designText), `Candidate ranking was not rendered after CDS design: ${designText}`);
     assert(/Risk\s+(pass|warning|fail|n\/a)/.test(designText), `Candidate constraint risk was not rendered: ${designText}`);
     assert(/Structure proxy\s*(\d+\.\d+|n\/a)/.test(designText), `Secondary-structure proxy score was not rendered: ${designText}`);
-    assert(/Folding evidence\s+(pass|warning|fail|n\/a)/.test(designText), `Recommended folding evidence status was not rendered: ${designText}`);
-    assert(/Readiness\s+(pass|warning|fail|n\/a)/.test(designText), `Recommendation readiness status was not rendered: ${designText}`);
-    assert(/Ready hash\s+([a-f0-9]{12}|n\/a)/.test(designText), `Recommendation readiness hash was not rendered: ${designText}`);
-    assert(/Folding hash\s+([a-f0-9]{12}|n\/a)/.test(designText), `Recommended folding evidence hash was not rendered: ${designText}`);
+    assert(/Folding evidence\s*(pass|warning|fail|n\/a)/.test(designText), `Recommended folding evidence status was not rendered: ${designText}`);
+    assert(/Readiness\s*(pass|warning|fail|n\/a)/.test(designText), `Recommendation readiness status was not rendered: ${designText}`);
+    assert(/Ready hash\s*([a-f0-9]{12}|n\/a)/.test(designText), `Recommendation readiness hash was not rendered: ${designText}`);
+    assert(/Folding hash\s*([a-f0-9]{12}|n\/a)/.test(designText), `Recommended folding evidence hash was not rendered: ${designText}`);
     assert(/rank\s+\d+\s+with composite|selection trace unavailable/.test(designText), `Candidate selection trace was not rendered: ${designText}`);
     assert(/QC Report/.test(designText), `QC report was not rendered after CDS design: ${designText}`);
-    assert(/Target data\s+(pass|warning|missing|n\/a)/.test(designText), `Target structured evidence was not rendered: ${designText}`);
-    assert(/Seed strategy\s+deterministic-tradeoff-seeds-v1/.test(designText), `Optimizer seed strategy was not rendered: ${designText}`);
+    assert(/Target data\s*(pass|warning|missing|n\/a)/.test(designText), `Target structured evidence was not rendered: ${designText}`);
+    assert(/Seed strategy\s*deterministic-tradeoff-seeds-v1/.test(designText), `Optimizer seed strategy was not rendered: ${designText}`);
     assert(/Best objectives\s*\d+/.test(designText), `Recommendation audit best-objective count was not rendered: ${designText}`);
     assert(/Max regret\s*(\d+\.\d+|n\/a)/.test(designText), `Recommendation audit regret was not rendered: ${designText}`);
     await expectSection(page, "Security controls", /Security/);
@@ -339,15 +339,55 @@ async function firstExistingPath(paths) {
   return undefined;
 }
 
-async function waitForApi(page, path, timeout = 90_000) {
+async function waitForApi(page, path, timeout = 90_000, options = {}) {
+  const responseWait = page.waitForResponse(
+    (response) => apiPathMatches(response.url(), path) && response.status() === 200,
+    { timeout }
+  );
   try {
-    return await page.waitForResponse(
-      (response) => response.url() === `${API_BASE}${path}` && response.status() === 200,
-      { timeout }
-    );
+    return options.allowDirect ? await Promise.any([responseWait, pollApi(path, timeout)]) : await responseWait;
   } catch (error) {
     throw new Error(`Timed out waiting for API response ${path}: ${error.message}`);
   }
+}
+
+async function pollApi(path, timeout) {
+  const started = Date.now();
+  const url = `${API_BASE}${path}`;
+  while (Date.now() - started < timeout) {
+    try {
+      const response = await fetch(url);
+      if (response.status === 200) {
+        return response;
+      }
+    } catch {
+      // Keep polling while the dev servers come up.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  throw new Error(`direct API polling timed out for ${path}`);
+}
+
+function apiPathMatches(url, expectedPath) {
+  const actual = new URL(url);
+  const base = new URL(API_BASE);
+  const normalizedApiBase = base.pathname.replace(/\/$/, "");
+  const actualPath = actual.pathname.startsWith(normalizedApiBase)
+    ? actual.pathname.slice(normalizedApiBase.length)
+    : actual.pathname;
+  const expected = new URL(`${API_BASE}${expectedPath}`);
+  return sameLocalOrigin(actual, base) && actualPath === expected.pathname.slice(normalizedApiBase.length) && actual.search === expected.search;
+}
+
+function sameLocalOrigin(actual, expected) {
+  const localHosts = new Set(["127.0.0.1", "localhost"]);
+  if (actual.origin === expected.origin) {
+    return true;
+  }
+  return actual.protocol === expected.protocol
+    && actual.port === expected.port
+    && localHosts.has(actual.hostname)
+    && localHosts.has(expected.hostname);
 }
 
 function assert(condition, message) {

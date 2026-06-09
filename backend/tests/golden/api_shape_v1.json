@@ -1021,6 +1021,7 @@
       },
       "recommended_folding_evidence": {
         "active_backend": "str",
+        "candidate_id": "str",
         "evaluated_window_nt": "int",
         "fallback_active": "bool",
         "folding_evidence_hash": "str",
@@ -1345,6 +1346,7 @@
     },
     "recommended_folding_evidence": {
       "active_backend": "str",
+      "candidate_id": "str",
       "evaluated_window_nt": "int",
       "fallback_active": "bool",
       "folding_evidence_hash": "str",
@@ -2109,6 +2111,7 @@
     },
     "recommended_folding_evidence": {
       "active_backend": "str",
+      "candidate_id": "str",
       "evaluated_window_nt": "int",
       "fallback_active": "bool",
       "folding_evidence_hash": "str",

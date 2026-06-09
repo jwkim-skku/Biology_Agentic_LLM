@@ -67,12 +67,17 @@ SYNTHETIC_ENV = {
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate Docker Compose deployment configuration.")
     parser.add_argument("--require-docker", action="store_true", help="Fail when Docker Compose cannot be executed.")
+    parser.add_argument("--static-only", action="store_true", help="Run only static compose-file checks.")
     args = parser.parse_args()
 
     failures: list[str] = []
     warnings: list[str] = []
     static_checks(failures)
-    docker_result = run_docker_compose_config(require_docker=args.require_docker, failures=failures, warnings=warnings)
+    docker_result = (
+        {"available": shutil.which("docker") is not None, "config_checked": False, "static_only": True}
+        if args.static_only
+        else run_docker_compose_config(require_docker=args.require_docker, failures=failures, warnings=warnings)
+    )
 
     result = {
         "base_compose": str(BASE_COMPOSE),
