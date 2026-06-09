@@ -715,6 +715,7 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("RAG regression case metrics", _short_hash(rag_regression.get("latest_case_metrics_hash"))),
         ("Optimizer recommended-front count", _markdown_value(optimizer.get("latest_recommended_on_pareto_front_count"))),
         ("Optimizer max regret", _markdown_value(optimizer.get("latest_recommendation_max_regret"))),
+        ("Optimizer folding candidate matches", _markdown_value(optimizer.get("latest_recommended_folding_candidate_match_count"))),
         ("Workflow trace steps", _markdown_value(workflow.get("latest_trace_step_count"))),
         ("Workflow trace hash", _short_hash(workflow.get("latest_trace_hash"))),
     ]

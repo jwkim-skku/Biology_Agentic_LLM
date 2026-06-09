@@ -460,6 +460,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "Release handoff hash" in markdown
     assert "RAG regression case metrics" in markdown
     assert "Optimizer recommended-front count" in markdown
+    assert "Optimizer folding candidate matches" in markdown
     assert "Workflow trace hash" in markdown
     assert "Total seconds" in markdown
     assert audit["evidence_hashes"]["hash_schema"] == "agentic-rag-production-audit-evidence-hashes-v1"
