@@ -4366,6 +4366,9 @@ export default function Dashboard() {
               <span>Fail {deploymentReadiness?.summary?.fail ?? "n/a"}</span>
               <span>Actions {deploymentReadiness?.required_actions?.length ?? "n/a"}</span>
               <span>Action hash {deploymentReadiness?.required_actions_hash?.slice(0, 10) ?? "n/a"}</span>
+              <span>Attention {deploymentReadiness?.attention_gates?.length ?? "n/a"}</span>
+              <span>Attention hash {deploymentReadiness?.attention_gates_hash?.slice(0, 10) ?? "n/a"}</span>
+              <span>Action coverage {deploymentActionCoverage(deploymentReadiness)}</span>
               <span>Object mirror {deploymentGateStatus(deploymentReadiness, "artifact_object_store")}</span>
               <span>
                 Mirror candidates {deploymentGateDetail(deploymentReadiness, "artifact_object_store", "mirror_plan_candidate_count")} /
@@ -6036,6 +6039,15 @@ function readinessAttentionGates(readiness?: DeploymentReadinessStatus | null) {
   const gates = readiness?.gates ?? [];
   const attention = gates.filter((gate) => gate.status !== "pass");
   return (attention.length ? attention : gates).slice(0, 4);
+}
+
+function deploymentActionCoverage(readiness?: DeploymentReadinessStatus | null) {
+  const attentionCount = readiness?.attention_gates?.length;
+  const actionCount = readiness?.required_actions?.length;
+  if (attentionCount === undefined || actionCount === undefined) {
+    return "n/a";
+  }
+  return `${actionCount}/${attentionCount}`;
 }
 
 function deploymentGateStatus(readiness: DeploymentReadinessStatus | null | undefined, name: string) {

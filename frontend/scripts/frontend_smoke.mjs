@@ -186,6 +186,12 @@ async function main() {
     const deploymentText = await sectionText(page, "Deployment readiness");
     assert(/Status\s+(pass|warning|fail)/.test(deploymentText), `Deployment readiness status was not rendered: ${deploymentText}`);
     assert(/Deploy\s+(ready|hold)/.test(deploymentText), `Deployment readiness deploy flag was not rendered: ${deploymentText}`);
+    assert(/Actions\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness action count was not rendered: ${deploymentText}`);
+    assert(/Action hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness action hash was not rendered: ${deploymentText}`);
+    assert(/Attention\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness attention gate count was not rendered: ${deploymentText}`);
+    assert(/Attention hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness attention gate hash was not rendered: ${deploymentText}`);
+    assert(/Action coverage\s+(\d+\/\d+|n\/a)/.test(deploymentText), `Deployment readiness action coverage was not rendered: ${deploymentText}`);
+    assert(/detail\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness required-action detail hash was not rendered: ${deploymentText}`);
     assert(/Object mirror\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness object mirror gate was not rendered: ${deploymentText}`);
     assert(/Mirror candidates\s+(\d+|n\/a)\s+\/\s+bytes\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness object mirror plan was not rendered: ${deploymentText}`);
     assert(/Mirror lifecycle\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness object mirror lifecycle hash was not rendered: ${deploymentText}`);
