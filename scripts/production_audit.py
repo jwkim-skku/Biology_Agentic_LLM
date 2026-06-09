@@ -794,6 +794,14 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest RAG vector index archive is missing embedding_model")
         if checked_count and not latest.get("retrieval_model"):
             failures.append("latest RAG vector index archive is missing retrieval_model")
+        if checked_count and not latest.get("recommended_backend"):
+            failures.append("latest RAG vector index archive is missing recommended_backend")
+        if checked_count and not latest.get("migration_target_backend"):
+            failures.append("latest RAG vector index archive is missing migration_target_backend")
+        if checked_count and latest.get("parity_status") not in {"pass", "warning"}:
+            failures.append("latest RAG vector index archive is missing pass/warning parity_status")
+        if checked_count and not latest.get("vector_row_hash"):
+            failures.append("latest RAG vector index archive is missing vector_row_hash")
         if checked_count and not latest.get("structured_manifest_hash"):
             failures.append("latest RAG vector index archive is missing structured_manifest_hash")
     if name == "optimizer_benchmark_archive_semantics":

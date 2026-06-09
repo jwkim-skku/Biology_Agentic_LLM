@@ -1562,6 +1562,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "embedding_dimensions": 64,
                         "embedding_model": "hash-bow-v1",
                         "retrieval_model": "hybrid-hash-bm25-facet-rerank-v3",
+                        "recommended_backend": "local_json",
+                        "migration_target_backend": "local_json",
+                        "parity_status": "pass",
+                        "vector_row_hash": valid_hash,
                         "structured_manifest_hash": valid_hash,
                     }
                 ],
@@ -1611,6 +1615,10 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "embedding_dimensions" in " ".join(vector_index_failures)
     assert "embedding_model" in " ".join(vector_index_failures)
     assert "retrieval_model" in " ".join(vector_index_failures)
+    assert "recommended_backend" in " ".join(vector_index_failures)
+    assert "migration_target_backend" in " ".join(vector_index_failures)
+    assert "parity_status" in " ".join(vector_index_failures)
+    assert "vector_row_hash" in " ".join(vector_index_failures)
     assert "structured_manifest_hash" in " ".join(vector_index_failures)
     assert module.api_failures(
         "optimizer_benchmark_archive_semantics",
