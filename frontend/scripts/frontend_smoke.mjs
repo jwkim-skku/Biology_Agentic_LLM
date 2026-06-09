@@ -39,8 +39,14 @@ async function main() {
     const dataCoverageReady = waitForApi(page, "/data/coverage");
     const qcBundleSemanticsReady = waitForApi(page, "/artifacts/qc-bundles/semantic-summary?limit=6&verify_files=false");
     const structuredImportSemanticsReady = waitForApi(page, "/artifacts/structured-imports/semantic-summary?limit=6&verify_files=false");
+    const dataReleaseSemanticsReady = waitForApi(page, "/artifacts/data-releases/semantic-summary?limit=6&verify_files=false");
+    const dataSnapshotSemanticsReady = waitForApi(page, "/artifacts/data-snapshots/semantic-summary?limit=6&verify_files=false");
+    const dataRefreshPlanSemanticsReady = waitForApi(page, "/artifacts/data-refresh-plans/semantic-summary?limit=6&verify_files=false");
     const ragEvaluationSemanticsReady = waitForApi(page, "/artifacts/rag-evaluations/semantic-summary?limit=6&verify_files=false");
+    const ragRegressionSemanticsReady = waitForApi(page, "/artifacts/rag-regressions/semantic-summary?limit=6&verify_files=false");
+    const ragVectorIndexSemanticsReady = waitForApi(page, "/artifacts/rag-vector-indexes/semantic-summary?limit=6&verify_files=false");
     const optimizerBenchmarkSemanticsReady = waitForApi(page, "/artifacts/optimizer-benchmarks/semantic-summary?limit=6&verify_files=false");
+    const workflowTraceSemanticsReady = waitForApi(page, "/artifacts/workflow-traces/semantic-summary?limit=6&verify_files=false");
     await page.goto(FRONTEND_URL, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await Promise.all([
       metricsReady,
@@ -52,8 +58,14 @@ async function main() {
       dataCoverageReady,
       qcBundleSemanticsReady,
       structuredImportSemanticsReady,
+      dataReleaseSemanticsReady,
+      dataSnapshotSemanticsReady,
+      dataRefreshPlanSemanticsReady,
       ragEvaluationSemanticsReady,
-      optimizerBenchmarkSemanticsReady
+      ragRegressionSemanticsReady,
+      ragVectorIndexSemanticsReady,
+      optimizerBenchmarkSemanticsReady,
+      workflowTraceSemanticsReady
     ]);
     await page.waitForTimeout(500);
     await expectSection(page, "Structured data status", /Structured records/);
@@ -294,11 +306,15 @@ async function firstExistingPath(paths) {
   return undefined;
 }
 
-function waitForApi(page, path, timeout = 90_000) {
-  return page.waitForResponse(
-    (response) => response.url() === `${API_BASE}${path}` && response.status() === 200,
-    { timeout }
-  );
+async function waitForApi(page, path, timeout = 90_000) {
+  try {
+    return await page.waitForResponse(
+      (response) => response.url() === `${API_BASE}${path}` && response.status() === 200,
+      { timeout }
+    );
+  } catch (error) {
+    throw new Error(`Timed out waiting for API response ${path}: ${error.message}`);
+  }
 }
 
 function assert(condition, message) {
