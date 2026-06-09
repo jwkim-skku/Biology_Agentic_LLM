@@ -1110,7 +1110,11 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         }
         report["audit_hash"] = module.audit_hash(report)
         markdown = module.render_markdown(report)
-        write_result = module.write_result(report, json_path=root / "audit.json", markdown_path=root / "audit.md")
+        audit_json_path = evidence_path.with_suffix(".audit.json")
+        audit_md_path = evidence_path.with_suffix(".audit.md")
+        audit_json_path.write_text(json.dumps(report, indent=2, sort_keys=True), encoding="utf-8")
+        audit_md_path.write_text(markdown, encoding="utf-8")
+        write_result = module.write_result(report, json_path=audit_json_path, markdown_path=audit_md_path)
 
         assert preflight_check["status"] == "pass"
         assert preflight_check["details"]["preflight_schema"] == module.PREFLIGHT_SCHEMA
@@ -1132,6 +1136,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert module.audit_hash(report) == report["audit_hash"]
         assert write_result["result_schema"] == "agentic-rag-cli-production-audit-write-result-v1"
         assert write_result["audit_hash"] == report["audit_hash"]
+        assert write_result["json_sha256"] == module.file_sha256(audit_json_path)
+        assert write_result["markdown_sha256"] == module.file_sha256(audit_md_path)
         assert write_result["preflight_hash"] == evidence["preflight_hash"]
         assert write_result["preflight_checks_hash"] == evidence["checks_hash"]
         assert report["audit_hash"] in markdown
@@ -1230,6 +1236,8 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert "missing stdout/stderr evidence" in failures
     finally:
         evidence_path.unlink(missing_ok=True)
+        evidence_path.with_suffix(".audit.json").unlink(missing_ok=True)
+        evidence_path.with_suffix(".audit.md").unlink(missing_ok=True)
 
 
 def test_deployment_docs_describe_archive_evidence_contracts() -> None:

@@ -1290,7 +1290,9 @@ def write_result(report: dict[str, Any], *, json_path: Path, markdown_path: Path
         "summary": report.get("summary"),
         "audit_hash": report.get("audit_hash"),
         "json_path": str(json_path),
+        "json_sha256": file_sha256(json_path),
         "markdown_path": str(markdown_path),
+        "markdown_sha256": file_sha256(markdown_path),
         "preflight_evidence": (report.get("mode") or {}).get("preflight_evidence") if isinstance(report.get("mode"), dict) else None,
         "preflight_hash": preflight_details.get("preflight_hash"),
         "preflight_checks_hash": preflight_details.get("checks_hash"),
@@ -1299,6 +1301,13 @@ def write_result(report: dict[str, Any], *, json_path: Path, markdown_path: Path
 
 def hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def file_sha256(path: Path) -> str | None:
+    try:
+        return sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
 
 
 def compact_hash_payload(payload: Any) -> str:
