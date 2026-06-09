@@ -407,6 +407,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
             agent_memory = json.loads(archive.read("evidence/agent_memory.json").decode("utf-8"))
             production_gap_summary = json.loads(archive.read("evidence/production_gap_summary.json").decode("utf-8"))
+            rag_vector_index_archive = json.loads(archive.read("evidence/rag_vector_index_archive_semantics.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
             evidence_hashes = json.loads(archive.read("evidence_hashes.json").decode("utf-8"))
             audit_hash = audit.get("audit_hash")
@@ -496,6 +497,13 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             _record_semantic_check(
                 semantic_checks,
                 errors,
+                "rag_vector_index_archive_evidence",
+                rag_vector_index_archive == (evidence.get("rag_vector_index_archive_semantics") or {}),
+                "evidence/rag_vector_index_archive_semantics.json does not match production_audit.json evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
                 "workflow_trace_archive_evidence",
                 workflow_trace_archive == (evidence.get("workflow_trace_archive_semantics") or {}),
                 "evidence/workflow_trace_archive_semantics.json does not match production_audit.json evidence.",
@@ -508,6 +516,30 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 "evidence_hashes.json does not match production_audit.json evidence_hashes.",
             )
             _verify_evidence_hashes(archive, evidence, evidence_hashes, semantic_checks, errors)
+            latest_vector_index = (rag_vector_index_archive.get("latest_artifacts") or [{}])[0]
+            checked_vector_indexes = int(rag_vector_index_archive.get("checked_count") or 0)
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "rag_vector_index_archive_migration_backend",
+                checked_vector_indexes == 0
+                or bool(latest_vector_index.get("recommended_backend") and latest_vector_index.get("migration_target_backend")),
+                "Latest RAG vector index archive evidence is missing recommended_backend or migration_target_backend.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "rag_vector_index_archive_parity",
+                checked_vector_indexes == 0 or latest_vector_index.get("parity_status") in {"pass", "warning"},
+                "Latest RAG vector index archive evidence is missing pass/warning parity_status.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "rag_vector_index_archive_row_hash",
+                checked_vector_indexes == 0 or len(str(latest_vector_index.get("vector_row_hash") or "")) == 64,
+                "Latest RAG vector index archive evidence is missing a 64-character vector_row_hash.",
+            )
             latest_trace = (workflow_trace_archive.get("latest_artifacts") or [{}])[0]
             checked_traces = int(workflow_trace_archive.get("checked_count") or 0)
             _record_semantic_check(
