@@ -2965,6 +2965,7 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
         assert recommendation_readiness["readiness_status"] in {"pass", "warning"}
         assert len(recommendation_readiness["readiness_hash"]) == 64
         assert recommended_folding_evidence["folding_schema"] == "agentic-rag-rna-folding-v1"
+        assert recommended_folding_evidence["candidate_id"] == design["recommended_candidate"]["candidate_id"]
         assert recommended_folding_evidence["folding_evidence_hash"] == design["recommended_folding_evidence"]["folding_evidence_hash"]
         artifact_manifest = json.loads(archive.read("artifact_manifest.json"))
         bundle_manifest = json.loads(archive.read("bundle_manifest.json"))
@@ -3017,10 +3018,12 @@ def test_qc_report_bundle_contains_manifested_multiformat_exports() -> None:
     assert verification["semantic_checks"]["recommendation_readiness_report"] == "pass"
     assert verification["semantic_checks"]["recommendation_readiness_payload_hash"] == "pass"
     assert verification["semantic_checks"]["recommendation_readiness_candidate"] == "pass"
+    assert verification["semantic_checks"]["recommendation_readiness_folding_candidate"] == "pass"
     assert verification["semantic_checks"]["recommendation_readiness_status"] == "pass"
     assert verification["semantic_checks"]["recommended_folding_evidence_schema"] == "pass"
     assert verification["semantic_checks"]["recommended_folding_evidence_report"] == "pass"
     assert verification["semantic_checks"]["recommended_folding_evidence_payload_hash"] == "pass"
+    assert verification["semantic_checks"]["recommended_folding_evidence_candidate"] == "pass"
     assert verification["semantic_checks"]["optimizer_hash_report"] == "pass"
     assert verification["semantic_checks"]["request_payload"] == "pass"
     assert verification["semantic_checks"]["request_target_brain_region"] == "pass"

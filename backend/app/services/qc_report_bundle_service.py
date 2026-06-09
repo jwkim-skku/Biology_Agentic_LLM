@@ -482,6 +482,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         _hash_payload_compact(_without_key(recommended_folding_evidence_file, "folding_evidence_hash")),
         "recommended_folding_evidence.json folding_evidence_hash does not match its payload.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommended_folding_evidence_candidate",
+        recommended_folding_evidence_file.get("candidate_id"),
+        recommended_candidate_id,
+        "recommended_folding_evidence.json candidate_id does not match qc_report.json recommended candidate.",
+    )
 
     missing_columns = sorted(REQUIRED_CANDIDATE_COLUMNS - set(candidate_headers))
     _record_check(semantic_checks, "candidate_csv_columns", not missing_columns)
@@ -639,6 +647,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         recommendation_readiness_file.get("recommended_candidate_id"),
         recommended_candidate_id,
         "recommendation_readiness.json recommended_candidate_id does not match qc_report.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_readiness_folding_candidate",
+        recommendation_readiness_file.get("recommended_candidate_id"),
+        recommended_folding_evidence_file.get("candidate_id"),
+        "recommendation_readiness.json recommended_candidate_id does not match recommended_folding_evidence.json candidate_id.",
     )
     _record_check(
         semantic_checks,

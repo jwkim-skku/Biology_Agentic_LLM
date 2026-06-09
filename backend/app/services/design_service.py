@@ -81,16 +81,19 @@ def optimize_design(
 
 def _recommended_folding_evidence(recommended: dict | None) -> dict:
     cds = (recommended or {}).get("cds")
+    candidate_id = (recommended or {}).get("candidate_id")
     if not cds:
         payload = {
             "folding_schema": "agentic-rag-rna-folding-v1",
             "status": "warning",
             "active_backend": "missing_recommended_candidate",
             "fallback_active": True,
+            "candidate_id": candidate_id,
             "warnings": ["No recommended candidate was available for folding evidence."],
         }
         return {**payload, "folding_evidence_hash": _hash_payload(payload)}
     payload = evaluate_rna_folding(str(cds))
+    payload["candidate_id"] = candidate_id
     return {**payload, "folding_evidence_hash": _hash_payload(payload)}
 
 
