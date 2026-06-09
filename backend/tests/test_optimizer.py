@@ -1234,6 +1234,40 @@ def test_production_env_template_requires_object_store_credentials() -> None:
         assert key.lower().replace("artifact_object_store_", "").replace("_", " ") in " ".join(failures).lower()
 
 
+def test_production_env_strict_requires_hmac_signing_key_id() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "validate_production_env.py"
+    spec = importlib.util.spec_from_file_location("validate_production_env_signing_unit", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    values = module.parse_env(root / ".env.production.example")
+    values.update(
+        {
+            "NEXT_PUBLIC_API_BASE_URL": "https://dashboard.example.org/api/v1",
+            "NEXT_PUBLIC_API_KEY": "viewer-key-000000000000000000",
+            "CORS_ORIGINS": "https://dashboard.example.org",
+            "DATABASE_URL": "postgresql://agentic:strong-secret@postgres:5432/agentic",
+            "POSTGRES_PASSWORD": "strong-postgres-secret",
+            "OPENAI_API_KEY": "",
+            "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS": "0",
+            "API_KEYS": "admin-key-000000000000000000,viewer-key-000000000000000000",
+            "API_KEY_ROLES": "admin-key-000000000000000000=admin;viewer-key-000000000000000000=viewer",
+            "ARTIFACT_SIGNING_KEY": "unit-test-hmac-signing-secret-with-32-bytes",
+            "ARTIFACT_SIGNING_KEY_ID": "",
+            "ARTIFACT_OBJECT_STORE_ENDPOINT": "https://s3.example.org",
+            "ARTIFACT_OBJECT_STORE_BUCKET": "agentic-rag-prod",
+            "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID": "object-access-key",
+            "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY": "object-secret-key",
+        }
+    )
+    failures: list[str] = []
+    warnings: list[str] = []
+    module.validate_strict(values, failures, warnings)
+    assert "ARTIFACT_SIGNING_KEY_ID" in " ".join(failures)
+
+
 def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
     with patch.dict(
         os.environ,

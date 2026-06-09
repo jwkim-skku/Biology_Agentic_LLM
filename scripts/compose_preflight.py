@@ -106,6 +106,7 @@ def static_checks(failures: list[str]) -> None:
         "API_KEYS is required for production compose",
         "API_KEY_ROLES is required for production compose",
         "ARTIFACT_SIGNING_KEY is required for production compose",
+        "ARTIFACT_SIGNING_KEY_ID is required for production compose",
         "NEXT_PUBLIC_API_BASE_URL is required for production compose",
         "POSTGRES_PASSWORD is required for production compose",
         "OPENAI_API_KEY",

@@ -228,6 +228,8 @@ def validate_strict(values: dict[str, str], failures: list[str], warnings: list[
     _require(bool(signing_key or ed25519_private or ed25519_public), failures, "Artifact signing or verification must be configured.")
     if signing_key and len(signing_key) < 32:
         failures.append("ARTIFACT_SIGNING_KEY should be at least 32 characters.")
+    if signing_key and not values.get("ARTIFACT_SIGNING_KEY_ID"):
+        failures.append("ARTIFACT_SIGNING_KEY_ID must be set when HMAC artifact signing is configured.")
     if (ed25519_private or ed25519_public) and not values.get("ARTIFACT_ED25519_KEY_ID"):
         failures.append("ARTIFACT_ED25519_KEY_ID must be set when Ed25519 signing or verification is configured.")
 
