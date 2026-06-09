@@ -137,6 +137,8 @@ async function main() {
     assert(/Risk\s+(pass|warning|fail|n\/a)/.test(designText), `Candidate constraint risk was not rendered: ${designText}`);
     assert(/Structure proxy\s*(\d+\.\d+|n\/a)/.test(designText), `Secondary-structure proxy score was not rendered: ${designText}`);
     assert(/Folding evidence\s+(pass|warning|fail|n\/a)/.test(designText), `Recommended folding evidence status was not rendered: ${designText}`);
+    assert(/Readiness\s+(pass|warning|fail|n\/a)/.test(designText), `Recommendation readiness status was not rendered: ${designText}`);
+    assert(/Ready hash\s+([a-f0-9]{12}|n\/a)/.test(designText), `Recommendation readiness hash was not rendered: ${designText}`);
     assert(/Folding hash\s+([a-f0-9]{12}|n\/a)/.test(designText), `Recommended folding evidence hash was not rendered: ${designText}`);
     assert(/rank\s+\d+\s+with composite|selection trace unavailable/.test(designText), `Candidate selection trace was not rendered: ${designText}`);
     assert(/QC Report/.test(designText), `QC report was not rendered after CDS design: ${designText}`);
@@ -173,6 +175,8 @@ async function main() {
     assert(/Status\s+(pass|warning|fail)/.test(deploymentText), `Deployment readiness status was not rendered: ${deploymentText}`);
     assert(/Deploy\s+(ready|hold)/.test(deploymentText), `Deployment readiness deploy flag was not rendered: ${deploymentText}`);
     assert(/QC archive\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC archive gate was not rendered: ${deploymentText}`);
+    assert(/QC ready\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC recommendation readiness status was not rendered: ${deploymentText}`);
+    assert(/QC ready hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC recommendation readiness hash was not rendered: ${deploymentText}`);
     assert(/QC folding\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness QC folding status was not rendered: ${deploymentText}`);
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC folding hash was not rendered: ${deploymentText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC rank evidence was not rendered: ${deploymentText}`);
@@ -193,6 +197,8 @@ async function main() {
     assert(/Status\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit status was not rendered: ${productionAuditText}`);
     assert(/Verify\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit verification was not rendered: ${productionAuditText}`);
     assert(/QC archive\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit QC archive status was not rendered: ${productionAuditText}`);
+    assert(/QC ready\s+(pass|warning|fail|n\/a)/.test(productionAuditText), `Production audit QC recommendation readiness status was not rendered: ${productionAuditText}`);
+    assert(/QC ready hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC recommendation readiness hash was not rendered: ${productionAuditText}`);
     assert(/QC folding\s+(pass|warning|fail|n\/a)\s+\/\s+(\w+|n\/a)/.test(productionAuditText), `Production audit QC folding status was not rendered: ${productionAuditText}`);
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC folding hash was not rendered: ${productionAuditText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(productionAuditText), `Production audit QC rank evidence was not rendered: ${productionAuditText}`);
@@ -212,6 +218,8 @@ async function main() {
     assert(/Ledger\s+(pass|warning|fail|n\/a)/.test(archiveText), `Artifact archive ledger status was not rendered: ${archiveText}`);
     assert(/QC semantic\s+(pass|warning|fail|n\/a)\s+\/\s+checked\s+(\d+|n\/a)/.test(archiveText), `QC bundle archive semantic summary was not rendered: ${archiveText}`);
     assert(/Request\s+(pass|fail|n\/a)\s+\/\s+target\s+(\d+\s+pass\s+\/\s+\d+\s+fail|n\/a)/.test(archiveText), `QC request provenance summary was not rendered: ${archiveText}`);
+    assert(/Ready\s+(pass|warning|fail|n\/a)\s+\/\s+release\s+(yes|no|n\/a)/.test(archiveText), `QC recommendation readiness summary was not rendered: ${archiveText}`);
+    assert(/Ready hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `QC recommendation readiness hash was not rendered: ${archiveText}`);
     assert(/Folding\s+(pass|warning|fail|n\/a)\s+\/\s+(\w+|n\/a)/.test(archiveText), `QC archive folding status was not rendered: ${archiveText}`);
     assert(/Folding hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `QC archive folding hash was not rendered: ${archiveText}`);
     assert(/Rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(archiveText), `QC archive rank evidence was not rendered: ${archiveText}`);

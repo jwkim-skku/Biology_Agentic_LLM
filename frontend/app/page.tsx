@@ -203,6 +203,33 @@ type RecommendedFoldingEvidence = {
   warnings?: string[];
 };
 
+type RecommendationReadiness = {
+  readiness_schema?: string;
+  recommended_candidate_id?: string | null;
+  release_ready?: boolean;
+  readiness_status?: string;
+  blocking_reasons?: string[];
+  warning_reasons?: string[];
+  constraint_risk_status?: string | null;
+  constraint_fail_count?: number | null;
+  constraint_warning_count?: number | null;
+  pareto_front_member?: boolean | null;
+  pareto_quality_hash?: string | null;
+  max_regret?: number | null;
+  tradeoff_count?: number | null;
+  folding_status?: string | null;
+  folding_backend?: string | null;
+  folding_fallback_active?: boolean | null;
+  folding_evidence_hash?: string | null;
+  data_quality_status?: string | null;
+  data_quality_manifest_hash?: string | null;
+  optimizer_stress_status?: string | null;
+  optimizer_stress_cases_hash?: string | null;
+  qc_gate_status?: string | null;
+  validation_statuses?: string[];
+  readiness_hash?: string | null;
+};
+
 type QcReport = {
   evidence_summary: {
     supported_rules: QcRule[];
@@ -323,6 +350,7 @@ type QcReport = {
     recommended?: SequencePolicyAudit;
   };
   recommended_folding_evidence?: RecommendedFoldingEvidence;
+  recommendation_readiness?: RecommendationReadiness;
   warnings: string[];
   open_questions: string[];
   qc_gate?: {
@@ -885,6 +913,9 @@ type ProductionAuditStatus = {
         report_formats_summary_hash?: string | null;
         candidate_ranking_hash?: string | null;
         recommendation_audit_hash?: string | null;
+        recommendation_readiness_hash?: string | null;
+        recommendation_readiness_status?: string | null;
+        recommendation_release_ready?: boolean | null;
         recommended_folding_evidence_hash?: string | null;
         recommended_folding_status?: string | null;
         recommended_folding_backend?: string | null;
@@ -1248,6 +1279,9 @@ type ArchivedArtifactVerification = {
     optimizer_manifest_hash?: string | null;
     recommended_folding_evidence_hash?: string | null;
     recommended_folding_status?: string | null;
+    recommendation_readiness_hash?: string | null;
+    recommendation_readiness_status?: string | null;
+    recommendation_release_ready?: boolean | null;
     checked_files?: number;
     file_count?: number;
     semantic_checks?: Record<string, string>;
@@ -1278,6 +1312,9 @@ type QcBundleArchiveSemanticSummary = ArchiveSemanticFreshness & {
     report_formats_summary_hash?: string | null;
     candidate_ranking_hash?: string | null;
     recommendation_audit_hash?: string | null;
+    recommendation_readiness_hash?: string | null;
+    recommendation_readiness_status?: string | null;
+    recommendation_release_ready?: boolean | null;
     recommended_folding_evidence_hash?: string | null;
     recommended_folding_status?: string | null;
     recommended_folding_backend?: string | null;
@@ -4307,6 +4344,9 @@ export default function Dashboard() {
               <span>Actions {deploymentReadiness?.required_actions?.length ?? "n/a"}</span>
               <span>Action hash {deploymentReadiness?.required_actions_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>QC archive {deploymentGateStatus(deploymentReadiness, "qc_bundle_archive_semantics")}</span>
+              <span>QC ready {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_readiness_status")}</span>
+              <span>QC ready hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_readiness_hash")}</span>
+              <span>QC release {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommendation_release_ready")}</span>
               <span>QC folding {deploymentGateDetail(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_status")}</span>
               <span>QC fold hash {deploymentGateHash(deploymentReadiness, "qc_bundle_archive_semantics", "latest_recommended_folding_evidence_hash")}</span>
               <span>
@@ -4381,6 +4421,8 @@ export default function Dashboard() {
               <span>Verify {productionAudit?.verification?.status ?? "n/a"}</span>
               <span>QC archive {productionAudit?.evidence?.qc_bundle_archive_semantics?.status ?? "n/a"}</span>
               <span>QC checked {productionAudit?.evidence?.qc_bundle_archive_semantics?.checked_count ?? "n/a"}</span>
+              <span>QC ready {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_readiness_status ?? "n/a"}</span>
+              <span>QC ready hash {productionAudit?.evidence?.qc_bundle_archive_semantics?.latest_artifacts?.[0]?.recommendation_readiness_hash?.slice(0, 10) ?? "n/a"}</span>
               <span>Data release {productionAudit?.evidence?.data_release_archive_semantics?.status ?? "n/a"}</span>
               <span>Release checked {productionAudit?.evidence?.data_release_archive_semantics?.checked_count ?? "n/a"}</span>
               <span>Release fresh {formatArchiveFreshness(productionAudit?.evidence?.data_release_archive_semantics)}</span>
@@ -4745,6 +4787,13 @@ export default function Dashboard() {
               </span>
               <span>
                 Recommend audit {qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_audit_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Ready {qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_readiness_status ?? "n/a"} / release{" "}
+                {formatBoolean(qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_release_ready)}
+              </span>
+              <span>
+                Ready hash {qcBundleSemantics?.latest_artifacts?.[0]?.recommendation_readiness_hash?.slice(0, 10) ?? "n/a"}
               </span>
               <span>
                 Folding {qcBundleSemantics?.latest_artifacts?.[0]?.recommended_folding_status ?? "n/a"} /{" "}
@@ -5236,6 +5285,7 @@ function QcReportPanel({ report }: { report: QcReport }) {
   const bestByMetric = diagnostics?.best_by_metric ?? {};
   const recommendationAudit = report.recommendation_audit ?? diagnostics?.recommendation_audit;
   const foldingEvidence = report.recommended_folding_evidence;
+  const readiness = report.recommendation_readiness;
 
   return (
     <section className="qc-panel" aria-label="QC report summary">
@@ -5472,6 +5522,34 @@ function QcReportPanel({ report }: { report: QcReport }) {
           <div>
             <span>Primary tradeoff</span>
             <strong>{recommendationAudit.primary_tradeoff?.metric?.replaceAll("_", " ") ?? "none"}</strong>
+          </div>
+        </div>
+      ) : null}
+      {readiness ? (
+        <div className="policy-strip" aria-label="Recommendation readiness">
+          <div>
+            <span>Readiness</span>
+            <strong>{readiness.readiness_status ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Release ready</span>
+            <strong>{formatBoolean(readiness.release_ready)}</strong>
+          </div>
+          <div>
+            <span>Ready hash</span>
+            <strong>{readiness.readiness_hash?.slice(0, 12) ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Constraint / Pareto</span>
+            <strong>{readiness.constraint_risk_status ?? "n/a"} / {formatBoolean(readiness.pareto_front_member)}</strong>
+          </div>
+          <div>
+            <span>Fold / stress</span>
+            <strong>{readiness.folding_status ?? "n/a"} / {readiness.optimizer_stress_status ?? "n/a"}</strong>
+          </div>
+          <div>
+            <span>Blocks / warns</span>
+            <strong>{readiness.blocking_reasons?.length ?? 0} / {readiness.warning_reasons?.length ?? 0}</strong>
           </div>
         </div>
       ) : null}
@@ -5775,6 +5853,11 @@ function formatBytes(value: number) {
 function formatMetric(value?: number, digits = 3) {
   if (typeof value !== "number" || !Number.isFinite(value)) return "n/a";
   return value.toFixed(digits);
+}
+
+function formatBoolean(value?: boolean | null) {
+  if (typeof value !== "boolean") return "n/a";
+  return value ? "yes" : "no";
 }
 
 function formatCurrency(value?: number | null) {
