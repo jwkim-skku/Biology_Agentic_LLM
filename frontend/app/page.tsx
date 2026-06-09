@@ -4533,6 +4533,10 @@ export default function Dashboard() {
                 {productionAudit?.evidence_hashes?.evidence_count ?? "n/a"} files
               </span>
               <span>
+                Evidence alg {productionAudit?.evidence_hashes?.algorithm ?? "n/a"} /{" "}
+                {productionAudit?.evidence_hashes?.hash_schema ?? "n/a"}
+              </span>
+              <span>
                 Gap hash {productionAudit?.production_gap_summary?.gap_summary_hash?.slice(0, 10) ?? "n/a"} / blocking{" "}
                 {productionAudit?.production_gap_summary?.blocking_count ?? "n/a"}
               </span>

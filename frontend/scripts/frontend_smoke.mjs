@@ -247,6 +247,9 @@ async function main() {
     assert(/Import semantic pass\s+(\d+|n\/a)\s+\/\s+fail\s+(\d+|n\/a)/.test(productionAuditText), `Production audit import semantic counts were not rendered: ${productionAuditText}`);
     assert(/Audit\s+(\d+(\.\d+)?s|n\/a)/.test(productionAuditText), `Production audit timing was not rendered: ${productionAuditText}`);
     assert(/Cache TTL\s+(\d+|n\/a)s/.test(productionAuditText), `Production audit cache policy was not rendered: ${productionAuditText}`);
+    assert(/Evidence hash\s+([a-f0-9]{10}|n\/a)\s+\/\s+(\d+|n\/a)\s+files/.test(productionAuditText), `Production audit evidence combined hash was not rendered: ${productionAuditText}`);
+    assert(/Evidence alg\s+(sha256|n\/a)\s+\/\s+(agentic-rag-production-audit-evidence-hashes-v1|n\/a)/.test(productionAuditText), `Production audit evidence hash algorithm/schema was not rendered: ${productionAuditText}`);
+    assert(/Gap hash\s+([a-f0-9]{10}|n\/a)\s+\/\s+blocking\s+(\d+|n\/a)/.test(productionAuditText), `Production audit gap summary hash was not rendered: ${productionAuditText}`);
     const productionAuditResponse = apiResponses.find((item) => item.url === `${API_BASE}/deployment/audit`);
     assert(productionAuditResponse?.status === 200, "Frontend did not load /deployment/audit successfully.");
     const archiveText = await sectionText(page, "Immutable artifact archive");
