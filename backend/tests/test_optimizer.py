@@ -460,6 +460,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "Release handoff hash" in markdown
     assert "QC readiness candidate" in markdown
     assert "QC folding candidate" in markdown
+    assert "Refresh plan dataset" in markdown
+    assert "Refresh plan request hash" in markdown
+    assert "Refresh plan operations hash" in markdown
     assert "RAG regression case metrics" in markdown
     assert "Optimizer recommended-front count" in markdown
     assert "Optimizer folding candidate matches" in markdown
@@ -565,6 +568,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "RAG embedding fingerprint" in bundled_markdown
         assert "QC readiness candidate" in bundled_markdown
         assert "QC folding candidate" in bundled_markdown
+        assert "Refresh plan dataset" in bundled_markdown
+        assert "Refresh plan request hash" in bundled_markdown
+        assert "Refresh plan operations hash" in bundled_markdown
         assert "Readiness action hash" in bundled_markdown
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
