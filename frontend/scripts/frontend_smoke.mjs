@@ -194,6 +194,7 @@ async function main() {
     assert(/QC fold hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC folding hash was not rendered: ${deploymentText}`);
     assert(/QC rank evidence\s+(\d+|n\/a)\s+\/\s+hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness QC rank evidence was not rendered: ${deploymentText}`);
     assert(/Release handoff\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness release handoff hash was not rendered: ${deploymentText}`);
+    assert(/Release sources\s+([a-f0-9]{10}|n\/a)\s+\/\s+datasets\s+(\d+|n\/a)\s+\/\s+files\s+(\d+|n\/a)/.test(deploymentText), `Deployment readiness release source evidence was not rendered: ${deploymentText}`);
     assert(/Plan ops\s+(\d+|n\/a)\s+\/\s+validation\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness refresh plan operation evidence was not rendered: ${deploymentText}`);
     assert(/Plan dataset\s+([\w.-]+|n\/a)\s+\/\s+req\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness refresh plan request evidence was not rendered: ${deploymentText}`);
     assert(/Plan op hash\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness refresh plan operations hash was not rendered: ${deploymentText}`);

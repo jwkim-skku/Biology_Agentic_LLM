@@ -4369,6 +4369,11 @@ export default function Dashboard() {
               <span>Data release {deploymentGateStatus(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release fresh {deploymentGateFreshness(deploymentReadiness, "data_release_archive_semantics")}</span>
               <span>Release handoff {deploymentGateHash(deploymentReadiness, "data_release_archive_semantics", "latest_release_handoff_hash")}</span>
+              <span>
+                Release sources {deploymentGateHash(deploymentReadiness, "data_release_archive_semantics", "latest_record_source_summary_hash")} /
+                datasets {deploymentGateDetail(deploymentReadiness, "data_release_archive_semantics", "latest_dataset_count")} /
+                files {deploymentGateDetail(deploymentReadiness, "data_release_archive_semantics", "latest_source_file_count")}
+              </span>
               <span>Refresh plan {deploymentGateStatus(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>Plan fresh {deploymentGateFreshness(deploymentReadiness, "data_refresh_plan_archive_semantics")}</span>
               <span>

@@ -458,6 +458,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert "## Readiness Evidence" in markdown
     assert "Agent memory count" in markdown
     assert "Release handoff hash" in markdown
+    assert "Release source summary" in markdown
+    assert "Release datasets" in markdown
+    assert "Release source files" in markdown
     assert "QC readiness candidate" in markdown
     assert "QC folding candidate" in markdown
     assert "Refresh plan dataset" in markdown
@@ -568,6 +571,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "Agent memory aggregate" in bundled_markdown
         assert "Object-store lifecycle" in bundled_markdown
         assert "RAG embedding fingerprint" in bundled_markdown
+        assert "Release source summary" in bundled_markdown
+        assert "Release datasets" in bundled_markdown
+        assert "Release source files" in bundled_markdown
         assert "QC readiness candidate" in bundled_markdown
         assert "QC folding candidate" in bundled_markdown
         assert "Refresh plan dataset" in bundled_markdown
