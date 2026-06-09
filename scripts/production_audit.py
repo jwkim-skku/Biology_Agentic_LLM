@@ -1286,6 +1286,7 @@ def write_result(report: dict[str, Any], *, json_path: Path, markdown_path: Path
     preflight = next((check for check in report.get("checks", []) if isinstance(check, dict) and check.get("name") == "preflight_evidence"), None)
     preflight_details = preflight.get("details") if isinstance(preflight, dict) and isinstance(preflight.get("details"), dict) else {}
     return {
+        "result_schema": "agentic-rag-cli-production-audit-write-result-v1",
         "summary": report.get("summary"),
         "audit_hash": report.get("audit_hash"),
         "json_path": str(json_path),

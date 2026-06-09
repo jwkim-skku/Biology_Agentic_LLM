@@ -1130,6 +1130,7 @@ def test_cli_production_audit_hashes_preflight_evidence_report() -> None:
         assert preflight_check["details"]["preflight_hash"] == evidence["preflight_hash"]
         assert len(preflight_check["details"]["required_checks"]) == len(module.REQUIRED_PREFLIGHT_CHECKS)
         assert module.audit_hash(report) == report["audit_hash"]
+        assert write_result["result_schema"] == "agentic-rag-cli-production-audit-write-result-v1"
         assert write_result["audit_hash"] == report["audit_hash"]
         assert write_result["preflight_hash"] == evidence["preflight_hash"]
         assert write_result["preflight_checks_hash"] == evidence["checks_hash"]
