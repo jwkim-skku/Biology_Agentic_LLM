@@ -21,6 +21,7 @@ jobs:
       - run: python scripts/golden_response_test.py
       - run: python scripts/golden_value_test.py
       - run: python -c "import inspect; from tests import test_optimizer as t; [getattr(t, name)() for name in dir(t) if name.startswith('test_') and not inspect.signature(getattr(t, name)).parameters]; print('manual tests passed')"
+      - run: mkdir -p app/data/runtime
       - run: python ../scripts/portfolio_readiness_matrix.py --strict > app/data/runtime/portfolio_readiness_matrix.json
       - run: python ../scripts/preflight.py --skip-frontend --skip-smoke --skip-signing-smoke --skip-ui-smoke --output-json backend/app/data/runtime/preflight_ci.json
       - run: |
@@ -197,4 +198,4 @@ jobs:
       - run: docker compose --env-file .env.compose-ci config
       - run: |
           docker compose --env-file .env.compose-ci -f docker-compose.yml -f docker-compose.production.yml config
-      - run: docker compose build
+      - run: docker compose --env-file .env.compose-ci build
