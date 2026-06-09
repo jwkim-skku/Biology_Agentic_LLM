@@ -152,10 +152,17 @@ def run_docker_compose_config(*, require_docker: bool, failures: list[str], warn
             handle.write(f"{key}={value}\n")
 
     try:
-        base = compose_config(["-f", str(BASE_COMPOSE), "--env-file", str(env_path)], failures)
+        base = compose_config(
+            ["-f", str(BASE_COMPOSE), "--env-file", str(env_path)],
+            require_docker=require_docker,
+            failures=failures,
+            warnings=warnings,
+        )
         production = compose_config(
             ["--profile", "postgres", "-f", str(BASE_COMPOSE), "-f", str(PRODUCTION_COMPOSE), "--env-file", str(env_path)],
-            failures,
+            require_docker=require_docker,
+            failures=failures,
+            warnings=warnings,
         )
     finally:
         try:
@@ -208,11 +215,15 @@ def run_docker_compose_config(*, require_docker: bool, failures: list[str], warn
     }
 
 
-def compose_config(args: list[str], failures: list[str]) -> str:
+def compose_config(args: list[str], *, require_docker: bool, failures: list[str], warnings: list[str]) -> str:
     command = ["docker", "compose", *args, "config"]
     completed = subprocess.run(command, cwd=ROOT, capture_output=True, text=True)
     if completed.returncode != 0:
-        failures.append(f"{' '.join(command)} failed: {completed.stderr.strip()}")
+        message = f"{' '.join(command)} failed: {completed.stderr.strip()}"
+        if require_docker:
+            failures.append(message)
+        else:
+            warnings.append(message)
         return ""
     return completed.stdout
 
