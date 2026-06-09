@@ -26,6 +26,8 @@ jobs:
       - run: |
           python ../scripts/production_audit.py --template --skip-api --preflight-evidence backend/app/data/runtime/preflight_ci.json > app/data/runtime/production_audit_write_result.json
           python ../scripts/verify_production_audit_write_result.py --path app/data/runtime/production_audit_write_result.json
+          python ../scripts/production_promotion_runbook.py --write-result app/data/runtime/production_audit_write_result.json --output app/data/runtime/production_promotion_runbook.md
+          python ../scripts/production_promotion_runbook.py --write-result app/data/runtime/production_audit_write_result.json --format json --output app/data/runtime/production_promotion_runbook.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -46,6 +48,13 @@ jobs:
         with:
           name: backend-production-audit-write-result
           path: backend/app/data/runtime/production_audit_write_result.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-production-promotion-runbook
+          path: |
+            backend/app/data/runtime/production_promotion_runbook.md
+            backend/app/data/runtime/production_promotion_runbook.json
       - run: |
           export ARTIFACT_SIGNING_KEY=ci-artifact-signing-secret
           export ARTIFACT_SIGNING_KEY_ID=ci-hmac-key
