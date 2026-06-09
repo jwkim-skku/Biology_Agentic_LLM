@@ -4380,6 +4380,14 @@ export default function Dashboard() {
               <span>RAG source {deploymentGateHash(deploymentReadiness, "rag_evaluation_archive_semantics", "latest_source_provenance_hash")}</span>
               <span>Vector index {deploymentGateStatus(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
               <span>Vector fresh {deploymentGateFreshness(deploymentReadiness, "rag_vector_index_archive_semantics")}</span>
+              <span>
+                Vector backend {deploymentGateDetail(deploymentReadiness, "rag_vector_index_archive_semantics", "latest_recommended_backend")} /
+                migrate {deploymentGateDetail(deploymentReadiness, "rag_vector_index_archive_semantics", "latest_migration_target_backend")}
+              </span>
+              <span>
+                Vector parity {deploymentGateDetail(deploymentReadiness, "rag_vector_index_archive_semantics", "latest_parity_status")} /
+                row {deploymentGateHash(deploymentReadiness, "rag_vector_index_archive_semantics", "latest_vector_row_hash")}
+              </span>
               <span>RAG regress {deploymentGateStatus(deploymentReadiness, "rag_regression_archive_semantics")}</span>
               <span>RAG metrics {deploymentGateHash(deploymentReadiness, "rag_regression_archive_semantics", "latest_case_metrics_hash")}</span>
               <span>Bench summary {deploymentGateHash(deploymentReadiness, "optimizer_benchmark_archive_semantics", "latest_recommendation_summary_hash")}</span>

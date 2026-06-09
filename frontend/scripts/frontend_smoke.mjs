@@ -198,6 +198,8 @@ async function main() {
     assert(/Import audit\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness import audit gate was not rendered: ${deploymentText}`);
     assert(/RAG eval\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness RAG evaluation archive gate was not rendered: ${deploymentText}`);
     assert(/RAG source\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG source provenance hash was not rendered: ${deploymentText}`);
+    assert(/Vector backend\s+(\w+|n\/a)\s+\/\s+migrate\s+(\w+|n\/a)/.test(deploymentText), `Deployment readiness vector backend evidence was not rendered: ${deploymentText}`);
+    assert(/Vector parity\s+(pass|warning|fail|n\/a)\s+\/\s+row\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness vector parity evidence was not rendered: ${deploymentText}`);
     assert(/RAG regress\s+(pass|warning|fail|n\/a)/.test(deploymentText), `Deployment readiness RAG regression archive gate was not rendered: ${deploymentText}`);
     assert(/RAG metrics\s+([a-f0-9]{10}|n\/a)/.test(deploymentText), `Deployment readiness RAG metrics hash was not rendered: ${deploymentText}`);
     assert(/Bench front\s+(\d+|n\/a)\s+\/\s+regret\s+(\d+(\.\d+)?|n\/a)/.test(deploymentText), `Deployment readiness optimizer recommendation evidence was not rendered: ${deploymentText}`);
