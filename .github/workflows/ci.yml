@@ -31,6 +31,7 @@ jobs:
           python ../scripts/verify_production_audit_write_result.py --path app/data/runtime/production_audit_write_result.json
           python ../scripts/production_promotion_runbook.py --write-result app/data/runtime/production_audit_write_result.json --output app/data/runtime/production_promotion_runbook.md
           python ../scripts/production_promotion_runbook.py --write-result app/data/runtime/production_audit_write_result.json --format json --output app/data/runtime/production_promotion_runbook.json
+          python ../scripts/verify_production_promotion_runbook.py --path app/data/runtime/production_promotion_runbook.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

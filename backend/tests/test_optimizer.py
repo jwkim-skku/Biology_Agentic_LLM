@@ -1421,6 +1421,72 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
         preflight_path.unlink(missing_ok=True)
 
 
+def test_cli_production_promotion_runbook_verifier_recomputes_hashes() -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "verify_production_promotion_runbook.py"
+    spec = importlib.util.spec_from_file_location("production_promotion_runbook_verifier", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    valid_hash = "a" * 64
+    proof_checklist = [
+        {
+            "area": "rag_embedding_backend",
+            "priority": "promotion",
+            "resolution_scope": "operator_environment",
+            "resolution_mode": "managed_runtime",
+            "proof_artifact": "evidence/rag_embedding.json",
+            "proof_command": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status",
+            "gap_hash": valid_hash,
+        }
+    ]
+    payload = {
+        "runbook_schema": module.RUNBOOK_SCHEMA,
+        "source_audit_hash": valid_hash,
+        "source_generated_at": "2026-06-10T00:00:00Z",
+        "status": "warning",
+        "production_ready": False,
+        "gap_count": 1,
+        "blocking_count": 0,
+        "promotion_count": 1,
+        "resolution_scope_counts": {"operator_environment": 1},
+        "resolution_mode_counts": {"managed_runtime": 1},
+        "source_proof_checklist_count": 1,
+        "source_proof_checklist_hash": module.hash_payload(proof_checklist),
+        "proof_checklist_source_match": True,
+        "proof_checklist_count": 1,
+        "proof_checklist_hash": module.hash_payload(proof_checklist),
+        "proof_checklist": proof_checklist,
+        "groups": [
+            {
+                "resolution_scope": "operator_environment",
+                "count": 1,
+                "items": [
+                    {
+                        "area": "rag_embedding_backend",
+                        "priority": "promotion",
+                        "status": "warning",
+                        "resolution_mode": "managed_runtime",
+                    }
+                ],
+            }
+        ],
+        "verification": {"status": "pass", "errors": [], "warnings": []},
+    }
+    payload["runbook_hash"] = module.hash_payload({key: value for key, value in payload.items() if key != "runbook_hash"})
+
+    assert module.validate_runbook(payload) == []
+    tampered = {**payload, "runbook_hash": "0" * 64}
+    assert "runbook_hash" in " ".join(module.validate_runbook(tampered))
+    tampered = {**payload, "proof_checklist_source_match": False}
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "proof_checklist_source_match" in " ".join(module.validate_runbook(tampered))
+    tampered = {**payload, "source_proof_checklist_hash": "0" * 64}
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "source_proof_checklist_hash" in " ".join(module.validate_runbook(tampered))
+
+
 def test_portfolio_readiness_matrix_covers_pdf_requirement_areas() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "portfolio_readiness_matrix.py"
