@@ -420,6 +420,26 @@ def extract_preflight_summary(
 
 def validate_preflight_data_evidence(checks: list[Any], failures: list[str]) -> None:
     by_name = {str(check.get("name")): check for check in checks if isinstance(check, dict) and check.get("name")}
+    compose = check_details(by_name.get("compose_preflight"))
+    compose_static = compose.get("static_evidence") if isinstance(compose.get("static_evidence"), dict) else {}
+    if compose_static.get("schema") != "agentic-rag-compose-static-evidence-v1":
+        failures.append("compose_preflight did not include static evidence schema.")
+    for key in [
+        "base_compose_sha256",
+        "production_compose_sha256",
+        "required_base_tokens_hash",
+        "required_production_tokens_hash",
+        "synthetic_env_keys_hash",
+    ]:
+        if not compose_static.get(key):
+            failures.append(f"compose_preflight static evidence is missing {key}.")
+    if not compose.get("static_evidence_hash"):
+        failures.append("compose_preflight did not expose static_evidence_hash.")
+    if compose.get("synthetic_env_keys_hash") != compose_static.get("synthetic_env_keys_hash"):
+        failures.append("compose_preflight synthetic_env_keys_hash does not match static evidence.")
+    if int_value(compose_static.get("missing_base_token_count")) != 0 or int_value(compose_static.get("missing_production_token_count")) != 0:
+        failures.append("compose_preflight static evidence reports missing compose tokens.")
+
     structured = check_details(by_name.get("structured_import_cli_preview"))
     preview = structured.get("preview") if isinstance(structured.get("preview"), dict) else {}
     preview_validation = preview.get("validation") if isinstance(preview.get("validation"), dict) else {}

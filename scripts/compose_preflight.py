@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from hashlib import sha256
 import json
 import os
 import shutil
@@ -66,6 +67,42 @@ SYNTHETIC_ENV = {
     "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID": "compose-preflight-rfc3161",
 }
 
+REQUIRED_BASE_TOKENS = [
+    "${BACKEND_PORT:-8000}:8000",
+    "${FRONTEND_PORT:-3000}:3000",
+    "${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:8000/api/v1}",
+    "${OPENAI_API_KEY:-}",
+    "${OPENAI_EMBEDDING_BASE_URL:-https://api.openai.com/v1}",
+    "${OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS:-0}",
+    "${OPENAI_EMBEDDING_BUDGET_USD:-0}",
+    "${ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED:-false}",
+    "${ARTIFACT_EXTERNAL_TIMESTAMP_URL:-}",
+    "${ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID:-}",
+    "condition: service_healthy",
+]
+REQUIRED_PRODUCTION_TOKENS = [
+    "DATABASE_URL is required for production compose",
+    "API_KEYS is required for production compose",
+    "API_KEY_ROLES is required for production compose",
+    "ARTIFACT_SIGNING_KEY is required for production compose",
+    "ARTIFACT_SIGNING_KEY_ID is required for production compose",
+    "NEXT_PUBLIC_API_BASE_URL is required for production compose",
+    "POSTGRES_PASSWORD is required for production compose",
+    "OPENAI_API_KEY",
+    "OPENAI_EMBEDDING_BASE_URL",
+    "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS",
+    "OPENAI_EMBEDDING_BUDGET_USD",
+    "ARTIFACT_OBJECT_STORE_ENDPOINT is required for production compose",
+    "ARTIFACT_OBJECT_STORE_BUCKET is required for production compose",
+    "ARTIFACT_OBJECT_STORE_PREFIX is required for production compose",
+    "ARTIFACT_OBJECT_STORE_REGION is required for production compose",
+    "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID is required for production compose",
+    "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY is required for production compose",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_URL is required for production compose",
+    "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID is required for production compose",
+    "STORAGE_BACKEND: postgres",
+]
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate Docker Compose deployment configuration.")
@@ -75,7 +112,7 @@ def main() -> int:
 
     failures: list[str] = []
     warnings: list[str] = []
-    static_checks(failures)
+    static_evidence = static_checks(failures)
     docker_result = (
         {"available": shutil.which("docker") is not None, "config_checked": False, "static_only": True}
         if args.static_only
@@ -85,6 +122,9 @@ def main() -> int:
     result = {
         "base_compose": str(BASE_COMPOSE),
         "production_compose": str(PRODUCTION_COMPOSE),
+        "static_evidence": static_evidence,
+        "static_evidence_hash": hash_payload(static_evidence),
+        "synthetic_env_keys_hash": hash_payload(sorted(SYNTHETIC_ENV)),
         "docker": docker_result,
         "failures": failures,
         "warnings": warnings,
@@ -93,49 +133,35 @@ def main() -> int:
     return 1 if failures else 0
 
 
-def static_checks(failures: list[str]) -> None:
+def static_checks(failures: list[str]) -> dict[str, object]:
     base = read_required(BASE_COMPOSE, failures)
     production = read_required(PRODUCTION_COMPOSE, failures)
+    evidence = {
+        "schema": "agentic-rag-compose-static-evidence-v1",
+        "base_compose_sha256": file_sha256(BASE_COMPOSE) if BASE_COMPOSE.exists() else None,
+        "production_compose_sha256": file_sha256(PRODUCTION_COMPOSE) if PRODUCTION_COMPOSE.exists() else None,
+        "required_base_token_count": len(REQUIRED_BASE_TOKENS),
+        "required_production_token_count": len(REQUIRED_PRODUCTION_TOKENS),
+        "required_base_tokens_hash": hash_payload(REQUIRED_BASE_TOKENS),
+        "required_production_tokens_hash": hash_payload(REQUIRED_PRODUCTION_TOKENS),
+        "synthetic_env_key_count": len(SYNTHETIC_ENV),
+        "synthetic_env_keys_hash": hash_payload(sorted(SYNTHETIC_ENV)),
+    }
     if not base or not production:
-        return
+        return evidence
 
-    required_base_tokens = [
-        "${BACKEND_PORT:-8000}:8000",
-        "${FRONTEND_PORT:-3000}:3000",
-        "${NEXT_PUBLIC_API_BASE_URL:-http://127.0.0.1:8000/api/v1}",
-        "${OPENAI_API_KEY:-}",
-        "${OPENAI_EMBEDDING_BASE_URL:-https://api.openai.com/v1}",
-        "${OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS:-0}",
-        "${OPENAI_EMBEDDING_BUDGET_USD:-0}",
-        "${ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED:-false}",
-        "${ARTIFACT_EXTERNAL_TIMESTAMP_URL:-}",
-        "${ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID:-}",
-        "condition: service_healthy",
-    ]
-    required_production_tokens = [
-        "DATABASE_URL is required for production compose",
-        "API_KEYS is required for production compose",
-        "API_KEY_ROLES is required for production compose",
-        "ARTIFACT_SIGNING_KEY is required for production compose",
-        "ARTIFACT_SIGNING_KEY_ID is required for production compose",
-        "NEXT_PUBLIC_API_BASE_URL is required for production compose",
-        "POSTGRES_PASSWORD is required for production compose",
-        "OPENAI_API_KEY",
-        "OPENAI_EMBEDDING_BASE_URL",
-        "OPENAI_EMBEDDING_PRICE_PER_1K_TOKENS",
-        "OPENAI_EMBEDDING_BUDGET_USD",
-        "ARTIFACT_OBJECT_STORE_ENDPOINT is required for production compose",
-        "ARTIFACT_OBJECT_STORE_BUCKET is required for production compose",
-        "ARTIFACT_OBJECT_STORE_PREFIX is required for production compose",
-        "ARTIFACT_OBJECT_STORE_REGION is required for production compose",
-        "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID is required for production compose",
-        "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY is required for production compose",
-        "ARTIFACT_EXTERNAL_TIMESTAMP_URL is required for production compose",
-        "ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID is required for production compose",
-        "STORAGE_BACKEND: postgres",
-    ]
-    failures.extend(f"base compose missing token: {token}" for token in required_base_tokens if token not in base)
-    failures.extend(f"production compose missing token: {token}" for token in required_production_tokens if token not in production)
+    missing_base = [token for token in REQUIRED_BASE_TOKENS if token not in base]
+    missing_production = [token for token in REQUIRED_PRODUCTION_TOKENS if token not in production]
+    failures.extend(f"base compose missing token: {token}" for token in missing_base)
+    failures.extend(f"production compose missing token: {token}" for token in missing_production)
+    evidence.update(
+        {
+            "missing_base_token_count": len(missing_base),
+            "missing_production_token_count": len(missing_production),
+            "static_status": "fail" if missing_base or missing_production else "pass",
+        }
+    )
+    return evidence
 
 
 def read_required(path: Path, failures: list[str]) -> str:
@@ -256,6 +282,18 @@ def require_config_token(config: str, token: str, failures: list[str], message: 
 def require_any_config_token(config: str, tokens: list[str], failures: list[str], message: str) -> None:
     if not any(token in config for token in tokens):
         failures.append(message)
+
+
+def file_sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def hash_payload(payload: object) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 if __name__ == "__main__":

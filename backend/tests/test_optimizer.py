@@ -1285,6 +1285,23 @@ def test_deployment_docs_describe_archive_evidence_contracts() -> None:
 
 
 def _preflight_detail(name: str) -> dict[str, Any]:
+    if name == "compose_preflight":
+        static_evidence = {
+            "schema": "agentic-rag-compose-static-evidence-v1",
+            "base_compose_sha256": "c" * 64,
+            "production_compose_sha256": "d" * 64,
+            "required_base_tokens_hash": "e" * 64,
+            "required_production_tokens_hash": "f" * 64,
+            "synthetic_env_keys_hash": "1" * 64,
+            "missing_base_token_count": 0,
+            "missing_production_token_count": 0,
+        }
+        return {
+            "status": "pass",
+            "static_evidence": static_evidence,
+            "static_evidence_hash": "2" * 64,
+            "synthetic_env_keys_hash": static_evidence["synthetic_env_keys_hash"],
+        }
     if name == "structured_import_cli_preview":
         return {
             "status": "pass",
@@ -1531,8 +1548,18 @@ def test_compose_preflight_includes_required_external_service_env() -> None:
     spec.loader.exec_module(module)
 
     failures: list[str] = []
-    module.static_checks(failures)
+    evidence = module.static_checks(failures)
     assert failures == []
+    assert evidence["schema"] == "agentic-rag-compose-static-evidence-v1"
+    assert evidence["static_status"] == "pass"
+    assert len(evidence["base_compose_sha256"]) == 64
+    assert len(evidence["production_compose_sha256"]) == 64
+    assert len(evidence["required_base_tokens_hash"]) == 64
+    assert len(evidence["required_production_tokens_hash"]) == 64
+    assert len(evidence["synthetic_env_keys_hash"]) == 64
+    assert evidence["missing_base_token_count"] == 0
+    assert evidence["missing_production_token_count"] == 0
+    assert len(module.hash_payload(evidence)) == 64
     synthetic = module.SYNTHETIC_ENV
     required_object_store_keys = {
         "ARTIFACT_OBJECT_STORE_ENABLED",

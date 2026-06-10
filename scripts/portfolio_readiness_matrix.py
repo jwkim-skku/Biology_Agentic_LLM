@@ -88,6 +88,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
         "title": "Automated tests, preflight, production audit, and CI evidence",
         "evidence": [
             {"path": "scripts/preflight.py", "contains": ["preflight_hash", "frontend_smoke"]},
+            {"path": "scripts/compose_preflight.py", "contains": ["static_evidence_hash", "synthetic_env_keys_hash", "required_production_tokens_hash"]},
             {"path": "scripts/production_audit.py", "contains": ["audit_hash", "preflight_evidence", "proof_checklist_hash"]},
             {
                 "path": "backend/app/services/production_audit_service.py",
