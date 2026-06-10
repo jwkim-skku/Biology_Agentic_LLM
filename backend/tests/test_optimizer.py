@@ -3572,6 +3572,9 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
     assert verification["semantic_checks"]["migration_parity_schema"] == "pass"
     assert verification["semantic_checks"]["migration_source_count"] == "pass"
     assert verification["semantic_checks"]["migration_row_hash"] == "pass"
+    assert verification["semantic_checks"]["migration_target_backend_consistency"] == "pass"
+    assert verification["semantic_checks"]["recommended_backend_consistency"] == "pass"
+    assert verification["semantic_checks"]["migration_parity_source_count"] == "pass"
     assert verification["chunk_count"] >= 1
     assert verification["embedding_dimensions"] >= 1
     assert verification["migration_target_backend"] in {"local_json", "pgvector", "qdrant"}
@@ -3586,6 +3589,7 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
         parity = json.loads(archive.read("vector_store_parity.json"))
         assert manifest["vector_row_hash"] == import_plan["source"]["row_fingerprint"]["combined_row_hash"]
         assert parity["comparison"]["source_row_hash"] == verification["vector_row_hash"]
+        assert manifest["migration_target_backend"] == import_plan["target_backend"] == parity["target_backend"]
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_rag_vector_index_bundle",
@@ -3611,6 +3615,31 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
         and item["vector_row_hash"] == verification["vector_row_hash"]
         for item in summary["latest_artifacts"]
     )
+
+
+def test_rag_vector_index_bundle_rejects_mismatched_migration_target() -> None:
+    bundle = build_rag_vector_index_bundle()
+    source = ZipFile(BytesIO(bundle))
+    manifest = json.loads(source.read("bundle_manifest.json").decode("utf-8"))
+    import_plan = json.loads(source.read("vector_store_import_plan.json").decode("utf-8"))
+    parity = json.loads(source.read("vector_store_parity.json").decode("utf-8"))
+    parity["target_backend"] = "qdrant" if import_plan.get("target_backend") != "qdrant" else "pgvector"
+    parity["comparison"]["source_records"] = int((import_plan.get("source") or {}).get("records") or 0) + 1
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "vector_store_parity.json":
+                tampered.writestr(item, json.dumps(parity, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_rag_vector_index_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["migration_target_backend_consistency"] == "fail"
+    assert verification["semantic_checks"]["migration_parity_source_count"] == "fail"
+    assert "Migration target backend disagrees" in " ".join(verification["errors"])
+    assert manifest["migration_target_backend"] == import_plan["target_backend"]
 
 
 def test_structured_manifest_validates_sources() -> None:

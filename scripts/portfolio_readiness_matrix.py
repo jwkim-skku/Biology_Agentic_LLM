@@ -31,7 +31,10 @@ REQUIREMENTS: list[dict[str, Any]] = [
             {"path": "backend/app/services/rag_service.py", "contains": ["retrieval_trace", "facet_gap_analysis", "query_term_coverage"]},
             {"path": "backend/app/services/rag_evaluation_bundle_service.py", "contains": ["source_provenance", "facet_gap_analysis_hash"]},
             {"path": "backend/app/services/rag_regression_service.py", "contains": ["rag_regression_cases", "evaluate_rag_regression"]},
-            {"path": "backend/app/services/rag_vector_index_bundle_service.py", "contains": ["vector_store_import_plan", "vector_row_hash"]},
+            {
+                "path": "backend/app/services/rag_vector_index_bundle_service.py",
+                "contains": ["vector_store_import_plan", "vector_row_hash", "migration_target_backend_consistency"],
+            },
             {"path": "frontend/scripts/frontend_smoke.mjs", "contains": ["Facet gaps", "RAG"]},
         ],
     },

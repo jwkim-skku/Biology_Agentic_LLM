@@ -198,6 +198,42 @@ def verify_rag_vector_index_bundle(bundle: bytes) -> dict[str, Any]:
     else:
         semantic_checks["migration_row_hash"] = "pass" if source_hash else "warning"
 
+    migration_targets = {
+        str(value)
+        for value in [
+            manifest.get("migration_target_backend"),
+            import_plan.get("target_backend"),
+            parity.get("target_backend"),
+        ]
+        if value
+    }
+    if len(migration_targets) != 1:
+        semantic_errors.append("Migration target backend disagrees across bundle manifest, import plan, and parity report.")
+        semantic_checks["migration_target_backend_consistency"] = "fail"
+    else:
+        semantic_checks["migration_target_backend_consistency"] = "pass"
+
+    recommended_backends = {
+        str(value)
+        for value in [
+            manifest.get("recommended_backend"),
+            readiness.get("recommended_backend"),
+        ]
+        if value
+    }
+    if len(recommended_backends) > 1:
+        semantic_errors.append("Recommended vector backend disagrees between bundle manifest and diagnostics readiness.")
+        semantic_checks["recommended_backend_consistency"] = "fail"
+    else:
+        semantic_checks["recommended_backend_consistency"] = "pass" if recommended_backends else "warning"
+
+    parity_comparison = parity.get("comparison") or {}
+    if parity_comparison.get("source_records") != source_records:
+        semantic_errors.append("vector_store_parity.json source_records does not match import plan source records.")
+        semantic_checks["migration_parity_source_count"] = "fail"
+    else:
+        semantic_checks["migration_parity_source_count"] = "pass"
+
     embedding_models = {
         str(value)
         for value in [
