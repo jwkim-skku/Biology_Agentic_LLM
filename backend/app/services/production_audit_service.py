@@ -1032,6 +1032,8 @@ def _object_store_mirror_plan_summary(plan: dict[str, Any]) -> dict[str, Any]:
         "candidate_count": int(plan.get("candidate_count") or 0),
         "candidate_bytes": int(plan.get("candidate_bytes") or 0),
         "limit": (plan.get("filters") or {}).get("limit"),
+        "candidate_hash": plan.get("candidate_hash"),
+        "plan_hash": plan.get("plan_hash"),
     }
 
 

@@ -65,15 +65,18 @@ def plan_artifact_object_store_mirror(
     status = artifact_object_store_status()
     artifacts = list_archived_artifacts(limit=limit, artifact_type=artifact_type, resource_type=resource_type)["artifacts"]
     candidates = [_mirror_candidate(settings, artifact) for artifact in artifacts if _needs_mirror(artifact)]
-    return {
+    payload = {
         "mirror_schema": OBJECT_STORE_SCHEMA,
         "status": "ready" if status["configured"] else status["status"],
         "object_store": status,
         "filters": {"artifact_type": artifact_type, "resource_type": resource_type, "limit": max(1, min(limit, 500))},
         "candidate_count": len(candidates),
         "candidate_bytes": sum(int(item.get("bytes") or 0) for item in candidates),
+        "candidate_hash": _hash_payload(candidates),
         "candidates": candidates,
     }
+    payload["plan_hash"] = _hash_payload(payload)
+    return payload
 
 
 def mirror_artifact_archive(
@@ -86,7 +89,7 @@ def mirror_artifact_archive(
     plan = plan_artifact_object_store_mirror(limit=limit, artifact_type=artifact_type, resource_type=resource_type)
     status = plan["object_store"]
     if dry_run or not status["configured"]:
-        return {
+        result = {
             **plan,
             "dry_run": True,
             "mirrored_count": 0,
@@ -94,6 +97,8 @@ def mirror_artifact_archive(
             "mirrored": [],
             "errors": [] if status["configured"] else [f"Object store is {status['status']}."],
         }
+        result["mirror_result_hash"] = _hash_payload(result)
+        return result
 
     mirrored: list[dict[str, Any]] = []
     errors: list[str] = []
@@ -108,7 +113,7 @@ def mirror_artifact_archive(
             object_key = str(candidate["object_key"])
             put_result = _put_object(settings, object_key, content, artifact)
             metadata = artifact.get("metadata") or {}
-            metadata["object_store_mirror"] = {
+            mirror_proof = {
                 "mirror_schema": OBJECT_STORE_SCHEMA,
                 "mirrored_at": datetime.now(timezone.utc).isoformat(),
                 "bucket": settings.artifact_object_store_bucket,
@@ -118,12 +123,14 @@ def mirror_artifact_archive(
                 "etag": put_result.get("etag"),
                 "status": "pass",
             }
+            mirror_proof["mirror_proof_hash"] = _hash_payload(mirror_proof)
+            metadata["object_store_mirror"] = mirror_proof
             update_archived_artifact_metadata(artifact_id, metadata)
-            mirrored.append({**candidate, "status": "pass", "etag": put_result.get("etag")})
+            mirrored.append({**candidate, "status": "pass", "etag": put_result.get("etag"), "mirror_proof_hash": mirror_proof["mirror_proof_hash"]})
         except (OSError, HTTPError, URLError, ValueError) as exc:
             errors.append(f"{artifact_id}: {exc}")
 
-    return {
+    result = {
         **plan,
         "dry_run": False,
         "status": "fail" if errors else "pass",
@@ -132,6 +139,8 @@ def mirror_artifact_archive(
         "mirrored": mirrored,
         "errors": errors,
     }
+    result["mirror_result_hash"] = _hash_payload(result)
+    return result
 
 
 def _needs_mirror(artifact: dict[str, Any]) -> bool:

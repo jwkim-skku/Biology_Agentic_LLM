@@ -77,6 +77,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
             {"path": "backend/app/services/deployment_readiness_service.py", "contains": ["deployment_ready", "required_actions_hash"]},
             {"path": "backend/app/services/storage_service.py", "contains": ["postgres_schema", "migration_readiness"]},
             {"path": "backend/app/services/artifact_archive_service.py", "contains": ["artifact_ledger", "verify_artifact_ledger"]},
+            {"path": "backend/app/services/artifact_object_store_service.py", "contains": ["candidate_hash", "plan_hash", "mirror_result_hash"]},
             {"path": "backend/app/services/governance_service.py", "contains": ["attestation", "signature"]},
             {"path": "docker-compose.production.yml", "contains": ["postgres", "frontend"]},
             {"path": ".env.production.example", "contains": ["STORAGE_BACKEND=postgres", "API_KEYS", "ARTIFACT_SIGNING_KEY"]},

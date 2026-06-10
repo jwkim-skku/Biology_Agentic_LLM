@@ -415,6 +415,8 @@ def deployment_readiness(openapi_spec: dict[str, Any]) -> dict[str, Any]:
                 "mirror_plan_candidate_count": object_store_mirror_plan["candidate_count"],
                 "mirror_plan_candidate_bytes": object_store_mirror_plan["candidate_bytes"],
                 "mirror_plan_limit": object_store_mirror_plan["limit"],
+                "mirror_plan_candidate_hash": object_store_mirror_plan.get("candidate_hash"),
+                "mirror_plan_hash": object_store_mirror_plan.get("plan_hash"),
                 "recommendation": object_store["recommendation"],
             },
             fail_message="Artifact object-store mirror is enabled but misconfigured.",
@@ -689,6 +691,8 @@ def _object_store_mirror_plan_summary(plan: dict[str, Any]) -> dict[str, Any]:
         "candidate_count": int(plan.get("candidate_count") or 0),
         "candidate_bytes": int(plan.get("candidate_bytes") or 0),
         "limit": (plan.get("filters") or {}).get("limit"),
+        "candidate_hash": plan.get("candidate_hash"),
+        "plan_hash": plan.get("plan_hash"),
     }
 
 

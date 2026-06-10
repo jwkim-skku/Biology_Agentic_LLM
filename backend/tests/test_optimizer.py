@@ -51,7 +51,7 @@ from app.services.artifact_archive_service import (
     verify_artifact_ledger,
     workflow_trace_archive_summary,
 )
-from app.services.artifact_object_store_service import artifact_object_store_status
+from app.services.artifact_object_store_service import artifact_object_store_status, mirror_artifact_archive, plan_artifact_object_store_mirror
 from app.services.batch_design_service import run_batch_gene_design
 from app.services.design_service import optimize_design
 from app.services.evidence_service import build_design_evidence, search_evidence
@@ -922,6 +922,8 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert object_store_gate["details"]["mirror_plan_candidate_count"] >= 0
     assert object_store_gate["details"]["mirror_plan_candidate_bytes"] >= 0
     assert object_store_gate["details"]["mirror_plan_limit"] >= 1
+    assert len(object_store_gate["details"]["mirror_plan_candidate_hash"]) == 64
+    assert len(object_store_gate["details"]["mirror_plan_hash"]) == 64
     assert len(object_store_gate["details"]["lifecycle_policy_hash"]) == 64
     qc_archive_gate = next(gate for gate in readiness["gates"] if gate["name"] == "qc_bundle_archive_semantics")
     assert qc_archive_gate["details"]["status"] in {"pass", "warning"}
@@ -1680,6 +1682,52 @@ def test_artifact_object_store_status_includes_lifecycle_policy_hash() -> None:
     assert summary_object_store["lifecycle_policy_hash"] == status["lifecycle_policy_hash"]
     assert summary_object_store["external_timestamp"]["status"] == "pass"
     assert summary_object_store["external_timestamp_hash"] == status["external_timestamp_hash"]
+
+
+def test_artifact_object_store_mirror_plan_hashes_candidates() -> None:
+    with patch.dict(
+        os.environ,
+        {
+            "ARTIFACT_OBJECT_STORE_ENABLED": "true",
+            "ARTIFACT_OBJECT_STORE_ENDPOINT": "https://s3.example.com",
+            "ARTIFACT_OBJECT_STORE_BUCKET": "agentic-rag-prod-artifacts",
+            "ARTIFACT_OBJECT_STORE_PREFIX": "agentic-rag/artifacts",
+            "ARTIFACT_OBJECT_STORE_REGION": "us-east-1",
+            "ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID": "unit-test-access-key",
+            "ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY": "unit-test-secret-key",
+        },
+    ):
+        with patch(
+            "app.services.artifact_object_store_service.list_archived_artifacts",
+            return_value={
+                "artifacts": [
+                    {
+                        "artifact_id": "artifact_unit_1",
+                        "artifact_type": "qc_report_bundle",
+                        "resource_type": "job",
+                        "resource_id": "job_unit_1",
+                        "created_at": "2026-06-10T00:00:00+00:00",
+                        "bytes": 321,
+                        "sha256": "a" * 64,
+                        "manifest_hash": "b" * 64,
+                        "filename": "../unsafe/report.zip",
+                        "metadata": {},
+                    }
+                ]
+            },
+        ):
+            plan = plan_artifact_object_store_mirror(limit=5)
+            dry_run = mirror_artifact_archive(dry_run=True, limit=5)
+
+    assert plan["status"] == "ready"
+    assert plan["candidate_count"] == 1
+    assert plan["candidate_bytes"] == 321
+    assert len(plan["candidate_hash"]) == 64
+    assert len(plan["plan_hash"]) == 64
+    assert plan["candidates"][0]["object_key"] == "agentic-rag/artifacts/qc_report_bundle/artifact_unit_1/report.zip"
+    assert dry_run["dry_run"] is True
+    assert dry_run["candidate_hash"] == plan["candidate_hash"]
+    assert len(dry_run["mirror_result_hash"]) == 64
 
 
 def test_production_gap_summary_classifies_resolution_scope() -> None:

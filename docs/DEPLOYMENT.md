@@ -77,7 +77,7 @@ Useful runtime variables:
 - `ARTIFACT_OBJECT_STORE_ACCESS_KEY_ID` and `ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY`: object-store credentials used by the mirror endpoint.
 - `ARTIFACT_EXTERNAL_TIMESTAMP_REQUIRED`: set `true` when regulated promotion requires an external timestamp provider for archive evidence.
 - `ARTIFACT_EXTERNAL_TIMESTAMP_URL` and `ARTIFACT_EXTERNAL_TIMESTAMP_KEY_ID`: HTTPS timestamp-provider endpoint and public key/provider identifier. The application exposes configuration evidence and hashes; provider-issued timestamp token validation remains a managed deployment promotion step.
-  `/api/v1/artifacts/object-store/status`, `/api/v1/artifacts/object-store/mirror/plan`, deployment readiness, the production audit API, and the static production audit CLI expose a lifecycle-policy summary plus `lifecycle_policy_hash`, external timestamp status plus `external_timestamp_hash`, mirror candidate count, and mirror candidate bytes so promotion reviewers can verify archive retention intent, timestamp-provider configuration, and off-host mirror backlog without inspecting secrets.
+  `/api/v1/artifacts/object-store/status`, `/api/v1/artifacts/object-store/mirror/plan`, deployment readiness, the production audit API, and the static production audit CLI expose a lifecycle-policy summary plus `lifecycle_policy_hash`, external timestamp status plus `external_timestamp_hash`, mirror candidate count, mirror candidate bytes, `candidate_hash`, and `plan_hash` so promotion reviewers can verify archive retention intent, timestamp-provider configuration, and the exact off-host mirror backlog without inspecting secrets.
 - `NEXT_PUBLIC_API_BASE_URL`: frontend API base URL.
 
 Operational endpoints:
