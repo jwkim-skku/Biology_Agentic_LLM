@@ -345,6 +345,7 @@ def rag_vector_index_archive_summary(limit: int = 20, *, verify_files: bool = Tr
             "parity_status",
             "vector_row_hash",
             "structured_manifest_hash",
+            "semantic_checks",
         ),
     )
 
@@ -788,6 +789,7 @@ def _rag_vector_index_semantic_metadata(verification: dict[str, Any]) -> dict[st
         "parity_status": verification.get("parity_status"),
         "vector_row_hash": verification.get("vector_row_hash"),
         "structured_manifest_hash": verification.get("structured_manifest_hash"),
+        "semantic_checks": verification.get("semantic_checks") or {},
         "checked_files": verification.get("checked_files"),
         "file_count": verification.get("file_count"),
         "manifest_hash": verification.get("manifest_hash"),

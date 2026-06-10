@@ -1105,6 +1105,14 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest RAG vector index archive is missing vector_row_hash")
         if checked_count and not latest.get("structured_manifest_hash"):
             failures.append("latest RAG vector index archive is missing structured_manifest_hash")
+        semantic_checks = latest.get("semantic_checks") if isinstance(latest.get("semantic_checks"), dict) else {}
+        for check_name in (
+            "migration_target_backend_consistency",
+            "recommended_backend_consistency",
+            "migration_parity_source_count",
+        ):
+            if checked_count and semantic_checks.get(check_name) != "pass":
+                failures.append(f"latest RAG vector index archive semantic check {check_name} is not pass")
     if name == "optimizer_benchmark_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)

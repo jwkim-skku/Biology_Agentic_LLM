@@ -584,6 +584,21 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 checked_vector_indexes == 0 or len(str(latest_vector_index.get("vector_row_hash") or "")) == 64,
                 "Latest RAG vector index archive evidence is missing a 64-character vector_row_hash.",
             )
+            latest_vector_checks = (
+                latest_vector_index.get("semantic_checks") if isinstance(latest_vector_index.get("semantic_checks"), dict) else {}
+            )
+            for check_name in (
+                "migration_target_backend_consistency",
+                "recommended_backend_consistency",
+                "migration_parity_source_count",
+            ):
+                _record_semantic_check(
+                    semantic_checks,
+                    errors,
+                    f"rag_vector_index_archive_{check_name}",
+                    checked_vector_indexes == 0 or latest_vector_checks.get(check_name) == "pass",
+                    f"Latest RAG vector index archive semantic check {check_name} is not pass.",
+                )
             latest_trace = (workflow_trace_archive.get("latest_artifacts") or [{}])[0]
             checked_traces = int(workflow_trace_archive.get("checked_count") or 0)
             _record_semantic_check(

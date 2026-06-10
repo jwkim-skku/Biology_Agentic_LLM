@@ -445,6 +445,16 @@ def test_governance_attestation_bundle_verifies_current_state() -> None:
 
 def test_production_audit_bundle_includes_timing_evidence() -> None:
     openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    vector_bundle = build_rag_vector_index_bundle()
+    vector_verification = verify_rag_vector_index_bundle(vector_bundle)
+    archive_artifact_bundle(
+        vector_bundle,
+        action="unit_test_production_audit_vector_index_bundle",
+        resource_type="rag_vector_index",
+        resource_id=str(vector_verification.get("manifest_hash") or "rag_vector_index"),
+        filename="unit_test_production_audit_vector_index_bundle.zip",
+        metadata={"verification_status": vector_verification["status"]},
+    )
     audit = build_production_audit(openapi)
     markdown = render_production_audit_markdown(audit)
     bundle = build_production_audit_bundle(openapi)
@@ -2565,6 +2575,11 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "parity_status": "pass",
                         "vector_row_hash": valid_hash,
                         "structured_manifest_hash": valid_hash,
+                        "semantic_checks": {
+                            "migration_target_backend_consistency": "pass",
+                            "recommended_backend_consistency": "pass",
+                            "migration_parity_source_count": "pass",
+                        },
                     }
                 ],
             }
@@ -3605,6 +3620,9 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
     assert semantic["migration_target_backend"] == verification["migration_target_backend"]
     assert semantic["parity_status"] == verification["parity_status"]
     assert semantic["vector_row_hash"] == verification["vector_row_hash"]
+    assert semantic["semantic_checks"]["migration_target_backend_consistency"] == "pass"
+    assert semantic["semantic_checks"]["recommended_backend_consistency"] == "pass"
+    assert semantic["semantic_checks"]["migration_parity_source_count"] == "pass"
     summary = rag_vector_index_archive_summary(limit=5, verify_files=False)
     assert summary["verification_mode"] == "indexed"
     assert summary["status"] in {"pass", "warning"}
@@ -3613,6 +3631,8 @@ def test_rag_vector_index_archive_semantics_track_migration_evidence() -> None:
         and item["chunk_count"] == verification["chunk_count"]
         and item["embedding_dimensions"] == verification["embedding_dimensions"]
         and item["vector_row_hash"] == verification["vector_row_hash"]
+        and item["semantic_checks"]["migration_target_backend_consistency"] == "pass"
+        and item["semantic_checks"]["migration_parity_source_count"] == "pass"
         for item in summary["latest_artifacts"]
     )
 
