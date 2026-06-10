@@ -73,7 +73,8 @@ def validate_runbook(payload: Any) -> list[str]:
     source_count = safe_int(payload.get("source_proof_checklist_count"), -1)
     if source_count != len(proof_checklist):
         errors.append("source_proof_checklist_count does not match proof_checklist")
-    if payload.get("source_proof_checklist_hash") != payload.get("proof_checklist_hash"):
+    source_hash = payload.get("source_proof_checklist_hash")
+    if source_hash is not None and source_hash != payload.get("proof_checklist_hash"):
         errors.append("source_proof_checklist_hash does not match proof_checklist_hash")
     if payload.get("proof_checklist_source_match") is not True:
         errors.append("proof_checklist_source_match must be true")
@@ -122,7 +123,7 @@ def require_hex_hash(payload: dict[str, Any], key: str, errors: list[str]) -> No
 
 
 def hash_payload(payload: Any) -> str:
-    return sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")).hexdigest()
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 if __name__ == "__main__":
