@@ -79,6 +79,7 @@ def build_runbook(audit: dict[str, Any]) -> dict[str, Any]:
         for scope, items in sorted(groups.items())
     ]
     proof_checklist = _proof_checklist(grouped)
+    source_proof_checklist = gap_summary.get("proof_checklist") if isinstance(gap_summary.get("proof_checklist"), list) else []
     payload = {
         "runbook_schema": RUNBOOK_SCHEMA,
         "source_audit_hash": audit.get("audit_hash"),
@@ -90,6 +91,9 @@ def build_runbook(audit: dict[str, Any]) -> dict[str, Any]:
         "promotion_count": safe_int(gap_summary.get("promotion_count")),
         "resolution_scope_counts": gap_summary.get("resolution_scope_counts") or {},
         "resolution_mode_counts": gap_summary.get("resolution_mode_counts") or {},
+        "source_proof_checklist_count": safe_int(gap_summary.get("proof_checklist_count")),
+        "source_proof_checklist_hash": gap_summary.get("proof_checklist_hash"),
+        "proof_checklist_source_match": proof_checklist == source_proof_checklist,
         "proof_checklist_count": len(proof_checklist),
         "proof_checklist_hash": hash_payload(proof_checklist),
         "proof_checklist": proof_checklist,
@@ -135,6 +139,25 @@ def _proof_checklist(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     "gap_hash": item.get("gap_hash"),
                 }
             )
+    return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
+
+
+def _gap_proof_checklist(gaps: list[Any]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for gap in gaps:
+        if not isinstance(gap, dict):
+            continue
+        items.append(
+            {
+                "area": gap.get("area"),
+                "priority": gap.get("priority"),
+                "resolution_scope": gap.get("resolution_scope"),
+                "resolution_mode": gap.get("resolution_mode"),
+                "proof_artifact": gap.get("proof_artifact"),
+                "proof_command": gap.get("proof_command"),
+                "gap_hash": gap.get("gap_hash"),
+            }
+        )
     return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
 
 
@@ -184,6 +207,14 @@ def verify_gap_summary(summary: dict[str, Any]) -> dict[str, Any]:
         errors.append("resolution_scope_counts do not match gaps.")
     if summary.get("resolution_mode_counts") != count_by(gaps, "resolution_mode"):
         errors.append("resolution_mode_counts do not match gaps.")
+    proof_checklist = summary.get("proof_checklist") if isinstance(summary.get("proof_checklist"), list) else []
+    expected_proof_checklist = _gap_proof_checklist(gaps)
+    if safe_int(summary.get("proof_checklist_count"), -1) != len(proof_checklist):
+        errors.append("proof_checklist_count does not match proof_checklist.")
+    if summary.get("proof_checklist_hash") != hash_payload(proof_checklist):
+        errors.append("proof_checklist_hash does not match proof_checklist.")
+    if proof_checklist != expected_proof_checklist:
+        errors.append("proof_checklist does not match gaps.")
     for gap in gaps:
         if not isinstance(gap, dict):
             errors.append("production_gap_summary contains a non-object gap.")
@@ -226,6 +257,8 @@ def render_markdown(runbook: dict[str, Any]) -> str:
         f"- Resolution scopes: `{format_counts(runbook.get('resolution_scope_counts') or {})}`",
         f"- Resolution modes: `{format_counts(runbook.get('resolution_mode_counts') or {})}`",
         f"- Proof checklist: `{runbook.get('proof_checklist_count')}` items; hash `{runbook.get('proof_checklist_hash')}`",
+        f"- Source proof checklist: `{runbook.get('source_proof_checklist_count')}` items; hash `{runbook.get('source_proof_checklist_hash') or 'n/a'}`",
+        f"- Proof checklist source match: `{runbook.get('proof_checklist_source_match')}`",
         "",
     ]
     if runbook.get("proof_checklist"):
