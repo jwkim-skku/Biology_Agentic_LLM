@@ -4613,6 +4613,7 @@ export default function Dashboard() {
                 Verify details {productionAudit?.verification?.semantic_checks?.check_detail_hashes ?? "n/a"} / actions{" "}
                 {productionAudit?.verification?.semantic_checks?.required_action_coverage ?? "n/a"}
               </span>
+              <span>Verify proof {productionAudit?.verification?.semantic_checks?.production_gap_proof_checklist_hash ?? "n/a"}</span>
               <span>Verify checks {semanticCheckSummary(productionAudit?.verification?.semantic_checks, productionAudit?.verification?.semantic_summary)}</span>
               <span>
                 Verify summary {productionAudit?.verification?.semantic_summary?.status ?? "n/a"} / hash{" "}

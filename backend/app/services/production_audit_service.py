@@ -504,6 +504,13 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             _record_semantic_check(
                 semantic_checks,
                 errors,
+                "production_gap_proof_checklist_hash",
+                _gap_proof_checklist_hash_matches(production_gap_summary),
+                "production_gap_summary.json proof_checklist_hash does not match proof_checklist contents.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
                 "qc_bundle_archive_evidence",
                 qc_archive == (evidence.get("qc_bundle_archive_semantics") or {}),
                 "evidence/qc_bundle_archive_semantics.json does not match production_audit.json evidence.",
@@ -1081,6 +1088,16 @@ def _gap_summary_hash_matches(summary: dict[str, Any]) -> bool:
     expected_summary = summary.get("gap_summary_hash")
     payload = {key: value for key, value in summary.items() if key != "gap_summary_hash"}
     return bool(expected_summary) and expected_summary == _hash_payload(payload)
+
+
+def _gap_proof_checklist_hash_matches(summary: dict[str, Any]) -> bool:
+    checklist = summary.get("proof_checklist")
+    if not isinstance(checklist, list):
+        return False
+    if summary.get("proof_checklist_count") != len(checklist):
+        return False
+    expected = summary.get("proof_checklist_hash")
+    return bool(expected) and expected == _hash_payload(checklist)
 
 
 def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
