@@ -108,8 +108,8 @@ def _runbook_item(gap: dict[str, Any]) -> dict[str, Any]:
         "status": gap.get("status"),
         "resolution_mode": gap.get("resolution_mode"),
         "proof_hint": gap.get("proof_hint"),
-        "proof_artifact": proof["artifact"],
-        "proof_command": proof["command"],
+        "proof_artifact": gap.get("proof_artifact") or proof["artifact"],
+        "proof_command": gap.get("proof_command") or proof["command"],
         "action": gap.get("action"),
         "evidence_key": gap.get("evidence_key"),
         "check_detail_hash": gap.get("check_detail_hash"),
@@ -188,7 +188,17 @@ def verify_gap_summary(summary: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(gap, dict):
             errors.append("production_gap_summary contains a non-object gap.")
             continue
-        for required in ("area", "priority", "resolution_scope", "resolution_mode", "proof_hint", "evidence_key", "action"):
+        for required in (
+            "area",
+            "priority",
+            "resolution_scope",
+            "resolution_mode",
+            "proof_hint",
+            "proof_artifact",
+            "proof_command",
+            "evidence_key",
+            "action",
+        ):
             if not gap.get(required):
                 errors.append(f"gap {gap.get('area', 'unknown')!r} is missing {required}.")
         if gap.get("gap_hash") != hash_payload({key: value for key, value in gap.items() if key != "gap_hash"}):

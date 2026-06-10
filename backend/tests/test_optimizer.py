@@ -1661,15 +1661,22 @@ def test_production_gap_summary_classifies_resolution_scope() -> None:
     assert gaps["deployment_readiness"]["resolution_scope"] == "aggregate_gate"
     assert gaps["deployment_readiness"]["resolution_mode"] == "readiness_rollup"
     assert "required_actions" in gaps["deployment_readiness"]["proof_hint"]
+    assert gaps["deployment_readiness"]["proof_artifact"] == "evidence/deployment_readiness.json"
+    assert gaps["deployment_readiness"]["proof_command"] == "Invoke-RestMethod http://127.0.0.1:8000/api/v1/deployment/readiness"
     assert gaps["rag_embedding_backend"]["resolution_scope"] == "operator_environment"
     assert gaps["rag_embedding_backend"]["resolution_mode"] == "managed_runtime"
     assert "rebuild the RAG index" in gaps["rag_embedding_backend"]["proof_hint"]
+    assert gaps["rag_embedding_backend"]["proof_artifact"] == "evidence/rag_embedding.json"
+    assert gaps["rag_embedding_backend"]["proof_command"] == "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status"
     assert gaps["data_release_archive_semantics"]["resolution_scope"] == "reproducible_artifact"
     assert gaps["data_release_archive_semantics"]["resolution_mode"] == "artifact_refresh"
     assert "fresh data release bundle" in gaps["data_release_archive_semantics"]["proof_hint"]
     assert gaps["optimizer_diagnostics"]["resolution_scope"] == "optimizer_validation"
     assert gaps["optimizer_diagnostics"]["resolution_mode"] == "benchmark_calibration"
     assert "optimizer diagnostics" in gaps["optimizer_diagnostics"]["proof_hint"]
+    assert summary["proof_checklist_count"] == 4
+    assert len(summary["proof_checklist_hash"]) == 64
+    assert {item["area"] for item in summary["proof_checklist"]} == set(gaps)
     assert summary["resolution_scope_counts"] == {
         "aggregate_gate": 1,
         "operator_environment": 1,
@@ -1701,6 +1708,8 @@ def test_production_promotion_runbook_groups_gap_evidence(tmp_path: Path) -> Non
         "resolution_scope": "operator_environment",
         "resolution_mode": "managed_runtime",
         "proof_hint": "Configure OpenAI or sentence-transformers and rebuild the index.",
+        "proof_artifact": "evidence/rag_embedding.json",
+        "proof_command": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status",
         "evidence_key": "rag_embedding",
         "check_detail_hash": valid_hash,
         "readiness_detail_hash": valid_hash,
@@ -1835,12 +1844,25 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         "resolution_scope": "operator_environment",
         "resolution_mode": "managed_runtime",
         "proof_hint": "Configure OpenAI or sentence-transformers and rebuild the index.",
+        "proof_artifact": "evidence/rag_embedding.json",
+        "proof_command": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status",
         "evidence_key": "rag_embedding",
         "check_detail_hash": valid_hash,
         "readiness_detail_hash": valid_hash,
         "action": "Configure a production embedding backend.",
     }
     production_gap["gap_hash"] = module.compact_hash_payload(production_gap)
+    production_gap_proof_checklist = [
+        {
+            "area": "rag_embedding_backend",
+            "priority": "promotion",
+            "resolution_scope": "operator_environment",
+            "resolution_mode": "managed_runtime",
+            "proof_artifact": "evidence/rag_embedding.json",
+            "proof_command": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status",
+            "gap_hash": production_gap["gap_hash"],
+        }
+    ]
     production_gap_summary = {
         "gap_schema": "agentic-rag-production-gap-summary-v1",
         "status": "warning",
@@ -1852,6 +1874,9 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
         "evidence_keys": ["rag_embedding"],
         "readiness_action_hash": valid_hash,
         "promotion_required_action_count": 1,
+        "proof_checklist_count": 1,
+        "proof_checklist_hash": module.compact_hash_payload(production_gap_proof_checklist),
+        "proof_checklist": production_gap_proof_checklist,
         "gaps": [production_gap],
     }
     production_gap_summary["gap_summary_hash"] = module.compact_hash_payload(production_gap_summary)

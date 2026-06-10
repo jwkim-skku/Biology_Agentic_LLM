@@ -907,7 +907,20 @@ type ProductionAuditStatus = {
       resolution_scope?: string;
       resolution_mode?: string;
       proof_hint?: string;
+      proof_artifact?: string;
+      proof_command?: string;
       action?: string;
+      gap_hash?: string;
+    }>;
+    proof_checklist_count?: number;
+    proof_checklist_hash?: string;
+    proof_checklist?: Array<{
+      area?: string;
+      priority?: string;
+      resolution_scope?: string;
+      resolution_mode?: string;
+      proof_artifact?: string;
+      proof_command?: string;
       gap_hash?: string;
     }>;
   };
@@ -4616,6 +4629,16 @@ export default function Dashboard() {
               <span>
                 Scopes {formatCountMap(productionAudit?.production_gap_summary?.resolution_scope_counts)} / Modes{" "}
                 {formatCountMap(productionAudit?.production_gap_summary?.resolution_mode_counts)}
+              </span>
+              <span>
+                Proof checklist {productionAudit?.production_gap_summary?.proof_checklist_count ?? "n/a"} / hash{" "}
+                {productionAudit?.production_gap_summary?.proof_checklist_hash?.slice(0, 10) ?? "n/a"}
+              </span>
+              <span>
+                Proof artifact {productionAudit?.production_gap_summary?.proof_checklist?.[0]?.proof_artifact ?? "n/a"}
+              </span>
+              <span>
+                Proof command {productionAudit?.production_gap_summary?.proof_checklist?.[0]?.proof_command ?? "n/a"}
               </span>
               <span>{productionAudit?.production_gap_summary?.gaps?.[0]?.proof_hint ?? "No production proof hint recorded"}</span>
               <span>{productionAudit?.production_gap_summary?.gaps?.[0]?.action ?? "No production gaps recorded"}</span>

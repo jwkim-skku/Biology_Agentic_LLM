@@ -693,19 +693,22 @@ def render_production_audit_markdown(audit: dict[str, Any]) -> str:
             "",
             f"- Resolution scopes: `{_format_count_map(gap_summary.get('resolution_scope_counts') or {})}`",
             f"- Resolution modes: `{_format_count_map(gap_summary.get('resolution_mode_counts') or {})}`",
+            f"- Proof checklist: `{gap_summary.get('proof_checklist_count', 'n/a')}` items; hash `{gap_summary.get('proof_checklist_hash', 'n/a')}`",
             "",
-            "| Area | Priority | Status | Scope | Mode | Proof hint | Action |",
-            "| --- | --- | --- | --- | --- | --- | --- |",
+            "| Area | Priority | Status | Scope | Mode | Proof artifact | Proof command | Proof hint | Action |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for item in gap_summary.get("gaps") or []:
         lines.append(
-            "| {area} | {priority} | {status} | {scope} | {mode} | {proof_hint} | {action} |".format(
+            "| {area} | {priority} | {status} | {scope} | {mode} | {proof_artifact} | {proof_command} | {proof_hint} | {action} |".format(
                 area=_escape_cell(str(item.get("area") or "unknown")),
                 priority=_escape_cell(str(item.get("priority") or "unknown")),
                 status=_escape_cell(str(item.get("status") or "unknown")),
                 scope=_escape_cell(str(item.get("resolution_scope") or "unknown")),
                 mode=_escape_cell(str(item.get("resolution_mode") or "unknown")),
+                proof_artifact=_escape_cell(str(item.get("proof_artifact") or "")),
+                proof_command=_escape_cell(str(item.get("proof_command") or "")),
                 proof_hint=_escape_cell(str(item.get("proof_hint") or "")),
                 action=_escape_cell(str(item.get("action") or "")),
             )
@@ -1029,6 +1032,7 @@ def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dic
         )
         evidence_key = _evidence_key_for_check(name)
         resolution = _gap_resolution(name)
+        proof = _gap_proof_evidence(name, evidence_key, resolution["mode"])
         gap = {
             "area": name,
             "status": check.get("status"),
@@ -1036,6 +1040,8 @@ def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dic
             "resolution_scope": resolution["scope"],
             "resolution_mode": resolution["mode"],
             "proof_hint": resolution["proof_hint"],
+            "proof_artifact": proof["artifact"],
+            "proof_command": proof["command"],
             "evidence_key": evidence_key,
             "check_detail_hash": check.get("detail_hash"),
             "readiness_detail_hash": (readiness_action or {}).get("detail_hash"),
@@ -1043,6 +1049,7 @@ def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dic
         }
         gap["gap_hash"] = _hash_payload(gap)
         gaps.append(gap)
+    proof_checklist = _production_gap_proof_checklist(gaps)
     summary = {
         "gap_schema": "agentic-rag-production-gap-summary-v1",
         "status": "fail" if any(gap["priority"] == "blocking" for gap in gaps) else "warning" if gaps else "pass",
@@ -1054,6 +1061,9 @@ def _production_gap_summary(checks: list[dict[str, Any]], promotion_summary: dic
         "evidence_keys": sorted({str(gap["evidence_key"]) for gap in gaps if gap.get("evidence_key")}),
         "readiness_action_hash": readiness.get("required_actions_hash"),
         "promotion_required_action_count": len(promotion_summary.get("required_actions") or []),
+        "proof_checklist_count": len(proof_checklist),
+        "proof_checklist_hash": _hash_payload(proof_checklist),
+        "proof_checklist": proof_checklist,
         "gaps": gaps,
     }
     summary["gap_summary_hash"] = _hash_payload({key: value for key, value in summary.items() if key != "gap_summary_hash"})
@@ -1088,6 +1098,48 @@ def _evidence_key_for_check(name: str) -> str:
         "rna_folding_backend": "rna_folding",
         "governance_attestation": "governance_attestation_verification",
     }.get(name, name)
+
+
+def _production_gap_proof_checklist(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        [
+            {
+                "area": gap.get("area"),
+                "priority": gap.get("priority"),
+                "resolution_scope": gap.get("resolution_scope"),
+                "resolution_mode": gap.get("resolution_mode"),
+                "proof_artifact": gap.get("proof_artifact"),
+                "proof_command": gap.get("proof_command"),
+                "gap_hash": gap.get("gap_hash"),
+            }
+            for gap in gaps
+        ],
+        key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")),
+    )
+
+
+def _gap_proof_evidence(area: str, evidence_key: str, resolution_mode: str) -> dict[str, str]:
+    area_commands = {
+        "deployment_readiness": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/deployment/readiness",
+        "rag_embedding_backend": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status",
+        "rna_folding_backend": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/optimizer/rna-folding/status",
+        "artifact_object_store": "Invoke-RestMethod 'http://127.0.0.1:8000/api/v1/artifacts/object-store/mirror/plan?limit=500'",
+        "optimizer_diagnostics": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/optimizer/diagnostics",
+        "security": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/security/status",
+        "storage": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/storage/migration/sqlite/parity",
+    }
+    mode_commands = {
+        "artifact_refresh": "Invoke-WebRequest http://127.0.0.1:8000/api/v1/deployment/audit/export.zip -OutFile production_audit.zip",
+        "data_promotion": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/data/coverage",
+        "managed_runtime": "python scripts/production_audit.py --require-api",
+        "configuration": "python scripts/production_audit.py --require-api",
+        "benchmark_calibration": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/optimizer/benchmark",
+        "readiness_rollup": "python scripts/production_audit.py --require-api",
+    }
+    return {
+        "artifact": f"evidence/{evidence_key}.json",
+        "command": area_commands.get(area) or mode_commands.get(resolution_mode) or "python scripts/production_audit.py --require-api",
+    }
 
 
 def _gap_resolution(name: str) -> dict[str, str]:

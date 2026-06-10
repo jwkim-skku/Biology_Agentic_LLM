@@ -1214,13 +1214,30 @@ def production_gap_summary_failures(summary: Any, embedded_summary: Any | None =
         failures.append("production audit status resolution_scope_counts do not match gaps")
     if summary.get("resolution_mode_counts") != expected_mode_counts:
         failures.append("production audit status resolution_mode_counts do not match gaps")
+    proof_checklist = summary.get("proof_checklist") if isinstance(summary.get("proof_checklist"), list) else []
+    if safe_int(summary.get("proof_checklist_count"), -1) != len(proof_checklist):
+        failures.append("production audit status proof_checklist_count does not match proof_checklist")
+    if summary.get("proof_checklist_hash") != compact_hash_payload(proof_checklist):
+        failures.append("production audit status proof_checklist_hash does not match proof_checklist")
     for gap in gaps:
         if not isinstance(gap, dict):
             failures.append("production audit status production_gap_summary contains a non-object gap")
             continue
         missing = [
             key
-            for key in ["area", "status", "priority", "resolution_scope", "resolution_mode", "proof_hint", "evidence_key", "check_detail_hash", "action"]
+            for key in [
+                "area",
+                "status",
+                "priority",
+                "resolution_scope",
+                "resolution_mode",
+                "proof_hint",
+                "proof_artifact",
+                "proof_command",
+                "evidence_key",
+                "check_detail_hash",
+                "action",
+            ]
             if not gap.get(key)
         ]
         if missing:
