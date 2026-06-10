@@ -19,7 +19,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
         "evidence": [
             {"path": "backend/app/services/data_refresh_service.py", "contains": ["GTEx", "Allen", "refresh_reference_data"]},
             {"path": "backend/app/services/structured_data_service.py", "contains": ["structured_coverage_matrix", "source_payload_sha256"]},
-            {"path": "backend/app/services/data_release_bundle_service.py", "contains": ["record_source_summary", "release_handoff_hash"]},
+            {"path": "backend/app/services/data_release_bundle_service.py", "contains": ["record_source_summary", "release_handoff_hash", "release_lock_current_hash"]},
             {"path": "docs/DATA_IMPORT.md", "contains": ["GTEx", "Allen", "coverage matrix"]},
             {"glob": "backend/app/data/structured/*.json", "min_count": 1},
         ],

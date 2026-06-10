@@ -80,6 +80,8 @@ def build_data_release_bundle() -> bytes:
         "trna_caveat_count": trna_caveats.get("caveat_count", 0),
         "trna_blocking_production_use": bool(trna_caveats.get("blocking_production_use")),
         "release_lock_status": release_lock.get("status"),
+        "release_lock_current_hash": release_lock.get("current_hash"),
+        "release_lock_locked_hash": release_lock.get("locked_hash"),
         "promotion_status": _promotion_status(quality, provenance, release_lock),
         "contains_source_bytes": True,
         "contains_external_snapshot_bytes": True,
@@ -354,6 +356,24 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         release_lock.get("status"),
         "release_manifest.json release_lock_status does not match data_release_lock.json.",
     )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "release_lock_current_hash",
+        release_manifest.get("release_lock_current_hash"),
+        release_lock.get("current_hash"),
+        "release_manifest.json release_lock_current_hash does not match data_release_lock.json.",
+    )
+    locked_manifest_hash = release_manifest.get("release_lock_locked_hash")
+    locked_hash = release_lock.get("locked_hash")
+    if locked_manifest_hash == locked_hash and locked_manifest_hash:
+        semantic_checks["release_lock_locked_hash"] = "pass"
+    elif locked_manifest_hash == locked_hash:
+        semantic_warnings.append("Data release lockfile has not been written; release_lock_locked_hash is empty.")
+        semantic_checks["release_lock_locked_hash"] = "warning"
+    else:
+        semantic_errors.append("release_manifest.json release_lock_locked_hash does not match data_release_lock.json.")
+        semantic_checks["release_lock_locked_hash"] = "fail"
 
     source_files = [name for name in zip_names if name.startswith("structured_sources/") and not name.endswith("/")]
     expected_source_files = _int_or_none(release_manifest.get("structured_file_count"))
@@ -430,6 +450,8 @@ def verify_data_release_bundle(bundle: bytes) -> dict[str, Any]:
         "trna_caveat_count": _int_or_none(trna_caveats.get("caveat_count")),
         "trna_blocking_production_use": _bool_or_none(trna_caveats.get("blocking_production_use")),
         "release_lock_status": release_lock.get("status"),
+        "release_lock_current_hash": release_lock.get("current_hash"),
+        "release_lock_locked_hash": release_lock.get("locked_hash"),
         "promotion_status": promotion_status,
         "structured_source_file_count": len(source_files),
         "external_snapshot_file_count": len(snapshot_files),
@@ -697,6 +719,8 @@ def _release_handoff_hash(metadata: dict[str, Any]) -> str:
         "trna_caveat_count": metadata.get("trna_caveat_count"),
         "trna_blocking_production_use": metadata.get("trna_blocking_production_use"),
         "release_lock_status": metadata.get("release_lock_status"),
+        "release_lock_current_hash": metadata.get("release_lock_current_hash"),
+        "release_lock_locked_hash": metadata.get("release_lock_locked_hash"),
         "promotion_status": metadata.get("promotion_status"),
         "contains_source_bytes": metadata.get("contains_source_bytes"),
         "contains_external_snapshot_bytes": metadata.get("contains_external_snapshot_bytes"),

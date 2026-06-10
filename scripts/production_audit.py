@@ -820,6 +820,9 @@ def api_failures(name: str, details: Any) -> list[str]:
         for caveat_check in ["trna_caveat_count", "trna_blocking_production_use"]:
             if checks.get(caveat_check) != "pass" or caveat_check not in payload:
                 failures.append(f"Data release bundle does not verify {caveat_check}.")
+        for lock_check in ["release_lock_current_hash", "release_lock_locked_hash"]:
+            if checks.get(lock_check) != "pass" or not payload.get(lock_check):
+                failures.append(f"Data release bundle does not verify {lock_check}.")
         if checks.get("external_snapshot_reference_coverage") != "pass":
             failures.append("Data release bundle does not verify external_snapshot_reference_coverage.")
     if name == "data_snapshot_bundle_verify":
@@ -1019,6 +1022,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest data release archive is missing source_file_count")
         if checked_count and not latest.get("release_handoff_hash"):
             failures.append("latest data release archive is missing release_handoff_hash")
+        if checked_count and not latest.get("release_lock_current_hash"):
+            failures.append("latest data release archive is missing release_lock_current_hash")
+        if checked_count and not latest.get("release_lock_locked_hash"):
+            failures.append("latest data release archive is missing release_lock_locked_hash")
         if checked_count and not latest.get("rag_structured_manifest_hash"):
             failures.append("latest data release archive is missing rag_structured_manifest_hash")
         if checked_count and not latest.get("rag_index_hash"):

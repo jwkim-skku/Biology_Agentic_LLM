@@ -435,6 +435,8 @@ def data_release_archive_summary(limit: int = 20, *, verify_files: bool = True) 
             "external_snapshot_referenced_count",
             "external_snapshot_contained_count",
             "external_snapshot_missing_count",
+            "release_lock_current_hash",
+            "release_lock_locked_hash",
         ),
     )
 
@@ -683,6 +685,8 @@ def _data_release_semantic_metadata(verification: dict[str, Any]) -> dict[str, A
         "trna_caveat_count": verification.get("trna_caveat_count"),
         "trna_blocking_production_use": verification.get("trna_blocking_production_use"),
         "release_lock_status": verification.get("release_lock_status"),
+        "release_lock_current_hash": verification.get("release_lock_current_hash"),
+        "release_lock_locked_hash": verification.get("release_lock_locked_hash"),
         "external_snapshot_reference_count": verification.get("external_snapshot_reference_count"),
         "external_snapshot_referenced_count": verification.get("external_snapshot_referenced_count"),
         "external_snapshot_contained_count": verification.get("external_snapshot_contained_count"),

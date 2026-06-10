@@ -960,6 +960,10 @@ def test_deployment_readiness_surfaces_optimizer_result_hash() -> None:
     assert data_release_gate["details"]["latest_records_hash"] is None or len(data_release_gate["details"]["latest_records_hash"]) == 64
     assert data_release_gate["details"]["latest_records_csv_hash"] is None or len(data_release_gate["details"]["latest_records_csv_hash"]) == 64
     assert data_release_gate["details"]["latest_release_handoff_hash"] is None or len(data_release_gate["details"]["latest_release_handoff_hash"]) == 64
+    assert data_release_gate["details"]["release_lock_current_hash"] is None or len(data_release_gate["details"]["release_lock_current_hash"]) == 64
+    assert data_release_gate["details"]["release_lock_locked_hash"] is None or len(data_release_gate["details"]["release_lock_locked_hash"]) == 64
+    assert data_release_gate["details"]["latest_release_lock_current_hash"] is None or len(data_release_gate["details"]["latest_release_lock_current_hash"]) == 64
+    assert data_release_gate["details"]["latest_release_lock_locked_hash"] is None or len(data_release_gate["details"]["latest_release_lock_locked_hash"]) == 64
     assert data_release_gate["details"]["latest_rag_structured_manifest_hash"] is None or data_release_gate["details"]["latest_rag_structured_manifest_hash"]
     assert data_release_gate["details"]["latest_rag_index_hash"] is None or len(data_release_gate["details"]["latest_rag_index_hash"]) == 64
     assert data_release_gate["details"]["freshness_status"] in {"fresh", "stale", "unknown", "empty"}
@@ -2317,6 +2321,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                     "rag_index_hash": "pass",
                     "trna_caveat_count": "pass",
                     "trna_blocking_production_use": "pass",
+                    "release_lock_current_hash": "pass",
+                    "release_lock_locked_hash": "pass",
                     "external_snapshot_reference_coverage": "pass",
                 },
                 "records_hash": valid_hash,
@@ -2327,6 +2333,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                 "rag_index_hash": valid_hash,
                 "trna_caveat_count": 0,
                 "trna_blocking_production_use": False,
+                "release_lock_current_hash": valid_hash,
+                "release_lock_locked_hash": valid_hash,
             }
         },
     ) == []
@@ -2586,6 +2594,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "records_csv_hash" in " ".join(archive_hash_failures)
     assert "record_source_summary_hash" in " ".join(archive_hash_failures)
     assert "release_handoff_hash" in " ".join(archive_hash_failures)
+    assert "release_lock_current_hash" in " ".join(archive_hash_failures)
+    assert "release_lock_locked_hash" in " ".join(archive_hash_failures)
     release_snapshot_failures = module.api_failures(
         "data_release_archive_semantics",
         {
@@ -2600,6 +2610,8 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
                         "dataset_count": 2,
                         "source_file_count": 2,
                         "release_handoff_hash": valid_hash,
+                        "release_lock_current_hash": valid_hash,
+                        "release_lock_locked_hash": valid_hash,
                         "trna_caveat_count": 0,
                         "trna_blocking_production_use": False,
                         "external_snapshot_referenced_count": 2,
@@ -4006,6 +4018,8 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     assert verification["semantic_checks"]["rag_index_hash"] in {"pass", "warning"}
     assert verification["semantic_checks"]["trna_caveat_count"] == "pass"
     assert verification["semantic_checks"]["trna_blocking_production_use"] == "pass"
+    assert verification["semantic_checks"]["release_lock_current_hash"] == "pass"
+    assert verification["semantic_checks"]["release_lock_locked_hash"] in {"pass", "warning"}
     assert verification["semantic_checks"]["external_snapshot_reference_coverage"] in {"pass", "warning"}
     assert len(verification["records_hash"]) == 64
     assert len(verification["records_csv_hash"]) == 64
@@ -4034,6 +4048,8 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
         assert release_manifest["rag_index_hash"] == verification["rag_index_hash"]
         assert release_manifest["trna_caveat_count"] == verification["trna_caveat_count"]
         assert release_manifest["trna_blocking_production_use"] == verification["trna_blocking_production_use"]
+        assert release_manifest["release_lock_current_hash"] == verification["release_lock_current_hash"]
+        assert release_manifest["release_lock_locked_hash"] == verification["release_lock_locked_hash"]
     archived = archive_artifact_bundle(
         bundle,
         action="unit_test_data_release_bundle",
@@ -4052,6 +4068,8 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     assert semantic["rag_index_hash"] == verification["rag_index_hash"]
     assert semantic["trna_caveat_count"] == verification["trna_caveat_count"]
     assert semantic["trna_blocking_production_use"] == verification["trna_blocking_production_use"]
+    assert semantic["release_lock_current_hash"] == verification["release_lock_current_hash"]
+    assert semantic["release_lock_locked_hash"] == verification["release_lock_locked_hash"]
     assert semantic["external_snapshot_contained_count"] == verification["external_snapshot_contained_count"]
     assert semantic["external_snapshot_missing_count"] == 0
     summary = data_release_archive_summary(limit=5, verify_files=False)
@@ -4066,6 +4084,8 @@ def test_data_release_bundle_verifies_record_hashes() -> None:
     assert latest["rag_index_hash"] == verification["rag_index_hash"]
     assert latest["trna_caveat_count"] == verification["trna_caveat_count"]
     assert latest["trna_blocking_production_use"] == verification["trna_blocking_production_use"]
+    assert latest["release_lock_current_hash"] == verification["release_lock_current_hash"]
+    assert latest["release_lock_locked_hash"] == verification["release_lock_locked_hash"]
     assert latest["external_snapshot_contained_count"] == verification["external_snapshot_contained_count"]
     assert latest["external_snapshot_missing_count"] == 0
 
