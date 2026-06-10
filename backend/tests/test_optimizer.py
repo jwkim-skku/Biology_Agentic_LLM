@@ -545,6 +545,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["qc_bundle_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_recommendation_candidate"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_folding_candidate"] == "pass"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_linkage_hash"] == "pass"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_linkage_status"] == "pass"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_linkage_candidate"] == "pass"
     assert verification["semantic_checks"]["rag_vector_index_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["rag_vector_index_archive_migration_backend"] == "pass"
     assert verification["semantic_checks"]["rag_vector_index_archive_parity"] == "pass"
@@ -601,6 +604,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "Snapshot external files" in bundled_markdown
         assert "QC readiness candidate" in bundled_markdown
         assert "QC folding candidate" in bundled_markdown
+        assert "QC linkage candidate" in bundled_markdown
+        assert "QC linkage status" in bundled_markdown
+        assert "QC linkage hash" in bundled_markdown
         assert "Refresh plan dataset" in bundled_markdown
         assert "Refresh plan request hash" in bundled_markdown
         assert "Refresh plan operations hash" in bundled_markdown
@@ -844,6 +850,9 @@ def test_production_audit_bundle_rejects_missing_qc_archive_candidate_evidence()
     latest = qc_archive["latest_artifacts"][0]
     latest.pop("recommendation_readiness_candidate_id", None)
     latest.pop("recommended_folding_candidate_id", None)
+    latest.pop("recommendation_linkage_hash", None)
+    latest["recommendation_linkage_status"] = "fail"
+    latest["recommendation_linkage_candidate_id"] = "different_candidate"
     audit["evidence"]["qc_bundle_archive_semantics"] = qc_archive
 
     buffer = BytesIO()
@@ -861,6 +870,9 @@ def test_production_audit_bundle_rejects_missing_qc_archive_candidate_evidence()
     assert verification["semantic_checks"]["qc_bundle_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_recommendation_candidate"] == "fail"
     assert verification["semantic_checks"]["qc_bundle_archive_folding_candidate"] == "fail"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_linkage_hash"] == "fail"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_linkage_status"] == "fail"
+    assert verification["semantic_checks"]["qc_bundle_archive_recommendation_linkage_candidate"] == "fail"
     assert "QC archive evidence" in " ".join(verification["errors"])
 
 

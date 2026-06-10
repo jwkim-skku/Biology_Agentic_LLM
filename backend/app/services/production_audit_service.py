@@ -560,6 +560,33 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 checked_qc_archives == 0 or bool(latest_qc_archive.get("recommended_folding_candidate_id")),
                 "Latest QC archive evidence is missing recommended_folding_candidate_id.",
             )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "qc_bundle_archive_recommendation_linkage_hash",
+                checked_qc_archives == 0 or len(str(latest_qc_archive.get("recommendation_linkage_hash") or "")) == 64,
+                "Latest QC archive evidence is missing a 64-character recommendation_linkage_hash.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "qc_bundle_archive_recommendation_linkage_status",
+                checked_qc_archives == 0 or latest_qc_archive.get("recommendation_linkage_status") == "pass",
+                "Latest QC archive evidence is missing pass recommendation_linkage_status.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "qc_bundle_archive_recommendation_linkage_candidate",
+                checked_qc_archives == 0
+                or (
+                    bool(latest_qc_archive.get("recommendation_linkage_candidate_id"))
+                    and latest_qc_archive.get("recommendation_linkage_candidate_id")
+                    == latest_qc_archive.get("recommendation_readiness_candidate_id")
+                    == latest_qc_archive.get("recommended_folding_candidate_id")
+                ),
+                "Latest QC archive recommendation linkage candidate does not match readiness and folding candidate IDs.",
+            )
             latest_vector_index = (rag_vector_index_archive.get("latest_artifacts") or [{}])[0]
             checked_vector_indexes = int(rag_vector_index_archive.get("checked_count") or 0)
             _record_semantic_check(
@@ -842,6 +869,9 @@ def _readiness_markdown_rows(readiness: dict[str, Any]) -> list[tuple[str, str]]
         ("Snapshot external files", _markdown_value(snapshot.get("latest_external_snapshot_file_count"))),
         ("QC readiness candidate", _markdown_value(qc.get("latest_recommendation_readiness_candidate_id"))),
         ("QC folding candidate", _markdown_value(qc.get("latest_recommended_folding_candidate_id"))),
+        ("QC linkage candidate", _markdown_value(qc.get("latest_recommendation_linkage_candidate_id"))),
+        ("QC linkage status", _markdown_value(qc.get("latest_recommendation_linkage_status"))),
+        ("QC linkage hash", _short_hash(qc.get("latest_recommendation_linkage_hash"))),
         ("QC folding audit", _short_hash(qc.get("latest_candidate_folding_audit_hash"))),
         ("QC folding signal", _markdown_value(qc.get("latest_candidate_folding_audit_selection_signal"))),
         ("QC folding validated", _markdown_value(qc.get("latest_candidate_folding_audit_validated_backend_count"))),
