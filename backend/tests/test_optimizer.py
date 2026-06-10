@@ -531,6 +531,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["production_gap_summary_recomputed"] == "pass"
     assert verification["semantic_checks"]["production_gap_summary_hash"] == "pass"
     assert verification["semantic_checks"]["production_gap_proof_checklist_hash"] == "pass"
+    assert verification["semantic_checks"]["production_gap_proof_checklist_consistency"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_recommendation_candidate"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_folding_candidate"] == "pass"
@@ -778,6 +779,7 @@ def test_production_audit_bundle_rejects_tampered_gap_summary() -> None:
     assert verification["semantic_checks"]["production_gap_summary_recomputed"] == "fail"
     assert verification["semantic_checks"]["production_gap_summary_hash"] == "fail"
     assert verification["semantic_checks"]["production_gap_proof_checklist_hash"] == "fail"
+    assert verification["semantic_checks"]["production_gap_proof_checklist_consistency"] == "fail"
     assert "production_gap_summary" in " ".join(verification["errors"])
 
 

@@ -1219,6 +1219,8 @@ def production_gap_summary_failures(summary: Any, embedded_summary: Any | None =
         failures.append("production audit status proof_checklist_count does not match proof_checklist")
     if summary.get("proof_checklist_hash") != compact_hash_payload(proof_checklist):
         failures.append("production audit status proof_checklist_hash does not match proof_checklist")
+    if proof_checklist != production_gap_proof_checklist(gaps):
+        failures.append("production audit status proof_checklist does not match gaps")
     for gap in gaps:
         if not isinstance(gap, dict):
             failures.append("production audit status production_gap_summary contains a non-object gap")
@@ -1258,6 +1260,25 @@ def count_by(items: list[Any], key: str) -> dict[str, int]:
         value = str(item.get(key) or "unknown")
         counts[value] = counts.get(value, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def production_gap_proof_checklist(gaps: list[Any]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for gap in gaps:
+        if not isinstance(gap, dict):
+            continue
+        items.append(
+            {
+                "area": gap.get("area"),
+                "priority": gap.get("priority"),
+                "resolution_scope": gap.get("resolution_scope"),
+                "resolution_mode": gap.get("resolution_mode"),
+                "proof_artifact": gap.get("proof_artifact"),
+                "proof_command": gap.get("proof_command"),
+                "gap_hash": gap.get("gap_hash"),
+            }
+        )
+    return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
 
 
 def api_warnings(name: str, details: Any) -> list[str]:
