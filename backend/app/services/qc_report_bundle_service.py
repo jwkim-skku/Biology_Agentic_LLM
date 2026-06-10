@@ -32,6 +32,7 @@ REQUIRED_QC_BUNDLE_FILES = {
     "recommendation_readiness.json",
     "candidate_folding_audit.json",
     "recommended_folding_evidence.json",
+    "recommendation_linkage.json",
     "data_quality.json",
     "optimizer_stress.json",
     "candidate_ranking.csv",
@@ -66,6 +67,15 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
     recommendation_readiness = _recommendation_readiness_payload(design, report)
     candidate_folding_audit = _candidate_folding_audit_payload(design, report)
     folding_evidence = _recommended_folding_evidence_payload(design, report)
+    recommendation_linkage = _recommendation_linkage_payload(
+        design=design,
+        request_payload=request_payload,
+        report=report,
+        candidate_csv=candidate_csv,
+        recommendation_readiness=recommendation_readiness,
+        candidate_folding_audit=candidate_folding_audit,
+        folding_evidence=folding_evidence,
+    )
     report_formats_summary = _report_formats_summary(
         {
             "qc_report.json": report_json.encode("utf-8"),
@@ -90,6 +100,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         "recommendation_readiness_hash": _hash_payload(recommendation_readiness),
         "candidate_folding_audit_hash": _hash_payload(candidate_folding_audit),
         "recommended_folding_evidence_hash": _hash_payload(folding_evidence),
+        "recommendation_linkage_hash": _hash_payload(recommendation_linkage),
         "recommended_candidate_id": (design.get("recommended_candidate") or {}).get("candidate_id"),
     }
     data_quality = structured_quality_gate()
@@ -111,6 +122,7 @@ def build_qc_report_bundle(design: dict[str, Any], request_payload: dict[str, An
         bundle.writestr("recommendation_readiness.json", _json(recommendation_readiness))
         bundle.writestr("candidate_folding_audit.json", _json(candidate_folding_audit))
         bundle.writestr("recommended_folding_evidence.json", _json(folding_evidence))
+        bundle.writestr("recommendation_linkage.json", _json(recommendation_linkage))
         bundle.writestr("data_quality.json", _json(data_quality))
         bundle.writestr("optimizer_stress.json", _json(optimizer_stress))
         bundle.writestr("candidate_ranking.csv", candidate_csv)
@@ -158,6 +170,7 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             recommendation_readiness_file = _read_json_member(archive, "recommendation_readiness.json")
             candidate_folding_audit_file = _read_json_member(archive, "candidate_folding_audit.json")
             recommended_folding_evidence_file = _read_json_member(archive, "recommended_folding_evidence.json")
+            recommendation_linkage_file = _read_json_member(archive, "recommendation_linkage.json")
             data_quality = _read_json_member(archive, "data_quality.json")
             optimizer_stress = _read_json_member(archive, "optimizer_stress.json")
             candidate_diagnostics = _read_json_member(archive, "candidate_diagnostics.json")
@@ -200,6 +213,9 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
             "candidate_folding_audit_hash": _hash_payload(candidate_folding_audit_file),
             "candidate_folding_audit_selection_signal": candidate_folding_audit_file.get("selection_signal"),
             "candidate_folding_audit_validated_backend_count": candidate_folding_audit_file.get("validated_backend_count"),
+            "recommendation_linkage_hash": _hash_payload(recommendation_linkage_file),
+            "recommendation_linkage_candidate_id": recommendation_linkage_file.get("recommended_candidate_id"),
+            "recommendation_linkage_status": recommendation_linkage_file.get("status"),
             "recommendation_readiness_status": recommendation_readiness_file.get("readiness_status"),
             "recommendation_release_ready": recommendation_readiness_file.get("release_ready"),
             "recommendation_readiness_candidate_id": recommendation_readiness_file.get("recommended_candidate_id"),
@@ -401,6 +417,14 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         bundle_manifest.get("recommended_folding_evidence_hash"),
         _hash_payload(recommended_folding_evidence_file),
         "bundle_manifest.json recommended_folding_evidence_hash does not match recommended_folding_evidence.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_hash",
+        bundle_manifest.get("recommendation_linkage_hash"),
+        _hash_payload(recommendation_linkage_file),
+        "bundle_manifest.json recommendation_linkage_hash does not match recommendation_linkage.json.",
     )
     for key in ["gene", "species", "brain_region", "cell_type", "modality"]:
         if key not in request or key not in target_definition:
@@ -699,6 +723,75 @@ def verify_qc_report_bundle(bundle: bytes) -> dict[str, Any]:
         recommended_folding_evidence_file.get("candidate_id"),
         "recommendation_readiness.json recommended_candidate_id does not match recommended_folding_evidence.json candidate_id.",
     )
+    expected_linkage = _recommendation_linkage_payload(
+        design={
+            "run_id": run_id,
+            "recommended_candidate": recommended,
+            "candidates": report_candidate_rows,
+        },
+        request_payload=request,
+        report=qc_report,
+        candidate_csv=candidate_csv_text,
+        recommendation_readiness=recommendation_readiness_file,
+        candidate_folding_audit=candidate_folding_audit_file,
+        folding_evidence=recommended_folding_evidence_file,
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_schema",
+        recommendation_linkage_file.get("linkage_schema"),
+        "agentic-rag-qc-recommendation-linkage-v1",
+        "recommendation_linkage.json linkage_schema is not recognized.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_payload",
+        recommendation_linkage_file,
+        expected_linkage,
+        "recommendation_linkage.json does not match the QC report, request, ranking, readiness, and folding evidence.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_candidate",
+        recommendation_linkage_file.get("recommended_candidate_id"),
+        recommended_candidate_id,
+        "recommendation_linkage.json recommended_candidate_id does not match qc_report.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_readiness_hash",
+        recommendation_linkage_file.get("recommendation_readiness_hash"),
+        _hash_payload(recommendation_readiness_file),
+        "recommendation_linkage.json recommendation_readiness_hash does not match recommendation_readiness.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_folding_hash",
+        recommendation_linkage_file.get("recommended_folding_evidence_hash"),
+        _hash_payload(recommended_folding_evidence_file),
+        "recommendation_linkage.json recommended_folding_evidence_hash does not match recommended_folding_evidence.json.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_candidate_ranking_hash",
+        recommendation_linkage_file.get("candidate_ranking_hash"),
+        _hash_text(candidate_csv_text),
+        "recommendation_linkage.json candidate_ranking_hash does not match candidate_ranking.csv.",
+    )
+    _expect_equal(
+        semantic_checks,
+        semantic_errors,
+        "recommendation_linkage_status",
+        recommendation_linkage_file.get("status"),
+        "pass",
+        "recommendation_linkage.json status must be pass for promotion evidence.",
+    )
     _record_check(
         semantic_checks,
         "recommendation_readiness_status",
@@ -811,6 +904,62 @@ def _candidate_folding_audit_payload(design: dict[str, Any], report: dict[str, A
 
 def _recommendation_readiness_payload(design: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
     return report.get("recommendation_readiness") or (design.get("qc_report") or {}).get("recommendation_readiness") or {}
+
+
+def _recommendation_linkage_payload(
+    *,
+    design: dict[str, Any],
+    request_payload: dict[str, Any],
+    report: dict[str, Any],
+    candidate_csv: str,
+    recommendation_readiness: dict[str, Any],
+    candidate_folding_audit: dict[str, Any],
+    folding_evidence: dict[str, Any],
+) -> dict[str, Any]:
+    project_metadata = report.get("project_metadata") or {}
+    recommended = report.get("recommended_candidate") or design.get("recommended_candidate") or {}
+    candidate_ranking = report.get("candidate_ranking") or design.get("candidates") or []
+    recommended_candidate_id = recommended.get("candidate_id")
+    ranking_ids = [
+        str(row.get("candidate_id"))
+        for row in candidate_ranking
+        if isinstance(row, dict) and row.get("candidate_id")
+    ]
+    matching_rank = next(
+        (
+            row.get("rank")
+            for row in candidate_ranking
+            if isinstance(row, dict) and row.get("candidate_id") == recommended_candidate_id
+        ),
+        None,
+    )
+    linked_candidate_ids = [
+        str(recommended_candidate_id or ""),
+        str(recommendation_readiness.get("recommended_candidate_id") or ""),
+        str(folding_evidence.get("candidate_id") or ""),
+    ]
+    candidate_ids_match = bool(recommended_candidate_id) and len(set(linked_candidate_ids)) == 1
+    return {
+        "linkage_schema": "agentic-rag-qc-recommendation-linkage-v1",
+        "run_id": project_metadata.get("run_id") or design.get("run_id"),
+        "recommended_candidate_id": recommended_candidate_id,
+        "recommended_rank": matching_rank,
+        "candidate_count": len(ranking_ids),
+        "candidate_ids_hash": _hash_payload(ranking_ids),
+        "request_hash": _hash_payload(request_payload),
+        "qc_report_hash": _hash_payload(report),
+        "candidate_ranking_hash": _hash_text(candidate_csv),
+        "recommendation_readiness_hash": _hash_payload(recommendation_readiness),
+        "candidate_folding_audit_hash": _hash_payload(candidate_folding_audit),
+        "recommended_folding_evidence_hash": _hash_payload(folding_evidence),
+        "optimizer_manifest_hash": (report.get("optimizer_reproducibility") or {}).get("manifest_hash")
+        or project_metadata.get("optimizer_manifest_hash"),
+        "readiness_status": recommendation_readiness.get("readiness_status"),
+        "folding_status": folding_evidence.get("status"),
+        "folding_backend": folding_evidence.get("active_backend"),
+        "candidate_ids_match": candidate_ids_match,
+        "status": "pass" if candidate_ids_match and str(recommended_candidate_id) in ranking_ids else "fail",
+    }
 
 
 def _report_formats_summary(files: dict[str, bytes]) -> dict[str, Any]:

@@ -930,6 +930,7 @@ def api_failures(name: str, details: Any) -> list[str]:
             "recommendation_audit_hash",
             "recommendation_readiness_hash",
             "recommended_folding_evidence_hash",
+            "recommendation_linkage_hash",
         ]:
             if checks.get(hash_check) != "pass" or not payload.get(hash_check):
                 failures.append(f"QC report bundle does not verify {hash_check}.")
@@ -956,6 +957,13 @@ def api_failures(name: str, details: Any) -> list[str]:
             "recommendation_readiness_report",
             "recommendation_readiness_payload_hash",
             "recommendation_readiness_candidate",
+            "recommendation_linkage_schema",
+            "recommendation_linkage_payload",
+            "recommendation_linkage_candidate",
+            "recommendation_linkage_readiness_hash",
+            "recommendation_linkage_folding_hash",
+            "recommendation_linkage_candidate_ranking_hash",
+            "recommendation_linkage_status",
             "recommendation_readiness_status",
         ]
         missing = [check for check in required_qc_explainability if checks.get(check) != "pass"]
@@ -1000,6 +1008,7 @@ def api_failures(name: str, details: Any) -> list[str]:
             "candidate_ranking_hash",
             "recommendation_audit_hash",
             "recommendation_readiness_hash",
+            "recommendation_linkage_hash",
             "recommended_folding_evidence_hash",
             "optimizer_manifest_hash",
         ]:
@@ -1009,6 +1018,10 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest QC archive is missing pass/warning recommendation_readiness_status")
         if checked_count and not latest.get("recommendation_readiness_candidate_id"):
             failures.append("latest QC archive is missing recommendation_readiness_candidate_id")
+        if checked_count and latest.get("recommendation_linkage_status") != "pass":
+            failures.append("latest QC archive is missing pass recommendation_linkage_status")
+        if checked_count and not latest.get("recommendation_linkage_candidate_id"):
+            failures.append("latest QC archive is missing recommendation_linkage_candidate_id")
         if checked_count and latest.get("recommended_folding_status") not in {"pass", "warning"}:
             failures.append("latest QC archive is missing pass/warning recommended_folding_status")
         if checked_count and not latest.get("recommended_folding_candidate_id"):

@@ -55,7 +55,10 @@ REQUIREMENTS: list[dict[str, Any]] = [
         "title": "QC reports, candidate evidence, and export bundles",
         "evidence": [
             {"path": "backend/app/services/report_service.py", "contains": ["recommendation_readiness", "candidate_ranking", "PDF"]},
-            {"path": "backend/app/services/qc_report_bundle_service.py", "contains": ["recommendation_readiness_hash", "candidate_folding_audit"]},
+            {
+                "path": "backend/app/services/qc_report_bundle_service.py",
+                "contains": ["recommendation_readiness_hash", "candidate_folding_audit", "recommendation_linkage_hash"],
+            },
             {"path": "backend/app/services/export_manifest_service.py", "contains": ["artifact_manifest", "sha256"]},
             {"path": "backend/tests/test_optimizer.py", "contains": ["qc_report.pdf", "candidate_ranking.csv"]},
         ],
