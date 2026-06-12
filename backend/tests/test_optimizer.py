@@ -1727,6 +1727,18 @@ def test_cli_production_promotion_runbook_verifier_recomputes_hashes() -> None:
     tampered["resolution_mode_counts"] = {"configuration": 1}
     tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
     assert "resolution_mode_counts" in " ".join(module.validate_runbook(tampered))
+    tampered = json.loads(json.dumps(payload))
+    tampered["status"] = "pass"
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "status pass requires zero runbook gaps" in " ".join(module.validate_runbook(tampered))
+    tampered = json.loads(json.dumps(payload))
+    tampered["production_ready"] = True
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "production_ready true requires pass status and zero runbook gaps" in " ".join(module.validate_runbook(tampered))
+    tampered = json.loads(json.dumps(payload))
+    tampered["source_generated_at"] = "not-a-timestamp"
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "source_generated_at must be a valid ISO timestamp" in " ".join(module.validate_runbook(tampered))
 
 
 def test_portfolio_readiness_matrix_covers_pdf_requirement_areas() -> None:

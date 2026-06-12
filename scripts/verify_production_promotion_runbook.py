@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
@@ -55,6 +56,7 @@ def validate_runbook(payload: Any) -> list[str]:
     if payload.get("runbook_schema") != RUNBOOK_SCHEMA:
         errors.append(f"runbook_schema must be {RUNBOOK_SCHEMA}")
     require_hex_hash(payload, "source_audit_hash", errors)
+    validate_source_metadata(payload, errors)
 
     verification = payload.get("verification")
     if not isinstance(verification, dict):
@@ -122,10 +124,18 @@ def validate_runbook(payload: Any) -> list[str]:
             errors.append("resolution_scope_counts do not match groups")
         if payload.get("resolution_mode_counts") != dict(sorted(mode_counts.items())):
             errors.append("resolution_mode_counts do not match groups")
-        if safe_int(payload.get("blocking_count"), -1) != sum(1 for item in group_items if item.get("priority") == "blocking"):
+        blocking_count = sum(1 for item in group_items if item.get("priority") == "blocking")
+        promotion_count = sum(1 for item in group_items if item.get("priority") == "promotion")
+        if safe_int(payload.get("blocking_count"), -1) != blocking_count:
             errors.append("blocking_count does not match group items")
-        if safe_int(payload.get("promotion_count"), -1) != sum(1 for item in group_items if item.get("priority") == "promotion"):
+        if safe_int(payload.get("promotion_count"), -1) != promotion_count:
             errors.append("promotion_count does not match group items")
+        if safe_int(payload.get("gap_count"), -1) != blocking_count + promotion_count:
+            errors.append("gap_count does not match blocking plus promotion counts")
+        if payload.get("status") == "pass" and group_items:
+            errors.append("status pass requires zero runbook gaps")
+        if payload.get("production_ready") is True and (payload.get("status") != "pass" or group_items):
+            errors.append("production_ready true requires pass status and zero runbook gaps")
         expected_proof_checklist = proof_checklist_from_groups(groups)
         if expected_proof_checklist != proof_checklist:
             errors.append("proof_checklist does not match groups")
@@ -134,6 +144,21 @@ def validate_runbook(payload: Any) -> list[str]:
     if payload.get("runbook_hash") != expected_runbook_hash:
         errors.append("runbook_hash does not match runbook payload")
     return errors
+
+
+def validate_source_metadata(payload: dict[str, Any], errors: list[str]) -> None:
+    if payload.get("status") not in {"pass", "warning", "fail"}:
+        errors.append("status must be pass, warning, or fail")
+    if not isinstance(payload.get("production_ready"), bool):
+        errors.append("production_ready must be a boolean")
+    generated_at = payload.get("source_generated_at")
+    if not isinstance(generated_at, str) or not generated_at:
+        errors.append("source_generated_at must be a non-empty ISO timestamp")
+        return
+    try:
+        datetime.fromisoformat(generated_at.replace("Z", "+00:00"))
+    except ValueError:
+        errors.append("source_generated_at must be a valid ISO timestamp")
 
 
 def proof_checklist_from_groups(groups: list[Any]) -> list[dict[str, Any]]:

@@ -106,7 +106,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
             },
             {
                 "path": "scripts/verify_production_promotion_runbook.py",
-                "contains": ["RUNBOOK_SCHEMA", "runbook_hash", "proof_item_hash", "proof_checklist_from_groups"],
+                "contains": ["RUNBOOK_SCHEMA", "runbook_hash", "proof_item_hash", "proof_checklist_from_groups", "validate_source_metadata"],
             },
             {
                 "path": "scripts/verify_production_audit_write_result.py",
