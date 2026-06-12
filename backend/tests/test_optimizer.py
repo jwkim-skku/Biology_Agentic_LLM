@@ -1568,7 +1568,23 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
             ),
             encoding="utf-8",
         )
-        preflight_path.write_text('{"status":"pass"}', encoding="utf-8")
+        preflight_evidence = {
+            "status": "pass",
+            "failed": [],
+            "checks": [
+                {
+                    "name": "production_audit_template",
+                    "status": "pass",
+                    "returncode": 0,
+                    "warnings": [],
+                }
+            ],
+        }
+        preflight_evidence["checks_hash"] = module.hash_payload(preflight_evidence["checks"])
+        preflight_evidence["preflight_hash"] = module.hash_payload(
+            {key: value for key, value in preflight_evidence.items() if key != "preflight_hash"}
+        )
+        preflight_path.write_text(json.dumps(preflight_evidence), encoding="utf-8")
         payload = {
             "result_schema": module.WRITE_RESULT_SCHEMA,
             "summary": audit_report["summary"],
@@ -1581,8 +1597,8 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
             "preflight_status": "pass",
             "preflight_failure_count": 0,
             "preflight_warning_count": 0,
-            "preflight_hash": "b" * 64,
-            "preflight_checks_hash": "c" * 64,
+            "preflight_hash": preflight_evidence["preflight_hash"],
+            "preflight_checks_hash": preflight_evidence["checks_hash"],
         }
 
         assert module.validate_write_result(payload, base_dir=root) == []
@@ -1592,6 +1608,10 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
         assert "preflight_status must be pass" in " ".join(module.validate_write_result(tampered, base_dir=root))
         tampered = {**payload, "preflight_failure_count": 1}
         assert "preflight_failure_count must be 0" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        tampered = {**payload, "preflight_checks_hash": "0" * 64}
+        assert "preflight_checks_hash does not match preflight_evidence" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        tampered = {**payload, "preflight_hash": "0" * 64}
+        assert "preflight_hash does not match preflight_evidence" in " ".join(module.validate_write_result(tampered, base_dir=root))
         tampered = {**payload, "audit_hash": "a" * 64}
         assert "audit_hash does not match json_path audit_hash" in " ".join(module.validate_write_result(tampered, base_dir=root))
         tampered = {**payload, "summary": {"status": "warning"}}

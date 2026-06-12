@@ -117,7 +117,13 @@ REQUIREMENTS: list[dict[str, Any]] = [
             },
             {
                 "path": "scripts/verify_production_audit_write_result.py",
-                "contains": ["WRITE_RESULT_SCHEMA", "json_sha256", "audit_hash", "summarize_report_checks"],
+                "contains": [
+                    "WRITE_RESULT_SCHEMA",
+                    "json_sha256",
+                    "audit_hash",
+                    "summarize_report_checks",
+                    "validate_preflight_evidence_linkage",
+                ],
             },
             {"path": ".github/workflows/ci.yml", "contains": ["production_audit_write_result", "backend-production-promotion-runbook", "--markdown-path"]},
             {"path": "backend/tests/test_optimizer.py", "contains": ["production_audit", "rag_vector_index", "qc_report"]},

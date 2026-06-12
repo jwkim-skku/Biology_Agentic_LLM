@@ -82,8 +82,41 @@ def validate_write_result(payload: Any, *, base_dir: Path | None = None) -> list
             errors.append("preflight_failure_count must be 0 when preflight_evidence is present")
         require_hex_hash(payload, "preflight_hash", errors)
         require_hex_hash(payload, "preflight_checks_hash", errors)
+        validate_preflight_evidence_linkage(payload, evidence_path=evidence_path, errors=errors)
 
     return errors
+
+
+def validate_preflight_evidence_linkage(payload: dict[str, Any], *, evidence_path: Path, errors: list[str]) -> None:
+    if not evidence_path.exists():
+        return
+    try:
+        evidence = json.loads(read_json_text(evidence_path))
+    except json.JSONDecodeError as exc:
+        errors.append(f"preflight_evidence is not valid JSON: {exc}")
+        return
+    if not isinstance(evidence, dict):
+        errors.append("preflight_evidence root must be a JSON object")
+        return
+
+    if payload.get("preflight_status") != evidence.get("status"):
+        errors.append("preflight_status does not match preflight_evidence status")
+    checks = evidence.get("checks") if isinstance(evidence.get("checks"), list) else []
+    if payload.get("preflight_failure_count") != len(stringify_list(evidence.get("failed"))):
+        errors.append("preflight_failure_count does not match preflight_evidence failed[]")
+    warning_count = sum(1 for check in checks if isinstance(check, dict) and (check.get("warnings") or check.get("status") == "warning"))
+    if payload.get("preflight_warning_count") != warning_count:
+        errors.append("preflight_warning_count does not match preflight_evidence checks")
+    if payload.get("preflight_checks_hash") != evidence.get("checks_hash"):
+        errors.append("preflight_checks_hash does not match preflight_evidence checks_hash")
+    expected_checks_hash = hash_payload(checks)
+    if evidence.get("checks_hash") != expected_checks_hash:
+        errors.append("preflight_evidence checks_hash does not match checks[]")
+    if payload.get("preflight_hash") != evidence.get("preflight_hash"):
+        errors.append("preflight_hash does not match preflight_evidence preflight_hash")
+    expected_preflight_hash = hash_payload({key: value for key, value in evidence.items() if key != "preflight_hash"})
+    if evidence.get("preflight_hash") != expected_preflight_hash:
+        errors.append("preflight_evidence preflight_hash does not match payload")
 
 
 def validate_report_artifacts(payload: dict[str, Any], *, base_dir: Path | None, errors: list[str]) -> None:
@@ -203,6 +236,18 @@ def audit_hash(report: dict[str, Any]) -> str:
     unsigned = {key: value for key, value in report.items() if key != "audit_hash"}
     canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return sha256(canonical).hexdigest()
+
+
+def hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def stringify_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [str(item) for item in value]
+    if value in (None, ""):
+        return []
+    return [str(value)]
 
 
 if __name__ == "__main__":
