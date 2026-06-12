@@ -162,7 +162,7 @@ Operational endpoints:
 - `POST /api/v1/report/export-bundle.zip`
 - `POST /api/v1/report/export-bundle/verify`
 
-The semantic-summary endpoints include a `freshness_status`, `latest_created_at`, `latest_age_hours`, and `freshness_policy.warning_hours` so production reviewers can distinguish current archive evidence from stale or untimestamped artifacts.
+The semantic-summary endpoints include a `freshness_status`, `latest_created_at`, `latest_age_hours`, and `freshness_policy.warning_hours` so production reviewers can distinguish current archive evidence from stale or untimestamped artifacts. The production audit CLI treats checked archive evidence as promotion-blocking unless its freshness summary is present and `freshness_status=fresh`.
 
 Smoke test:
 

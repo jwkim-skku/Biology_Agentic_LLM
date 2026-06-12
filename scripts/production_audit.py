@@ -1054,6 +1054,8 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("artifact ledger has archived artifacts missing from ledger")
     if name.endswith("_archive_semantics") and payload.get("status") == "fail":
         failures.append(f"{name} archive semantic summary is fail")
+    if name.endswith("_archive_semantics"):
+        failures.extend(archive_freshness_failures(name, payload))
     if name == "qc_bundle_archive_semantics":
         latest = (payload.get("latest_artifacts") or [{}])[0]
         checked_count = int(payload.get("checked_count") or 0)
@@ -1296,6 +1298,28 @@ def api_failures(name: str, details: Any) -> list[str]:
             failures.append("latest workflow trace archive is missing task_type")
         if checked_count and not latest.get("structured_manifest_hash"):
             failures.append("latest workflow trace archive is missing structured_manifest_hash")
+    return failures
+
+
+def archive_freshness_failures(name: str, payload: dict[str, Any]) -> list[str]:
+    checked_count = safe_int(payload.get("checked_count"))
+    if checked_count <= 0:
+        return []
+    freshness_status = payload.get("freshness_status")
+    failures: list[str] = []
+    if freshness_status not in {"fresh"}:
+        failures.append(f"{name} freshness_status is not fresh")
+    latest_age = payload.get("latest_age_hours")
+    warning_hours = (payload.get("freshness_policy") or {}).get("warning_hours")
+    if latest_age is None:
+        failures.append(f"{name} latest_age_hours is missing")
+    if safe_int(warning_hours) <= 0:
+        failures.append(f"{name} freshness_policy.warning_hours is missing")
+    try:
+        if latest_age is not None and warning_hours is not None and float(latest_age) > float(warning_hours):
+            failures.append(f"{name} latest artifact age exceeds freshness policy")
+    except (TypeError, ValueError):
+        failures.append(f"{name} freshness age values are invalid")
     return failures
 
 

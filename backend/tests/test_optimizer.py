@@ -2116,6 +2116,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     spec.loader.exec_module(module)
 
     valid_hash = "a" * 64
+    fresh_archive_summary = {"freshness_status": "fresh", "latest_age_hours": 1.0, "freshness_policy": {"warning_hours": 720}}
     api_check_names = {check["name"] for check in module.API_CHECKS}
     assert "structured_import_archive_semantics" in api_check_names
     assert "data_snapshot_archive_semantics" in api_check_names
@@ -2879,6 +2880,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             "data": {
                 "status": "pass",
                 "checked_count": 1,
+                **fresh_archive_summary,
                 "latest_artifacts": [
                     {
                         "records_hash": valid_hash,
@@ -2907,12 +2909,35 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
     assert "structured_manifest_hash" in " ".join(snapshot_archive_failures)
     assert "rag_index_hash" in " ".join(snapshot_archive_failures)
     assert "external_snapshot_file_count" in " ".join(snapshot_archive_failures)
+    stale_archive_failures = module.api_failures(
+        "data_release_archive_semantics",
+        {
+            "data": {
+                "status": "pass",
+                "checked_count": 1,
+                "freshness_status": "stale",
+                "latest_age_hours": 721.0,
+                "freshness_policy": {"warning_hours": 720},
+                "latest_artifacts": [],
+            }
+        },
+    )
+    assert "freshness_status is not fresh" in " ".join(stale_archive_failures)
+    assert "latest artifact age exceeds freshness policy" in " ".join(stale_archive_failures)
+    missing_freshness_failures = module.api_failures(
+        "workflow_trace_archive_semantics",
+        {"data": {"status": "pass", "checked_count": 1, "latest_artifacts": []}},
+    )
+    assert "freshness_status is not fresh" in " ".join(missing_freshness_failures)
+    assert "latest_age_hours is missing" in " ".join(missing_freshness_failures)
+    assert "freshness_policy.warning_hours is missing" in " ".join(missing_freshness_failures)
     assert module.api_failures(
         "data_refresh_plan_archive_semantics",
         {
             "data": {
                 "status": "pass",
                 "checked_count": 1,
+                **fresh_archive_summary,
                 "latest_artifacts": [
                     {
                         "operation_count": 2,
@@ -2937,6 +2962,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             "data": {
                 "status": "pass",
                 "checked_count": 1,
+                **fresh_archive_summary,
                 "latest_artifacts": [
                     {
                         "trace_step_count": 3,
@@ -2975,6 +3001,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             "data": {
                 "status": "pass",
                 "checked_count": 1,
+                **fresh_archive_summary,
                 "latest_artifacts": [
                     {
                         "chunk_count": 8,
@@ -3002,6 +3029,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             "data": {
                 "status": "pass",
                 "checked_count": 1,
+                **fresh_archive_summary,
                 "latest_artifacts": [
                     {
                         "case_count": 5,
@@ -3050,6 +3078,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             "data": {
                 "status": "pass",
                 "checked_count": 1,
+                **fresh_archive_summary,
                 "latest_artifacts": [
                     {
                         "benchmark_status": "pass",
