@@ -127,7 +127,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
             },
             {
                 "path": "scripts/verify_portfolio_readiness_matrix.py",
-                "contains": ["MATRIX_SCHEMA", "matrix_hash", "evidence_hash", "missing_tokens", "validate_evidence_item"],
+                "contains": ["MATRIX_SCHEMA", "matrix_hash", "evidence_hash", "missing_tokens", "sample", "validate_evidence_item"],
             },
             {
                 "path": ".github/workflows/ci.yml",

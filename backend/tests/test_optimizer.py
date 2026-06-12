@@ -1839,6 +1839,17 @@ def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
     tampered["matrix_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "matrix_hash"})
     assert "missing_tokens does not match file contents" in " ".join(verifier.validate_matrix(tampered))
     tampered = json.loads(json.dumps(matrix))
+    glob_requirement = next(
+        requirement
+        for requirement in tampered["requirements"]
+        if any(item.get("kind") == "glob" for item in requirement["evidence"])
+    )
+    glob_item = next(item for item in glob_requirement["evidence"] if item.get("kind") == "glob")
+    glob_item["sample"] = ["backend/app/data/structured/definitely-not-real.json"]
+    glob_requirement["evidence_hash"] = verifier.hash_payload(glob_requirement["evidence"])
+    tampered["matrix_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "matrix_hash"})
+    assert "sample does not match filesystem" in " ".join(verifier.validate_matrix(tampered))
+    tampered = json.loads(json.dumps(matrix))
     tampered["root"] = str(root / "backend")
     tampered["matrix_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "matrix_hash"})
     assert "root does not match verifier repository root" in " ".join(verifier.validate_matrix(tampered))

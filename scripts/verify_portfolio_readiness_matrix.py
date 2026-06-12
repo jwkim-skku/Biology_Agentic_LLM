@@ -139,9 +139,13 @@ def validate_evidence_item(item: dict[str, Any], *, root: Path) -> list[str]:
         pattern = item.get("pattern")
         if not isinstance(pattern, str) or not pattern:
             return ["glob evidence pattern must be a non-empty string"]
-        count = len(sorted(root.glob(pattern)))
+        matches = sorted(root.glob(pattern))
+        count = len(matches)
+        sample = [str(path.relative_to(root)) for path in matches[:5]]
         if item.get("count") != count:
             errors.append(f"glob evidence {pattern} count does not match filesystem")
+        if item.get("sample") != sample:
+            errors.append(f"glob evidence {pattern} sample does not match filesystem")
         if item.get("status") != ("pass" if count >= int(item.get("min_count") or 1) else "fail"):
             errors.append(f"glob evidence {pattern} status does not match count")
     else:
