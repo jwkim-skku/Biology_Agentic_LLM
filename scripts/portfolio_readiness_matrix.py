@@ -202,6 +202,15 @@ REQUIREMENTS: list[dict[str, Any]] = [
             },
             {"path": "backend/tests/test_optimizer.py", "contains": ["production_audit", "rag_vector_index", "qc_report"]},
             {
+                "path": "README.md",
+                "contains": [
+                    "final_portfolio_check.py --workflow",
+                    "verify_final_portfolio_check.py",
+                    "final_portfolio_check.json",
+                    "portfolio submission",
+                ],
+            },
+            {
                 "path": "docs/DEPLOYMENT.md",
                 "contains": [
                     "Preflight verification",

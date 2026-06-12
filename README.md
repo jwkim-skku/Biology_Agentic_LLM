@@ -152,12 +152,15 @@ Individual contract and golden checks are also available from the repository roo
 
 ```powershell
 python scripts/portfolio_readiness_matrix.py --strict
+python scripts/final_portfolio_check.py --workflow .github/workflows/ci.yml --output-dir backend/app/data/runtime --output-json backend/app/data/runtime/final_portfolio_check.json
+python scripts/verify_final_portfolio_check.py --path backend/app/data/runtime/final_portfolio_check.json
 python scripts/api_contract_test.py
 python scripts/golden_response_test.py
 python scripts/golden_value_test.py
 ```
 
 `portfolio_readiness_matrix.py` emits a hash-pinned JSON evidence matrix for the PDF scope: real data ingestion, Agentic RAG retrieval/evaluation, multi-objective codon optimization, QC export, operator UI, deployment operations, and automated audit/CI coverage.
+`final_portfolio_check.py` regenerates the matrix, CI production evidence chain, and portfolio submission summary artifacts, then records their SHA-256 values and payload hashes in `final_portfolio_check.json`; `verify_final_portfolio_check.py` recomputes those hashes before portfolio submission.
 
 Backend smoke and manual regression checks can be run from `backend`:
 
