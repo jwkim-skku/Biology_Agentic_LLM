@@ -545,6 +545,60 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 artifact_object_store.get("external_timestamp_hash") == _hash_payload_default_json(artifact_object_store.get("external_timestamp") or {}),
                 "artifact object-store external_timestamp_hash does not match external_timestamp.",
             )
+            object_store_lifecycle = (
+                artifact_object_store.get("lifecycle_policy") if isinstance(artifact_object_store.get("lifecycle_policy"), dict) else {}
+            )
+            object_store_timestamp = (
+                artifact_object_store.get("external_timestamp") if isinstance(artifact_object_store.get("external_timestamp"), dict) else {}
+            )
+            object_store_capabilities = (
+                artifact_object_store.get("capabilities") if isinstance(artifact_object_store.get("capabilities"), dict) else {}
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_ready_configuration",
+                artifact_object_store.get("status") != "ready"
+                or (
+                    artifact_object_store.get("enabled") is True
+                    and artifact_object_store.get("configured") is True
+                    and not artifact_object_store.get("missing_settings")
+                    and str(artifact_object_store.get("endpoint") or "").startswith("https://")
+                    and bool(artifact_object_store.get("bucket"))
+                    and bool(artifact_object_store.get("prefix"))
+                    and bool(artifact_object_store.get("region"))
+                    and object_store_capabilities.get("put_object") is True
+                    and object_store_capabilities.get("head_verify") is True
+                ),
+                "artifact object-store ready status lacks HTTPS endpoint, bucket/prefix/region, credentials, or mirror capabilities.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_lifecycle_ready",
+                artifact_object_store.get("status") != "ready"
+                or (
+                    object_store_lifecycle.get("status") == "pass"
+                    and object_store_lifecycle.get("local_retention_enabled") is True
+                    and object_store_lifecycle.get("minimum_keep_ready") is True
+                    and object_store_lifecycle.get("object_store_mirror_ready") is True
+                    and object_store_lifecycle.get("mirror_before_retention") is True
+                ),
+                "artifact object-store ready status lacks pass lifecycle retention/mirror policy evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_timestamp_ready",
+                artifact_object_store.get("status") != "ready"
+                or (
+                    object_store_timestamp.get("status") == "pass"
+                    and object_store_timestamp.get("required") is True
+                    and object_store_timestamp.get("endpoint_configured") is True
+                    and object_store_timestamp.get("key_id_configured") is True
+                ),
+                "artifact object-store ready status lacks required external timestamp provider evidence.",
+            )
             mirror_plan = artifact_object_store.get("mirror_plan") if isinstance(artifact_object_store.get("mirror_plan"), dict) else {}
             _record_semantic_check(
                 semantic_checks,

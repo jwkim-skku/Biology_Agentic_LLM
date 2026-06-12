@@ -546,6 +546,9 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["artifact_object_store_schema"] == "pass"
     assert verification["semantic_checks"]["artifact_object_store_lifecycle_hash"] == "pass"
     assert verification["semantic_checks"]["artifact_object_store_timestamp_hash"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_ready_configuration"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_lifecycle_ready"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_timestamp_ready"] == "pass"
     assert verification["semantic_checks"]["artifact_object_store_mirror_plan_hash"] == "pass"
     assert verification["semantic_checks"]["artifact_object_store_mirror_candidate_hash"] == "pass"
     assert verification["semantic_checks"]["audit_log_evidence"] == "pass"
@@ -836,6 +839,16 @@ def test_production_audit_bundle_rejects_tampered_object_store_evidence() -> Non
     object_store = json.loads(source.read("evidence/artifact_object_store.json").decode("utf-8"))
 
     object_store["status_schema"] = "tampered"
+    object_store["status"] = "ready"
+    object_store["endpoint"] = "http://insecure.example.com"
+    object_store["configured"] = False
+    object_store["missing_settings"] = ["ARTIFACT_OBJECT_STORE_SECRET_ACCESS_KEY"]
+    object_store["capabilities"]["put_object"] = False
+    object_store["lifecycle_policy"]["status"] = "warning"
+    object_store["lifecycle_policy"]["minimum_keep_ready"] = False
+    object_store["external_timestamp"]["status"] = "warning"
+    object_store["external_timestamp"]["required"] = False
+    object_store["external_timestamp"]["endpoint_configured"] = False
     object_store["lifecycle_policy_hash"] = "0" * 64
     object_store["external_timestamp_hash"] = "0" * 64
     object_store["mirror_plan"]["plan_hash"] = ""
@@ -858,6 +871,9 @@ def test_production_audit_bundle_rejects_tampered_object_store_evidence() -> Non
     assert verification["semantic_checks"]["artifact_object_store_schema"] == "fail"
     assert verification["semantic_checks"]["artifact_object_store_lifecycle_hash"] == "fail"
     assert verification["semantic_checks"]["artifact_object_store_timestamp_hash"] == "fail"
+    assert verification["semantic_checks"]["artifact_object_store_ready_configuration"] == "fail"
+    assert verification["semantic_checks"]["artifact_object_store_lifecycle_ready"] == "fail"
+    assert verification["semantic_checks"]["artifact_object_store_timestamp_ready"] == "fail"
     assert verification["semantic_checks"]["artifact_object_store_mirror_plan_hash"] == "fail"
     assert verification["semantic_checks"]["artifact_object_store_mirror_candidate_hash"] == "fail"
     assert "object-store" in " ".join(verification["errors"])
