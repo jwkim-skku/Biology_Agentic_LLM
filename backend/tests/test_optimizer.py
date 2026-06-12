@@ -1560,6 +1560,9 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
                     "",
                     f"- Audit hash: `{audit_report['audit_hash']}`",
                     "- Status: `pass`",
+                    "- Checks: `0`",
+                    "- Failures: `0`",
+                    "- Warnings: `0`",
                     "",
                 ]
             ),
@@ -1593,6 +1596,36 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
         assert "audit_hash does not match json_path audit_hash" in " ".join(module.validate_write_result(tampered, base_dir=root))
         tampered = {**payload, "summary": {"status": "warning"}}
         assert "summary does not match json_path summary" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        tampered_report = {
+            **audit_report,
+            "summary": {"status": "pass", "checks": 1, "failures": [], "warnings": []},
+        }
+        tampered_report["audit_hash"] = module.audit_hash(tampered_report)
+        audit_json_path.write_text(json.dumps(tampered_report, indent=2, sort_keys=True), encoding="utf-8")
+        audit_md_path.write_text(
+            "\n".join(
+                [
+                    "# Production Audit Report",
+                    "",
+                    f"- Audit hash: `{tampered_report['audit_hash']}`",
+                    "- Status: `pass`",
+                    "- Checks: `1`",
+                    "- Failures: `0`",
+                    "- Warnings: `0`",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        tampered = {
+            **payload,
+            "summary": tampered_report["summary"],
+            "audit_hash": tampered_report["audit_hash"],
+            "json_sha256": module.file_sha256(audit_json_path),
+            "markdown_sha256": module.file_sha256(audit_md_path),
+        }
+        assert "json_path summary does not match recomputed check summary" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        audit_json_path.write_text(json.dumps(audit_report, indent=2, sort_keys=True), encoding="utf-8")
         audit_md_path.write_text("# Production Audit Report\n\n- Status: `pass`\n", encoding="utf-8")
         tampered = {**payload, "markdown_sha256": module.file_sha256(audit_md_path)}
         assert "markdown_path does not contain the audit_hash" in " ".join(module.validate_write_result(tampered, base_dir=root))

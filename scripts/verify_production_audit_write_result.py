@@ -114,6 +114,9 @@ def validate_report_artifacts(payload: dict[str, Any], *, base_dir: Path | None,
         errors.append("json_path audit_hash does not match recomputed audit report hash")
     if payload.get("summary") != report.get("summary"):
         errors.append("summary does not match json_path summary")
+    expected_summary = summarize_report_checks(report)
+    if report.get("summary") != expected_summary:
+        errors.append("json_path summary does not match recomputed check summary")
 
     markdown = markdown_path.read_text(encoding="utf-8")
     if "# Production Audit Report" not in markdown:
@@ -124,6 +127,28 @@ def validate_report_artifacts(payload: dict[str, Any], *, base_dir: Path | None,
     status = summary.get("status")
     if status and f"- Status: `{status}`" not in markdown:
         errors.append("markdown_path status line does not match json_path summary.status")
+    if f"- Checks: `{expected_summary['checks']}`" not in markdown:
+        errors.append("markdown_path check count line does not match json_path checks")
+    if f"- Failures: `{len(expected_summary['failures'])}`" not in markdown:
+        errors.append("markdown_path failure count line does not match json_path checks")
+    if f"- Warnings: `{len(expected_summary['warnings'])}`" not in markdown:
+        errors.append("markdown_path warning count line does not match json_path checks")
+
+
+def summarize_report_checks(report: dict[str, Any]) -> dict[str, Any]:
+    checks = report.get("checks") if isinstance(report.get("checks"), list) else []
+    failures = [check.get("name") for check in checks if isinstance(check, dict) and check.get("status") == "fail"]
+    warnings = [
+        check.get("name")
+        for check in checks
+        if isinstance(check, dict) and (check.get("warnings") or check.get("status") == "warning")
+    ]
+    return {
+        "status": "fail" if failures else "pass",
+        "checks": len(checks),
+        "failures": failures,
+        "warnings": warnings,
+    }
 
 
 def validate_hashed_file(payload: dict[str, Any], path_key: str, hash_key: str, *, base_dir: Path | None, errors: list[str]) -> None:
