@@ -125,7 +125,14 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "validate_preflight_evidence_linkage",
                 ],
             },
-            {"path": ".github/workflows/ci.yml", "contains": ["production_audit_write_result", "backend-production-promotion-runbook", "--markdown-path"]},
+            {
+                "path": "scripts/verify_portfolio_readiness_matrix.py",
+                "contains": ["MATRIX_SCHEMA", "matrix_hash", "evidence_hash", "validate_evidence_item"],
+            },
+            {
+                "path": ".github/workflows/ci.yml",
+                "contains": ["production_audit_write_result", "backend-production-promotion-runbook", "--markdown-path", "verify_portfolio_readiness_matrix.py"],
+            },
             {"path": "backend/tests/test_optimizer.py", "contains": ["production_audit", "rag_vector_index", "qc_report"]},
             {"path": "docs/DEPLOYMENT.md", "contains": ["Preflight verification", "Production audit bundle"]},
         ],

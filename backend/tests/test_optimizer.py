@@ -1812,6 +1812,31 @@ def test_portfolio_readiness_matrix_covers_pdf_requirement_areas() -> None:
         assert len(requirement["evidence_hash"]) == 64
 
 
+def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
+    root = Path(__file__).resolve().parents[2]
+    matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"
+    matrix_spec = importlib.util.spec_from_file_location("portfolio_readiness_matrix_for_verify", matrix_path)
+    assert matrix_spec is not None and matrix_spec.loader is not None
+    matrix_module = importlib.util.module_from_spec(matrix_spec)
+    matrix_spec.loader.exec_module(matrix_module)
+
+    verifier_path = root / "scripts" / "verify_portfolio_readiness_matrix.py"
+    verifier_spec = importlib.util.spec_from_file_location("verify_portfolio_readiness_matrix", verifier_path)
+    assert verifier_spec is not None and verifier_spec.loader is not None
+    verifier = importlib.util.module_from_spec(verifier_spec)
+    verifier_spec.loader.exec_module(verifier)
+
+    matrix = matrix_module.build_matrix(root)
+    assert verifier.validate_matrix(matrix) == []
+    tampered = json.loads(json.dumps(matrix))
+    tampered["requirements"][0]["evidence"][0]["sha256"] = "0" * 64
+    tampered["requirements"][0]["evidence_hash"] = verifier.hash_payload(tampered["requirements"][0]["evidence"])
+    tampered["matrix_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "matrix_hash"})
+    assert "sha256 does not match filesystem" in " ".join(verifier.validate_matrix(tampered))
+    tampered = {**matrix, "matrix_hash": "0" * 64}
+    assert "matrix_hash" in " ".join(verifier.validate_matrix(tampered))
+
+
 def test_compose_preflight_includes_required_external_service_env() -> None:
     root = Path(__file__).resolve().parents[2]
     script_path = root / "scripts" / "compose_preflight.py"
