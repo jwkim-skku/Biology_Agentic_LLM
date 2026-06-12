@@ -1703,8 +1703,30 @@ def test_cli_production_promotion_runbook_verifier_recomputes_hashes() -> None:
         "verification": {"status": "pass", "errors": [], "warnings": []},
     }
     payload["runbook_hash"] = module.hash_payload({key: value for key, value in payload.items() if key != "runbook_hash"})
+    markdown = "\n".join(
+        [
+            "# Production Promotion Runbook",
+            "",
+            f"- Runbook hash: `{payload['runbook_hash']}`",
+            f"- Source audit hash: `{payload['source_audit_hash']}`",
+            f"- Status: `{payload['status']}`",
+            f"- Production ready: `{payload['production_ready']}`",
+            f"- Gaps: `{payload['gap_count']}`; blocking `{payload['blocking_count']}`; promotion `{payload['promotion_count']}`",
+            f"- Proof checklist: `{payload['proof_checklist_count']}` items; hash `{payload['proof_checklist_hash']}`",
+            f"- Proof checklist source match: `{payload['proof_checklist_source_match']}`",
+            "",
+            "## Promotion Proof Checklist",
+            "",
+            f"| rag_embedding_backend | promotion | operator_environment | managed_runtime | evidence/rag_embedding.json | {payload['proof_checklist'][0]['proof_item_hash'][:12]} | Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status |",
+            "",
+            "## operator_environment (1)",
+            "",
+        ]
+    )
 
     assert module.validate_runbook(payload) == []
+    assert module.validate_runbook(payload, markdown_text=markdown) == []
+    assert "markdown_path runbook_hash line" in " ".join(module.validate_runbook(payload, markdown_text=markdown.replace(payload["runbook_hash"], "missing")))
     tampered = json.loads(json.dumps(payload))
     tampered["proof_checklist"][0]["proof_item_hash"] = "0" * 64
     tampered["proof_checklist_hash"] = module.hash_payload(tampered["proof_checklist"])

@@ -15,15 +15,17 @@ RUNBOOK_SCHEMA = "agentic-rag-production-promotion-runbook-v1"
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify production promotion runbook JSON.")
     parser.add_argument("--path", type=Path, help="Path to production_promotion_runbook.json. Reads stdin when omitted.")
+    parser.add_argument("--markdown-path", type=Path, help="Optional Markdown runbook rendered from the same JSON payload.")
     args = parser.parse_args()
 
     try:
         payload = load_payload(args.path)
+        markdown_text = args.markdown_path.read_text(encoding="utf-8") if args.markdown_path else None
     except Exception as exc:
-        print(json.dumps({"status": "fail", "errors": [f"invalid JSON input: {exc}"]}, indent=2), file=sys.stderr)
+        print(json.dumps({"status": "fail", "errors": [f"invalid runbook input: {exc}"]}, indent=2), file=sys.stderr)
         return 1
 
-    errors = validate_runbook(payload)
+    errors = validate_runbook(payload, markdown_text=markdown_text)
     output = {
         "status": "pass" if not errors else "fail",
         "runbook_schema": payload.get("runbook_schema") if isinstance(payload, dict) else None,
@@ -48,7 +50,7 @@ def load_payload(path: Path | None) -> Any:
     return json.loads(raw.decode("utf-8"))
 
 
-def validate_runbook(payload: Any) -> list[str]:
+def validate_runbook(payload: Any, *, markdown_text: str | None = None) -> list[str]:
     errors: list[str] = []
     if not isinstance(payload, dict):
         return ["runbook must be a JSON object"]
@@ -143,6 +145,43 @@ def validate_runbook(payload: Any) -> list[str]:
     expected_runbook_hash = hash_payload({key: value for key, value in payload.items() if key != "runbook_hash"})
     if payload.get("runbook_hash") != expected_runbook_hash:
         errors.append("runbook_hash does not match runbook payload")
+    if markdown_text is not None:
+        errors.extend(markdown_failures(payload, markdown_text))
+    return errors
+
+
+def markdown_failures(payload: dict[str, Any], markdown: str) -> list[str]:
+    errors: list[str] = []
+    if "# Production Promotion Runbook" not in markdown:
+        errors.append("markdown_path does not look like a production promotion runbook")
+    required_lines = {
+        "runbook_hash": f"- Runbook hash: `{payload.get('runbook_hash')}`",
+        "source_audit_hash": f"- Source audit hash: `{payload.get('source_audit_hash') or 'n/a'}`",
+        "status": f"- Status: `{payload.get('status')}`",
+        "production_ready": f"- Production ready: `{payload.get('production_ready')}`",
+        "gaps": f"- Gaps: `{payload.get('gap_count')}`; blocking `{payload.get('blocking_count')}`; promotion `{payload.get('promotion_count')}`",
+        "proof_checklist_hash": f"- Proof checklist: `{payload.get('proof_checklist_count')}` items; hash `{payload.get('proof_checklist_hash')}`",
+        "proof_checklist_source_match": f"- Proof checklist source match: `{payload.get('proof_checklist_source_match')}`",
+    }
+    for name, line in required_lines.items():
+        if line not in markdown:
+            errors.append(f"markdown_path {name} line does not match runbook JSON")
+    for item in payload.get("proof_checklist") or []:
+        if not isinstance(item, dict):
+            continue
+        proof_hash = str(item.get("proof_item_hash") or "")[:12]
+        for key in ("area", "proof_artifact", "proof_command"):
+            value = str(item.get(key) or "")
+            if value and value not in markdown:
+                errors.append(f"markdown_path missing proof checklist {key} for {item.get('area', 'unknown')}")
+        if proof_hash and proof_hash not in markdown:
+            errors.append(f"markdown_path missing proof checklist hash for {item.get('area', 'unknown')}")
+    for group in payload.get("groups") or []:
+        if not isinstance(group, dict):
+            continue
+        header = f"## {group.get('resolution_scope')} ({group.get('count')})"
+        if header not in markdown:
+            errors.append(f"markdown_path missing group header for {group.get('resolution_scope', 'unknown')}")
     return errors
 
 
