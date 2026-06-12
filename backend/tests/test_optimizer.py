@@ -1655,6 +1655,14 @@ def test_cli_production_promotion_runbook_verifier_recomputes_hashes() -> None:
                         "priority": "promotion",
                         "status": "warning",
                         "resolution_mode": "managed_runtime",
+                        "proof_hint": "Configure OpenAI or sentence-transformers and rebuild the index.",
+                        "proof_artifact": "evidence/rag_embedding.json",
+                        "proof_command": "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status",
+                        "action": "Configure a production embedding backend.",
+                        "evidence_key": "rag_embedding",
+                        "check_detail_hash": valid_hash,
+                        "readiness_detail_hash": valid_hash,
+                        "gap_hash": valid_hash,
                     }
                 ],
             }
@@ -1678,6 +1686,14 @@ def test_cli_production_promotion_runbook_verifier_recomputes_hashes() -> None:
     tampered = {**payload, "source_proof_checklist_hash": "0" * 64}
     tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
     assert "source_proof_checklist_hash" in " ".join(module.validate_runbook(tampered))
+    tampered = json.loads(json.dumps(payload))
+    tampered["groups"][0]["items"][0]["proof_command"] = "Invoke-RestMethod http://127.0.0.1:8000/api/v1/other"
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "proof_checklist does not match groups" in " ".join(module.validate_runbook(tampered))
+    tampered = json.loads(json.dumps(payload))
+    tampered["resolution_mode_counts"] = {"configuration": 1}
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "resolution_mode_counts" in " ".join(module.validate_runbook(tampered))
 
 
 def test_portfolio_readiness_matrix_covers_pdf_requirement_areas() -> None:

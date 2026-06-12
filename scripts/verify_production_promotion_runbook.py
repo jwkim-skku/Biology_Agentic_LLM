@@ -91,24 +91,72 @@ def validate_runbook(payload: Any) -> list[str]:
         errors.append("groups must be a list")
     else:
         group_items = []
+        scope_counts: dict[str, int] = {}
+        mode_counts: dict[str, int] = {}
         for group in groups:
             if not isinstance(group, dict):
                 errors.append("groups contains a non-object item")
                 continue
+            scope = str(group.get("resolution_scope") or "unknown")
             items = group.get("items")
             if not isinstance(items, list):
                 errors.append(f"group {group.get('resolution_scope', 'unknown')!r} items must be a list")
                 continue
+            scope_counts[scope] = scope_counts.get(scope, 0) + len(items)
             group_items.extend(item for item in items if isinstance(item, dict))
             if safe_int(group.get("count"), -1) != len(items):
                 errors.append(f"group {group.get('resolution_scope', 'unknown')!r} count does not match items")
+            for item in items:
+                if not isinstance(item, dict):
+                    continue
+                mode = str(item.get("resolution_mode") or "unknown")
+                mode_counts[mode] = mode_counts.get(mode, 0) + 1
+                for required in ("area", "priority", "resolution_mode", "proof_artifact", "proof_command", "gap_hash"):
+                    if not item.get(required):
+                        errors.append(f"group item {item.get('area', 'unknown')!r} is missing {required}")
         if len(group_items) != len(proof_checklist):
             errors.append("group item count does not match proof_checklist")
+        if safe_int(payload.get("gap_count"), -1) != len(group_items):
+            errors.append("gap_count does not match group items")
+        if payload.get("resolution_scope_counts") != dict(sorted(scope_counts.items())):
+            errors.append("resolution_scope_counts do not match groups")
+        if payload.get("resolution_mode_counts") != dict(sorted(mode_counts.items())):
+            errors.append("resolution_mode_counts do not match groups")
+        if safe_int(payload.get("blocking_count"), -1) != sum(1 for item in group_items if item.get("priority") == "blocking"):
+            errors.append("blocking_count does not match group items")
+        if safe_int(payload.get("promotion_count"), -1) != sum(1 for item in group_items if item.get("priority") == "promotion"):
+            errors.append("promotion_count does not match group items")
+        expected_proof_checklist = proof_checklist_from_groups(groups)
+        if expected_proof_checklist != proof_checklist:
+            errors.append("proof_checklist does not match groups")
 
     expected_runbook_hash = hash_payload({key: value for key, value in payload.items() if key != "runbook_hash"})
     if payload.get("runbook_hash") != expected_runbook_hash:
         errors.append("runbook_hash does not match runbook payload")
     return errors
+
+
+def proof_checklist_from_groups(groups: list[Any]) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    for group in groups:
+        if not isinstance(group, dict):
+            continue
+        scope = group.get("resolution_scope")
+        for item in group.get("items") or []:
+            if not isinstance(item, dict):
+                continue
+            proof = {
+                "area": item.get("area"),
+                "priority": item.get("priority"),
+                "resolution_scope": scope,
+                "resolution_mode": item.get("resolution_mode"),
+                "proof_artifact": item.get("proof_artifact"),
+                "proof_command": item.get("proof_command"),
+                "gap_hash": item.get("gap_hash"),
+            }
+            proof["proof_item_hash"] = hash_payload(proof)
+            items.append(proof)
+    return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
 
 
 def safe_int(value: Any, default: int = 0) -> int:
