@@ -58,6 +58,8 @@ def validate_matrix(payload: Any) -> list[str]:
     if payload.get("schema") != MATRIX_SCHEMA:
         errors.append(f"schema must be {MATRIX_SCHEMA}")
     root = matrix_root(payload)
+    if root.resolve() != ROOT.resolve():
+        errors.append("root does not match verifier repository root")
     requirements = payload.get("requirements") if isinstance(payload.get("requirements"), list) else []
     if not isinstance(payload.get("requirements"), list):
         errors.append("requirements must be a list")
@@ -121,9 +123,18 @@ def validate_evidence_item(item: dict[str, Any], *, root: Path) -> list[str]:
         if item.get("exists") != exists:
             errors.append(f"file evidence {rel_path} exists flag does not match filesystem")
         if exists:
-            actual_sha = sha256(path.read_bytes()).hexdigest()
+            raw = path.read_bytes()
+            actual_sha = sha256(raw).hexdigest()
             if item.get("sha256") != actual_sha:
                 errors.append(f"file evidence {rel_path} sha256 does not match filesystem")
+            text = raw.decode("utf-8", errors="ignore")
+            required_tokens = [str(token) for token in item.get("required_tokens") or []]
+            missing_tokens = [token for token in required_tokens if token not in text]
+            if item.get("missing_tokens") != missing_tokens:
+                errors.append(f"file evidence {rel_path} missing_tokens does not match file contents")
+            expected_status = "fail" if missing_tokens else "pass"
+            if item.get("status") != expected_status:
+                errors.append(f"file evidence {rel_path} status does not match required tokens")
     elif kind == "glob":
         pattern = item.get("pattern")
         if not isinstance(pattern, str) or not pattern:

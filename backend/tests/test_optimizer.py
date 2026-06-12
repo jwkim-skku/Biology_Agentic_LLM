@@ -1833,6 +1833,15 @@ def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
     tampered["requirements"][0]["evidence_hash"] = verifier.hash_payload(tampered["requirements"][0]["evidence"])
     tampered["matrix_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "matrix_hash"})
     assert "sha256 does not match filesystem" in " ".join(verifier.validate_matrix(tampered))
+    tampered = json.loads(json.dumps(matrix))
+    tampered["requirements"][0]["evidence"][0]["missing_tokens"] = ["definitely-not-present"]
+    tampered["requirements"][0]["evidence_hash"] = verifier.hash_payload(tampered["requirements"][0]["evidence"])
+    tampered["matrix_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "matrix_hash"})
+    assert "missing_tokens does not match file contents" in " ".join(verifier.validate_matrix(tampered))
+    tampered = json.loads(json.dumps(matrix))
+    tampered["root"] = str(root / "backend")
+    tampered["matrix_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "matrix_hash"})
+    assert "root does not match verifier repository root" in " ".join(verifier.validate_matrix(tampered))
     tampered = {**matrix, "matrix_hash": "0" * 64}
     assert "matrix_hash" in " ".join(verifier.validate_matrix(tampered))
 
