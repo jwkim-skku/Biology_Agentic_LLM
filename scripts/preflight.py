@@ -34,6 +34,7 @@ REQUIRED_CHECKS = [
     "golden_response",
     "golden_value",
     "final_portfolio_check",
+    "verify_final_portfolio_check",
     "manual_backend_tests",
 ]
 
@@ -124,6 +125,18 @@ def main() -> int:
                     "--output-dir",
                     "backend/app/data/runtime",
                     "--output-json",
+                    "backend/app/data/runtime/final_portfolio_check.json",
+                ],
+                cwd=ROOT,
+            )
+        )
+        checks.append(
+            run_check(
+                "verify_final_portfolio_check",
+                [
+                    sys.executable,
+                    "scripts/verify_final_portfolio_check.py",
+                    "--path",
                     "backend/app/data/runtime/final_portfolio_check.json",
                 ],
                 cwd=ROOT,

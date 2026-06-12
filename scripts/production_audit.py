@@ -101,6 +101,7 @@ REQUIRED_PREFLIGHT_CHECKS = [
     "golden_response",
     "golden_value",
     "final_portfolio_check",
+    "verify_final_portfolio_check",
     "manual_backend_tests",
 ]
 
