@@ -105,7 +105,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
                 "path": "scripts/verify_production_promotion_runbook.py",
                 "contains": ["RUNBOOK_SCHEMA", "runbook_hash", "proof_item_hash"],
             },
-            {"path": "scripts/verify_production_audit_write_result.py", "contains": ["WRITE_RESULT_SCHEMA", "json_sha256"]},
+            {"path": "scripts/verify_production_audit_write_result.py", "contains": ["WRITE_RESULT_SCHEMA", "json_sha256", "audit_hash"]},
             {"path": ".github/workflows/ci.yml", "contains": ["production_audit_write_result", "backend-production-promotion-runbook"]},
             {"path": "backend/tests/test_optimizer.py", "contains": ["production_audit", "rag_vector_index", "qc_report"]},
             {"path": "docs/DEPLOYMENT.md", "contains": ["Preflight verification", "Production audit bundle"]},

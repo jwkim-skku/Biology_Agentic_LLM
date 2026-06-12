@@ -69,6 +69,7 @@ def validate_write_result(payload: Any, *, base_dir: Path | None = None) -> list
     require_hex_hash(payload, "audit_hash", errors)
     validate_hashed_file(payload, "json_path", "json_sha256", base_dir=base_dir, errors=errors)
     validate_hashed_file(payload, "markdown_path", "markdown_sha256", base_dir=base_dir, errors=errors)
+    validate_report_artifacts(payload, base_dir=base_dir, errors=errors)
 
     preflight_evidence = payload.get("preflight_evidence")
     if preflight_evidence is not None:
@@ -83,6 +84,46 @@ def validate_write_result(payload: Any, *, base_dir: Path | None = None) -> list
         require_hex_hash(payload, "preflight_checks_hash", errors)
 
     return errors
+
+
+def validate_report_artifacts(payload: dict[str, Any], *, base_dir: Path | None, errors: list[str]) -> None:
+    json_path_value = payload.get("json_path")
+    markdown_path_value = payload.get("markdown_path")
+    if not isinstance(json_path_value, str) or not isinstance(markdown_path_value, str):
+        return
+
+    json_path = resolve_path(json_path_value, base_dir=base_dir)
+    markdown_path = resolve_path(markdown_path_value, base_dir=base_dir)
+    if not json_path.exists() or not markdown_path.exists():
+        return
+
+    try:
+        report = json.loads(read_json_text(json_path))
+    except json.JSONDecodeError as exc:
+        errors.append(f"json_path is not valid audit JSON: {exc}")
+        return
+    if not isinstance(report, dict):
+        errors.append("json_path audit report must be a JSON object")
+        return
+
+    report_hash = report.get("audit_hash")
+    if report_hash != payload.get("audit_hash"):
+        errors.append("audit_hash does not match json_path audit_hash")
+    expected_hash = audit_hash(report)
+    if report_hash != expected_hash:
+        errors.append("json_path audit_hash does not match recomputed audit report hash")
+    if payload.get("summary") != report.get("summary"):
+        errors.append("summary does not match json_path summary")
+
+    markdown = markdown_path.read_text(encoding="utf-8")
+    if "# Production Audit Report" not in markdown:
+        errors.append("markdown_path does not look like a production audit markdown report")
+    if report_hash and str(report_hash) not in markdown:
+        errors.append("markdown_path does not contain the audit_hash from json_path")
+    summary = report.get("summary") if isinstance(report.get("summary"), dict) else {}
+    status = summary.get("status")
+    if status and f"- Status: `{status}`" not in markdown:
+        errors.append("markdown_path status line does not match json_path summary.status")
 
 
 def validate_hashed_file(payload: dict[str, Any], path_key: str, hash_key: str, *, base_dir: Path | None, errors: list[str]) -> None:
@@ -131,6 +172,12 @@ def require_hex_hash(payload: dict[str, Any], key: str, errors: list[str]) -> No
 
 def file_sha256(path: Path) -> str:
     return sha256(path.read_bytes()).hexdigest()
+
+
+def audit_hash(report: dict[str, Any]) -> str:
+    unsigned = {key: value for key, value in report.items() if key != "audit_hash"}
+    canonical = json.dumps(unsigned, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return sha256(canonical).hexdigest()
 
 
 if __name__ == "__main__":

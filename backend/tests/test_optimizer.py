@@ -1542,13 +1542,34 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
     audit_md_path = runtime_dir / f"production_audit_verifier_{uuid.uuid4().hex}.md"
     preflight_path = runtime_dir / f"preflight_verifier_{uuid.uuid4().hex}.json"
     try:
-        audit_json_path.write_text('{"summary":{"status":"pass"}}', encoding="utf-8")
-        audit_md_path.write_text("# Production Audit\n", encoding="utf-8")
+        audit_report = {
+            "audit_schema": "agentic-rag-cli-production-audit-v1",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "purpose": "unit-test production audit verifier",
+            "duration_seconds": 0.01,
+            "mode": {"env": "template", "skip_api": True},
+            "summary": {"status": "pass", "checks": 0, "failures": [], "warnings": []},
+            "checks": [],
+        }
+        audit_report["audit_hash"] = module.audit_hash(audit_report)
+        audit_json_path.write_text(json.dumps(audit_report, indent=2, sort_keys=True), encoding="utf-8")
+        audit_md_path.write_text(
+            "\n".join(
+                [
+                    "# Production Audit Report",
+                    "",
+                    f"- Audit hash: `{audit_report['audit_hash']}`",
+                    "- Status: `pass`",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
         preflight_path.write_text('{"status":"pass"}', encoding="utf-8")
         payload = {
             "result_schema": module.WRITE_RESULT_SCHEMA,
-            "summary": {"status": "pass"},
-            "audit_hash": "a" * 64,
+            "summary": audit_report["summary"],
+            "audit_hash": audit_report["audit_hash"],
             "json_path": str(audit_json_path),
             "json_sha256": module.file_sha256(audit_json_path),
             "markdown_path": str(audit_md_path),
@@ -1568,6 +1589,13 @@ def test_cli_production_audit_write_result_verifier_recomputes_artifact_hashes()
         assert "preflight_status must be pass" in " ".join(module.validate_write_result(tampered, base_dir=root))
         tampered = {**payload, "preflight_failure_count": 1}
         assert "preflight_failure_count must be 0" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        tampered = {**payload, "audit_hash": "a" * 64}
+        assert "audit_hash does not match json_path audit_hash" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        tampered = {**payload, "summary": {"status": "warning"}}
+        assert "summary does not match json_path summary" in " ".join(module.validate_write_result(tampered, base_dir=root))
+        audit_md_path.write_text("# Production Audit Report\n\n- Status: `pass`\n", encoding="utf-8")
+        tampered = {**payload, "markdown_sha256": module.file_sha256(audit_md_path)}
+        assert "markdown_path does not contain the audit_hash" in " ".join(module.validate_write_result(tampered, base_dir=root))
         write_result_path = runtime_dir / f"production_audit_write_result_{uuid.uuid4().hex}.json"
         write_result_path.write_text(json.dumps(payload), encoding="utf-16")
         assert module.load_payload(write_result_path)["result_schema"] == module.WRITE_RESULT_SCHEMA
