@@ -413,6 +413,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json").decode("utf-8"))
             agent_memory = json.loads(archive.read("evidence/agent_memory.json").decode("utf-8"))
             production_gap_summary = json.loads(archive.read("evidence/production_gap_summary.json").decode("utf-8"))
+            artifact_object_store = json.loads(archive.read("evidence/artifact_object_store.json").decode("utf-8"))
             qc_archive = json.loads(archive.read("evidence/qc_bundle_archive_semantics.json").decode("utf-8"))
             rag_vector_index_archive = json.loads(archive.read("evidence/rag_vector_index_archive_semantics.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
@@ -514,6 +515,49 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 "production_gap_proof_checklist_consistency",
                 _gap_proof_checklist_matches_gaps(production_gap_summary),
                 "production_gap_summary.json proof_checklist does not match production gaps.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_evidence",
+                artifact_object_store == (evidence.get("artifact_object_store") or {}),
+                "evidence/artifact_object_store.json does not match production_audit.json evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_schema",
+                artifact_object_store.get("status_schema") == "agentic-rag-artifact-object-store-v1",
+                "artifact object-store evidence schema is missing or invalid.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_lifecycle_hash",
+                artifact_object_store.get("lifecycle_policy_hash") == _hash_payload_default_json(artifact_object_store.get("lifecycle_policy") or {}),
+                "artifact object-store lifecycle_policy_hash does not match lifecycle_policy.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_timestamp_hash",
+                artifact_object_store.get("external_timestamp_hash") == _hash_payload_default_json(artifact_object_store.get("external_timestamp") or {}),
+                "artifact object-store external_timestamp_hash does not match external_timestamp.",
+            )
+            mirror_plan = artifact_object_store.get("mirror_plan") if isinstance(artifact_object_store.get("mirror_plan"), dict) else {}
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_mirror_plan_hash",
+                len(str(mirror_plan.get("plan_hash") or "")) == 64,
+                "artifact object-store mirror plan hash is missing.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "artifact_object_store_mirror_candidate_hash",
+                len(str(mirror_plan.get("candidate_hash") or "")) == 64,
+                "artifact object-store mirror candidate hash is missing.",
             )
             _record_semantic_check(
                 semantic_checks,
@@ -1554,6 +1598,10 @@ def _verify_audit_signature(audit: dict[str, Any]) -> dict[str, Any]:
 
 def _hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _hash_payload_default_json(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def _json(payload: Any) -> str:

@@ -542,6 +542,12 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["production_gap_summary_hash"] == "pass"
     assert verification["semantic_checks"]["production_gap_proof_checklist_hash"] == "pass"
     assert verification["semantic_checks"]["production_gap_proof_checklist_consistency"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_evidence"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_schema"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_lifecycle_hash"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_timestamp_hash"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_mirror_plan_hash"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_mirror_candidate_hash"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_recommendation_candidate"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_folding_candidate"] == "pass"
@@ -576,6 +582,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence_hashes.json" in names
         assert "evidence/promotion_summary.json" in names
         assert "evidence/production_gap_summary.json" in names
+        assert "evidence/artifact_object_store.json" in names
         assert "evidence/timings.json" in names
         assert "evidence/data_refresh_plan_archive_semantics.json" in names
         assert "evidence/data_release_archive_semantics.json" in names
@@ -618,9 +625,14 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         promotion = json.loads(archive.read("evidence/promotion_summary.json"))
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
         deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json"))
+        artifact_object_store = json.loads(archive.read("evidence/artifact_object_store.json"))
         evidence_hashes = json.loads(archive.read("evidence_hashes.json"))
         assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
         assert gap_summary == audit["production_gap_summary"]
+        assert artifact_object_store == audit["evidence"]["artifact_object_store"]
+        assert len(artifact_object_store["lifecycle_policy_hash"]) == 64
+        assert len(artifact_object_store["external_timestamp_hash"]) == 64
+        assert len((artifact_object_store["mirror_plan"] or {})["plan_hash"]) == 64
         assert len(deployment_readiness["required_actions_hash"]) == 64
         assert evidence_hashes == audit["evidence_hashes"]
         assert evidence_hashes["items"]["evidence/promotion_summary.json"] == audit["evidence_hashes"]["items"]["evidence/promotion_summary.json"]
@@ -797,6 +809,43 @@ def test_production_audit_bundle_rejects_tampered_gap_summary() -> None:
     assert verification["semantic_checks"]["production_gap_proof_checklist_hash"] == "fail"
     assert verification["semantic_checks"]["production_gap_proof_checklist_consistency"] == "fail"
     assert "production_gap_summary" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_tampered_object_store_evidence() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    object_store = json.loads(source.read("evidence/artifact_object_store.json").decode("utf-8"))
+
+    object_store["status_schema"] = "tampered"
+    object_store["lifecycle_policy_hash"] = "0" * 64
+    object_store["external_timestamp_hash"] = "0" * 64
+    object_store["mirror_plan"]["plan_hash"] = ""
+    object_store["mirror_plan"]["candidate_hash"] = ""
+    audit["evidence"]["artifact_object_store"] = object_store
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/artifact_object_store.json":
+                tampered.writestr(item, json.dumps(object_store, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["artifact_object_store_evidence"] == "pass"
+    assert verification["semantic_checks"]["artifact_object_store_schema"] == "fail"
+    assert verification["semantic_checks"]["artifact_object_store_lifecycle_hash"] == "fail"
+    assert verification["semantic_checks"]["artifact_object_store_timestamp_hash"] == "fail"
+    assert verification["semantic_checks"]["artifact_object_store_mirror_plan_hash"] == "fail"
+    assert verification["semantic_checks"]["artifact_object_store_mirror_candidate_hash"] == "fail"
+    assert "object-store" in " ".join(verification["errors"])
 
 
 def test_production_audit_bundle_rejects_missing_vector_archive_evidence() -> None:
