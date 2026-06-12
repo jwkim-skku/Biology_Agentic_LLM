@@ -23,6 +23,7 @@ jobs:
       - run: python scripts/api_contract_test.py
       - run: python scripts/golden_response_test.py
       - run: python scripts/golden_value_test.py
+      - run: python ../scripts/verify_ci_production_evidence_chain.py --workflow ../.github/workflows/ci.yml
       - run: mkdir -p app/data/runtime
       - run: |
           python ../scripts/portfolio_readiness_matrix.py --strict > app/data/runtime/portfolio_readiness_matrix.json

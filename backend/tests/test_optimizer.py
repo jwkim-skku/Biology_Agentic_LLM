@@ -1812,6 +1812,33 @@ def test_portfolio_readiness_matrix_covers_pdf_requirement_areas() -> None:
         assert len(requirement["evidence_hash"]) == 64
 
 
+def test_ci_production_evidence_chain_verifier_covers_uploaded_artifacts(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "verify_ci_production_evidence_chain.py"
+    spec = importlib.util.spec_from_file_location("verify_ci_production_evidence_chain", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    workflow_path = root / ".github" / "workflows" / "ci.yml"
+    evidence = module.build_evidence(workflow_path)
+    assert evidence["schema"] == module.EVIDENCE_CHAIN_SCHEMA
+    assert evidence["status"] == "pass"
+    assert evidence["errors"] == []
+    assert len(evidence["workflow_sha256"]) == 64
+    assert len(evidence["checks_hash"]) == 64
+    assert len(evidence["evidence_hash"]) == 64
+
+    tampered_path = tmp_path / "ci.yml"
+    tampered_path.write_text(
+        workflow_path.read_text(encoding="utf-8").replace("name: backend-production-promotion-runbook", "name: missing-runbook"),
+        encoding="utf-8",
+    )
+    tampered = module.build_evidence(tampered_path)
+    assert tampered["status"] == "fail"
+    assert "backend-production-promotion-runbook" in " ".join(tampered["errors"])
+
+
 def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
     root = Path(__file__).resolve().parents[2]
     matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"

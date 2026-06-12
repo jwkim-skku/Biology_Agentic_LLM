@@ -131,7 +131,22 @@ REQUIREMENTS: list[dict[str, Any]] = [
             },
             {
                 "path": ".github/workflows/ci.yml",
-                "contains": ["production_audit_write_result", "backend-production-promotion-runbook", "--markdown-path", "verify_portfolio_readiness_matrix.py"],
+                "contains": [
+                    "production_audit_write_result",
+                    "backend-production-promotion-runbook",
+                    "--markdown-path",
+                    "verify_portfolio_readiness_matrix.py",
+                    "verify_ci_production_evidence_chain.py",
+                ],
+            },
+            {
+                "path": "scripts/verify_ci_production_evidence_chain.py",
+                "contains": [
+                    "EVIDENCE_CHAIN_SCHEMA",
+                    "backend-production-audit-write-result",
+                    "backend-production-promotion-runbook",
+                    "evidence_hash",
+                ],
             },
             {"path": "backend/tests/test_optimizer.py", "contains": ["production_audit", "rag_vector_index", "qc_report"]},
             {"path": "docs/DEPLOYMENT.md", "contains": ["Preflight verification", "Production audit bundle"]},
