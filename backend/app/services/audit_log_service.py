@@ -4,6 +4,7 @@ import json
 import sqlite3
 import uuid
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Any
 
 from app.config import get_settings
@@ -179,13 +180,21 @@ def audit_summary() -> dict[str, Any]:
             limit 1
             """
         ).fetchone()
-    return {
+    latest_event = _event_row_to_dict(latest) if latest else None
+    summary = {
+        "summary_schema": "agentic-rag-audit-log-summary-v1",
         "total_events": total,
         "by_event_type": by_event_type,
+        "by_event_type_hash": _hash_payload(by_event_type),
         "by_outcome": by_outcome,
-        "latest_event": _event_row_to_dict(latest) if latest else None,
+        "by_outcome_hash": _hash_payload(by_outcome),
+        "latest_event": latest_event,
+        "latest_event_hash": _hash_payload(latest_event) if latest_event else None,
+        "store_backend": "postgres" if _use_postgres() else "sqlite",
         "store_path": _store_path(),
     }
+    summary["summary_hash"] = _hash_payload({key: value for key, value in summary.items() if key != "summary_hash"})
+    return summary
 
 
 def _ensure_schema() -> None:
@@ -276,6 +285,10 @@ def _json_loads(payload: Any) -> Any:
     if isinstance(payload, (dict, list)):
         return payload
     return json.loads(payload)
+
+
+def _hash_payload(payload: Any) -> str:
+    return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def _row_to_dict(row: Any) -> dict[str, Any]:

@@ -548,6 +548,14 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
     assert verification["semantic_checks"]["artifact_object_store_timestamp_hash"] == "pass"
     assert verification["semantic_checks"]["artifact_object_store_mirror_plan_hash"] == "pass"
     assert verification["semantic_checks"]["artifact_object_store_mirror_candidate_hash"] == "pass"
+    assert verification["semantic_checks"]["audit_log_evidence"] == "pass"
+    assert verification["semantic_checks"]["audit_log_schema"] == "pass"
+    assert verification["semantic_checks"]["audit_log_event_type_total"] == "pass"
+    assert verification["semantic_checks"]["audit_log_outcome_total"] == "pass"
+    assert verification["semantic_checks"]["audit_log_event_type_hash"] == "pass"
+    assert verification["semantic_checks"]["audit_log_outcome_hash"] == "pass"
+    assert verification["semantic_checks"]["audit_log_latest_event_hash"] == "pass"
+    assert verification["semantic_checks"]["audit_log_summary_hash"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_evidence"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_recommendation_candidate"] == "pass"
     assert verification["semantic_checks"]["qc_bundle_archive_folding_candidate"] == "pass"
@@ -583,6 +591,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert "evidence/promotion_summary.json" in names
         assert "evidence/production_gap_summary.json" in names
         assert "evidence/artifact_object_store.json" in names
+        assert "evidence/audit_log.json" in names
         assert "evidence/timings.json" in names
         assert "evidence/data_refresh_plan_archive_semantics.json" in names
         assert "evidence/data_release_archive_semantics.json" in names
@@ -626,6 +635,7 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         gap_summary = json.loads(archive.read("evidence/production_gap_summary.json"))
         deployment_readiness = json.loads(archive.read("evidence/deployment_readiness.json"))
         artifact_object_store = json.loads(archive.read("evidence/artifact_object_store.json"))
+        audit_log = json.loads(archive.read("evidence/audit_log.json"))
         evidence_hashes = json.loads(archive.read("evidence_hashes.json"))
         assert promotion["summary_schema"] == "agentic-rag-production-promotion-summary-v1"
         assert gap_summary == audit["production_gap_summary"]
@@ -633,6 +643,11 @@ def test_production_audit_bundle_includes_timing_evidence() -> None:
         assert len(artifact_object_store["lifecycle_policy_hash"]) == 64
         assert len(artifact_object_store["external_timestamp_hash"]) == 64
         assert len((artifact_object_store["mirror_plan"] or {})["plan_hash"]) == 64
+        assert audit_log == audit["evidence"]["audit_log"]
+        assert audit_log["summary_schema"] == "agentic-rag-audit-log-summary-v1"
+        assert len(audit_log["by_event_type_hash"]) == 64
+        assert len(audit_log["by_outcome_hash"]) == 64
+        assert len(audit_log["summary_hash"]) == 64
         assert len(deployment_readiness["required_actions_hash"]) == 64
         assert evidence_hashes == audit["evidence_hashes"]
         assert evidence_hashes["items"]["evidence/promotion_summary.json"] == audit["evidence_hashes"]["items"]["evidence/promotion_summary.json"]
@@ -846,6 +861,46 @@ def test_production_audit_bundle_rejects_tampered_object_store_evidence() -> Non
     assert verification["semantic_checks"]["artifact_object_store_mirror_plan_hash"] == "fail"
     assert verification["semantic_checks"]["artifact_object_store_mirror_candidate_hash"] == "fail"
     assert "object-store" in " ".join(verification["errors"])
+
+
+def test_production_audit_bundle_rejects_tampered_audit_log_evidence() -> None:
+    from app.services.production_audit_service import verify_production_audit_bundle
+
+    openapi = {"paths": {"/api/v1/health": {}}, "components": {"schemas": {"ApiResponse": {}}}}
+    bundle = build_production_audit_bundle(openapi)
+    source = ZipFile(BytesIO(bundle))
+    audit = json.loads(source.read("production_audit.json").decode("utf-8"))
+    audit_log = json.loads(source.read("evidence/audit_log.json").decode("utf-8"))
+
+    audit_log["summary_schema"] = "tampered"
+    audit_log["total_events"] = int(audit_log.get("total_events") or 0) + 10
+    audit_log["by_event_type_hash"] = "0" * 64
+    audit_log["by_outcome_hash"] = "0" * 64
+    audit_log["latest_event_hash"] = "0" * 64 if audit_log.get("latest_event") else "0" * 64
+    audit_log["summary_hash"] = "0" * 64
+    audit["evidence"]["audit_log"] = audit_log
+
+    buffer = BytesIO()
+    with ZipFile(buffer, "w") as tampered:
+        for item in source.infolist():
+            if item.filename == "production_audit.json":
+                tampered.writestr(item, json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
+            elif item.filename == "evidence/audit_log.json":
+                tampered.writestr(item, json.dumps(audit_log, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                tampered.writestr(item, source.read(item.filename))
+    source.close()
+
+    verification = verify_production_audit_bundle(buffer.getvalue())
+    assert verification["semantic_checks"]["audit_log_evidence"] == "pass"
+    assert verification["semantic_checks"]["audit_log_schema"] == "fail"
+    assert verification["semantic_checks"]["audit_log_event_type_total"] == "fail"
+    assert verification["semantic_checks"]["audit_log_outcome_total"] == "fail"
+    assert verification["semantic_checks"]["audit_log_event_type_hash"] == "fail"
+    assert verification["semantic_checks"]["audit_log_outcome_hash"] == "fail"
+    assert verification["semantic_checks"]["audit_log_latest_event_hash"] == "fail"
+    assert verification["semantic_checks"]["audit_log_summary_hash"] == "fail"
+    assert "audit-log" in " ".join(verification["errors"])
 
 
 def test_production_audit_bundle_rejects_missing_vector_archive_evidence() -> None:
@@ -2954,6 +3009,10 @@ def test_audit_log_records_filters_and_summarizes_events() -> None:
     assert events[0]["detail"]["ok"] is True
     assert summary["total_events"] >= 1
     assert summary["by_event_type"][marker] >= 1
+    assert summary["summary_schema"] == "agentic-rag-audit-log-summary-v1"
+    assert len(summary["by_event_type_hash"]) == 64
+    assert len(summary["by_outcome_hash"]) == 64
+    assert len(summary["summary_hash"]) == 64
 
 
 def test_artifact_manifest_can_be_hmac_signed_and_verified() -> None:

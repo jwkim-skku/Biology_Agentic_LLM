@@ -414,6 +414,7 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
             agent_memory = json.loads(archive.read("evidence/agent_memory.json").decode("utf-8"))
             production_gap_summary = json.loads(archive.read("evidence/production_gap_summary.json").decode("utf-8"))
             artifact_object_store = json.loads(archive.read("evidence/artifact_object_store.json").decode("utf-8"))
+            audit_log = json.loads(archive.read("evidence/audit_log.json").decode("utf-8"))
             qc_archive = json.loads(archive.read("evidence/qc_bundle_archive_semantics.json").decode("utf-8"))
             rag_vector_index_archive = json.loads(archive.read("evidence/rag_vector_index_archive_semantics.json").decode("utf-8"))
             workflow_trace_archive = json.loads(archive.read("evidence/workflow_trace_archive_semantics.json").decode("utf-8"))
@@ -558,6 +559,66 @@ def verify_production_audit_bundle(bundle: bytes) -> dict[str, Any]:
                 "artifact_object_store_mirror_candidate_hash",
                 len(str(mirror_plan.get("candidate_hash") or "")) == 64,
                 "artifact object-store mirror candidate hash is missing.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_evidence",
+                audit_log == (evidence.get("audit_log") or {}),
+                "evidence/audit_log.json does not match production_audit.json evidence.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_schema",
+                audit_log.get("summary_schema") == "agentic-rag-audit-log-summary-v1",
+                "audit-log summary schema is missing or invalid.",
+            )
+            audit_event_type_counts = audit_log.get("by_event_type") if isinstance(audit_log.get("by_event_type"), dict) else {}
+            audit_outcome_counts = audit_log.get("by_outcome") if isinstance(audit_log.get("by_outcome"), dict) else {}
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_event_type_total",
+                sum(_safe_int(value) for value in audit_event_type_counts.values()) == _safe_int(audit_log.get("total_events")),
+                "audit-log by_event_type counts do not sum to total_events.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_outcome_total",
+                sum(_safe_int(value) for value in audit_outcome_counts.values()) == _safe_int(audit_log.get("total_events")),
+                "audit-log by_outcome counts do not sum to total_events.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_event_type_hash",
+                audit_log.get("by_event_type_hash") == _hash_payload(audit_event_type_counts),
+                "audit-log by_event_type_hash does not match by_event_type.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_outcome_hash",
+                audit_log.get("by_outcome_hash") == _hash_payload(audit_outcome_counts),
+                "audit-log by_outcome_hash does not match by_outcome.",
+            )
+            latest_audit_event = audit_log.get("latest_event")
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_latest_event_hash",
+                (audit_log.get("latest_event_hash") is None and latest_audit_event is None)
+                or audit_log.get("latest_event_hash") == _hash_payload(latest_audit_event),
+                "audit-log latest_event_hash does not match latest_event.",
+            )
+            _record_semantic_check(
+                semantic_checks,
+                errors,
+                "audit_log_summary_hash",
+                audit_log.get("summary_hash") == _hash_payload({key: value for key, value in audit_log.items() if key != "summary_hash"}),
+                "audit-log summary_hash does not match summary contents.",
             )
             _record_semantic_check(
                 semantic_checks,
@@ -1602,6 +1663,13 @@ def _hash_payload(payload: Any) -> str:
 
 def _hash_payload_default_json(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
+def _safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def _json(payload: Any) -> str:
