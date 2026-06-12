@@ -136,7 +136,9 @@ def main() -> int:
     if args.preflight_evidence:
         checks.append(validate_preflight_evidence(args.preflight_evidence, max_age_hours=args.max_preflight_age_hours))
     if not args.skip_api:
-        checks.extend(run_api_checks(args.api_base.rstrip("/"), args.api_key, require_api=args.require_api, timeout=args.api_timeout))
+        api_checks = run_api_checks(args.api_base.rstrip("/"), args.api_key, require_api=args.require_api, timeout=args.api_timeout)
+        checks.extend(api_checks)
+        checks.append(validate_api_consistency(api_checks))
 
     summary = summarize(checks)
     report = {
@@ -531,6 +533,62 @@ def run_api_checks(api_base: str, api_key: str, *, require_api: bool, timeout: f
     for check in API_CHECKS:
         checks.append(fetch_api_check(check, f"{api_base}{check['path']}", api_key, require_api=require_api, timeout=timeout))
     return checks
+
+
+def validate_api_consistency(checks: list[dict[str, Any]]) -> dict[str, Any]:
+    started = time.perf_counter()
+    by_name = {str(check.get("name")): check for check in checks if isinstance(check, dict) and check.get("name")}
+    failures: list[str] = []
+    warnings: list[str] = []
+
+    audit_status = payload_from_check(by_name.get("production_audit_status"))
+    bundle_verify = payload_from_check(by_name.get("production_audit_bundle_verify"))
+    readiness = payload_from_check(by_name.get("deployment_readiness"))
+
+    if isinstance(audit_status, dict) and isinstance(bundle_verify, dict):
+        if audit_status.get("audit_hash") != bundle_verify.get("audit_hash"):
+            failures.append("production audit status audit_hash does not match bundle verification audit_hash")
+    else:
+        warnings.append("production audit status and bundle verification payloads were not both available for cross-checking")
+
+    audit_readiness = (audit_status.get("evidence") or {}).get("deployment_readiness") if isinstance(audit_status, dict) else None
+    if isinstance(readiness, dict) and isinstance(audit_readiness, dict):
+        for key in ("attention_gates_hash", "required_actions_hash"):
+            if readiness.get(key) != audit_readiness.get(key):
+                failures.append(f"deployment readiness {key} does not match production audit embedded evidence")
+    else:
+        warnings.append("deployment readiness endpoint and production audit embedded readiness evidence were not both available for cross-checking")
+
+    details = {
+        "consistency_schema": "agentic-rag-production-api-consistency-v1",
+        "checked_pairs": [
+            "production_audit_status.audit_hash == production_audit_bundle_verify.audit_hash",
+            "deployment_readiness.attention_gates_hash == production_audit_status.evidence.deployment_readiness.attention_gates_hash",
+            "deployment_readiness.required_actions_hash == production_audit_status.evidence.deployment_readiness.required_actions_hash",
+        ],
+        "audit_hash": audit_status.get("audit_hash") if isinstance(audit_status, dict) else None,
+        "bundle_audit_hash": bundle_verify.get("audit_hash") if isinstance(bundle_verify, dict) else None,
+        "readiness_attention_gates_hash": readiness.get("attention_gates_hash") if isinstance(readiness, dict) else None,
+        "audit_attention_gates_hash": audit_readiness.get("attention_gates_hash") if isinstance(audit_readiness, dict) else None,
+        "readiness_required_actions_hash": readiness.get("required_actions_hash") if isinstance(readiness, dict) else None,
+        "audit_required_actions_hash": audit_readiness.get("required_actions_hash") if isinstance(audit_readiness, dict) else None,
+    }
+    details["consistency_hash"] = hash_payload(details)
+    return {
+        "name": "api_consistency",
+        "kind": "api_consistency",
+        "status": "fail" if failures else "pass",
+        "duration_seconds": round(time.perf_counter() - started, 3),
+        "failures": failures,
+        "warnings": warnings,
+        "details": details,
+    }
+
+
+def payload_from_check(check: dict[str, Any] | None) -> Any:
+    if not isinstance(check, dict):
+        return None
+    return api_payload(check.get("details"))
 
 
 def fetch_api_check(check: dict[str, Any], url: str, api_key: str, *, require_api: bool, timeout: float) -> dict[str, Any]:

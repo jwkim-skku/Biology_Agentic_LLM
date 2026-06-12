@@ -2279,6 +2279,70 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             }
         },
     ) == []
+    api_consistency = module.validate_api_consistency(
+        [
+            {
+                "name": "deployment_readiness",
+                "details": {
+                    "data": {
+                        "attention_gates_hash": module.compact_hash_payload(readiness_attention),
+                        "required_actions_hash": module.compact_hash_payload(readiness_actions),
+                    }
+                },
+            },
+            {
+                "name": "production_audit_status",
+                "details": {
+                    "data": {
+                        "audit_hash": valid_hash,
+                        "evidence": {
+                            "deployment_readiness": {
+                                "attention_gates_hash": module.compact_hash_payload(readiness_attention),
+                                "required_actions_hash": module.compact_hash_payload(readiness_actions),
+                            }
+                        },
+                    }
+                },
+            },
+            {"name": "production_audit_bundle_verify", "details": {"data": {"audit_hash": valid_hash}}},
+        ]
+    )
+    assert api_consistency["status"] == "pass"
+    assert api_consistency["details"]["consistency_schema"] == "agentic-rag-production-api-consistency-v1"
+    assert len(api_consistency["details"]["consistency_hash"]) == 64
+    api_consistency_fail = module.validate_api_consistency(
+        [
+            {
+                "name": "deployment_readiness",
+                "details": {
+                    "data": {
+                        "attention_gates_hash": "b" * 64,
+                        "required_actions_hash": module.compact_hash_payload(readiness_actions),
+                    }
+                },
+            },
+            {
+                "name": "production_audit_status",
+                "details": {
+                    "data": {
+                        "audit_hash": valid_hash,
+                        "evidence": {
+                            "deployment_readiness": {
+                                "attention_gates_hash": module.compact_hash_payload(readiness_attention),
+                                "required_actions_hash": "c" * 64,
+                            }
+                        },
+                    }
+                },
+            },
+            {"name": "production_audit_bundle_verify", "details": {"data": {"audit_hash": "d" * 64}}},
+        ]
+    )
+    assert api_consistency_fail["status"] == "fail"
+    consistency_failures = " ".join(api_consistency_fail["failures"])
+    assert "bundle verification audit_hash" in consistency_failures
+    assert "attention_gates_hash" in consistency_failures
+    assert "required_actions_hash" in consistency_failures
     audit_verify_failures = module.api_failures(
         "production_audit_bundle_verify",
         {
