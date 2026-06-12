@@ -156,6 +156,16 @@ REQUIREMENTS: list[dict[str, Any]] = [
                 ],
             },
             {
+                "path": "scripts/verify_final_portfolio_check.py",
+                "contains": [
+                    "CHECK_SCHEMA",
+                    "validate_final_check",
+                    "checks_hash",
+                    "final_check_hash",
+                    "artifact_sha256",
+                ],
+            },
+            {
                 "path": "scripts/portfolio_submission_summary.py",
                 "contains": [
                     "SUMMARY_SCHEMA",
@@ -183,6 +193,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "ci_production_evidence_chain",
                     "portfolio_submission_summary",
                     "final_portfolio_check",
+                    "verify_final_portfolio_check.py",
                     "verify_portfolio_submission_summary.py",
                     "backend-production-audit-write-result",
                     "backend-production-promotion-runbook",

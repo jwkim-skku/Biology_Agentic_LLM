@@ -28,6 +28,7 @@ REQUIRED_TOKENS: dict[str, list[str]] = {
     ],
     "final_portfolio_check": [
         "python ../scripts/final_portfolio_check.py --workflow ../.github/workflows/ci.yml --output-dir app/data/runtime --output-json app/data/runtime/final_portfolio_check.json",
+        "python ../scripts/verify_final_portfolio_check.py --path app/data/runtime/final_portfolio_check.json",
         "name: backend-final-portfolio-check",
         "backend/app/data/runtime/final_portfolio_check.json",
     ],

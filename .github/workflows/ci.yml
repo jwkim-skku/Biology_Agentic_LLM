@@ -31,6 +31,7 @@ jobs:
           python ../scripts/portfolio_submission_summary.py --matrix app/data/runtime/portfolio_readiness_matrix.json --ci-evidence app/data/runtime/ci_production_evidence_chain.json --output-json app/data/runtime/portfolio_submission_summary.json --output-md app/data/runtime/portfolio_submission_summary.md
           python ../scripts/verify_portfolio_submission_summary.py --path app/data/runtime/portfolio_submission_summary.json --markdown-path app/data/runtime/portfolio_submission_summary.md --matrix app/data/runtime/portfolio_readiness_matrix.json --ci-evidence app/data/runtime/ci_production_evidence_chain.json
           python ../scripts/final_portfolio_check.py --workflow ../.github/workflows/ci.yml --output-dir app/data/runtime --output-json app/data/runtime/final_portfolio_check.json
+          python ../scripts/verify_final_portfolio_check.py --path app/data/runtime/final_portfolio_check.json
       - run: python ../scripts/preflight.py --skip-frontend --skip-smoke --skip-signing-smoke --skip-ui-smoke --skip-manual-backend-tests --output-json backend/app/data/runtime/preflight_ci.json
       - run: |
           python ../scripts/production_audit.py --template --skip-api --preflight-evidence backend/app/data/runtime/preflight_ci.json > app/data/runtime/production_audit_write_result.json

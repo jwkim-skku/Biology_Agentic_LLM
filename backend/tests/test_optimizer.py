@@ -1962,6 +1962,33 @@ def test_final_portfolio_check_generates_verified_artifacts(tmp_path: Path) -> N
         assert len(check["artifact_sha256"]) == 64
 
 
+def test_final_portfolio_check_verifier_recomputes_artifact_hashes(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    final_path = root / "scripts" / "final_portfolio_check.py"
+    final_spec = importlib.util.spec_from_file_location("final_portfolio_check_for_verify", final_path)
+    assert final_spec is not None and final_spec.loader is not None
+    final_module = importlib.util.module_from_spec(final_spec)
+    final_spec.loader.exec_module(final_module)
+
+    verifier_path = root / "scripts" / "verify_final_portfolio_check.py"
+    verifier_spec = importlib.util.spec_from_file_location("verify_final_portfolio_check", verifier_path)
+    assert verifier_spec is not None and verifier_spec.loader is not None
+    verifier = importlib.util.module_from_spec(verifier_spec)
+    verifier_spec.loader.exec_module(verifier)
+
+    result = final_module.run_final_check(workflow_path=root / ".github" / "workflows" / "ci.yml", output_dir=tmp_path)
+    assert verifier.validate_final_check(result, base_dir=tmp_path) == []
+
+    tampered = {**result, "final_check_hash": "0" * 64}
+    assert "final_check_hash" in " ".join(verifier.validate_final_check(tampered, base_dir=tmp_path))
+
+    tampered = json.loads(json.dumps(result))
+    tampered["checks"][0]["artifact_sha256"] = "0" * 64
+    tampered["checks_hash"] = verifier.hash_payload(tampered["checks"])
+    tampered["final_check_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "final_check_hash"})
+    assert "artifact_sha256 does not match artifact" in " ".join(verifier.validate_final_check(tampered, base_dir=tmp_path))
+
+
 def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
     root = Path(__file__).resolve().parents[2]
     matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"
