@@ -77,6 +77,7 @@ def build_summary(matrix: dict[str, Any], ci_evidence: dict[str, Any]) -> dict[s
             "backend-portfolio-readiness-matrix",
             "backend-ci-production-evidence-chain",
             "backend-portfolio-submission-summary",
+            "backend-final-portfolio-check",
             "backend-preflight-evidence",
             "backend-production-audit",
             "backend-production-audit-write-result",

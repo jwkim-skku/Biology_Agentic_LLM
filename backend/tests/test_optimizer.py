@@ -1936,6 +1936,32 @@ def test_portfolio_submission_summary_verifier_recomputes_links() -> None:
     )
 
 
+def test_final_portfolio_check_generates_verified_artifacts(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    script_path = root / "scripts" / "final_portfolio_check.py"
+    spec = importlib.util.spec_from_file_location("final_portfolio_check", script_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    result = module.run_final_check(workflow_path=root / ".github" / "workflows" / "ci.yml", output_dir=tmp_path)
+    assert result["schema"] == module.CHECK_SCHEMA
+    assert result["status"] == "pass"
+    assert result["failures"] == []
+    assert len(result["checks_hash"]) == 64
+    assert len(result["final_check_hash"]) == 64
+    check_names = {check["name"] for check in result["checks"]}
+    assert {"portfolio_readiness_matrix", "ci_production_evidence_chain", "portfolio_submission_summary"} == check_names
+    assert (tmp_path / "portfolio_readiness_matrix.json").exists()
+    assert (tmp_path / "ci_production_evidence_chain.json").exists()
+    assert (tmp_path / "portfolio_submission_summary.json").exists()
+    assert (tmp_path / "portfolio_submission_summary.md").exists()
+    for check in result["checks"]:
+        assert check["status"] == "pass"
+        assert check["errors"] == []
+        assert len(check["artifact_sha256"]) == 64
+
+
 def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
     root = Path(__file__).resolve().parents[2]
     matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"

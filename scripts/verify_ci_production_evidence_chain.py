@@ -26,6 +26,11 @@ REQUIRED_TOKENS: dict[str, list[str]] = {
         "backend/app/data/runtime/portfolio_submission_summary.json",
         "backend/app/data/runtime/portfolio_submission_summary.md",
     ],
+    "final_portfolio_check": [
+        "python ../scripts/final_portfolio_check.py --workflow ../.github/workflows/ci.yml --output-dir app/data/runtime --output-json app/data/runtime/final_portfolio_check.json",
+        "name: backend-final-portfolio-check",
+        "backend/app/data/runtime/final_portfolio_check.json",
+    ],
     "preflight_evidence": [
         "python ../scripts/preflight.py",
         "--output-json backend/app/data/runtime/preflight_ci.json",

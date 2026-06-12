@@ -103,6 +103,7 @@ def validate_summary(
         "backend-portfolio-readiness-matrix",
         "backend-ci-production-evidence-chain",
         "backend-portfolio-submission-summary",
+        "backend-final-portfolio-check",
         "backend-production-audit-write-result",
         "backend-production-promotion-runbook",
     ):
