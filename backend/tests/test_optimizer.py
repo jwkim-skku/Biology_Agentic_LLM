@@ -1951,11 +1951,20 @@ def test_final_portfolio_check_generates_verified_artifacts(tmp_path: Path) -> N
     assert len(result["checks_hash"]) == 64
     assert len(result["final_check_hash"]) == 64
     check_names = {check["name"] for check in result["checks"]}
-    assert {"portfolio_readiness_matrix", "ci_production_evidence_chain", "portfolio_submission_summary"} == check_names
+    assert {
+        "portfolio_readiness_matrix",
+        "ci_production_evidence_chain",
+        "portfolio_submission_summary",
+        "preflight_required_check_alignment",
+    } == check_names
     assert (tmp_path / "portfolio_readiness_matrix.json").exists()
     assert (tmp_path / "ci_production_evidence_chain.json").exists()
     assert (tmp_path / "portfolio_submission_summary.json").exists()
     assert (tmp_path / "portfolio_submission_summary.md").exists()
+    assert (tmp_path / "preflight_required_check_alignment.json").exists()
+    alignment = json.loads((tmp_path / "preflight_required_check_alignment.json").read_text(encoding="utf-8"))
+    assert alignment["status"] == "pass"
+    assert alignment["preflight_required_checks"] == alignment["production_audit_required_checks"]
     for check in result["checks"]:
         assert check["status"] == "pass"
         assert check["errors"] == []

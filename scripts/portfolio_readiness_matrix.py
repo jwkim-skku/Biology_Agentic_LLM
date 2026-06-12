@@ -157,6 +157,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
                 "contains": [
                     "CHECK_SCHEMA",
                     "run_final_check",
+                    "build_required_check_alignment",
                     "verify_portfolio_readiness_matrix",
                     "verify_portfolio_submission_summary",
                     "final_check_hash",
@@ -170,6 +171,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "checks_hash",
                     "final_check_hash",
                     "artifact_sha256",
+                    "preflight_required_check_alignment",
                 ],
             },
             {

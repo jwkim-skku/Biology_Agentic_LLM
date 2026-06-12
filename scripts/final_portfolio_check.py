@@ -14,6 +14,8 @@ if str(SCRIPT_DIR) not in sys.path:
 
 import portfolio_readiness_matrix
 import portfolio_submission_summary
+import preflight
+import production_audit
 import verify_ci_production_evidence_chain
 import verify_portfolio_readiness_matrix
 import verify_portfolio_submission_summary
@@ -43,6 +45,7 @@ def run_final_check(*, workflow_path: Path, output_dir: Path) -> dict[str, Any]:
     ci_path = output_dir / "ci_production_evidence_chain.json"
     summary_json_path = output_dir / "portfolio_submission_summary.json"
     summary_md_path = output_dir / "portfolio_submission_summary.md"
+    required_check_alignment_path = output_dir / "preflight_required_check_alignment.json"
 
     matrix = portfolio_readiness_matrix.build_matrix(ROOT)
     write_json(matrix_path, matrix)
@@ -61,6 +64,8 @@ def run_final_check(*, workflow_path: Path, output_dir: Path) -> dict[str, Any]:
         matrix=matrix,
         ci_evidence=ci_evidence,
     )
+    required_check_alignment = build_required_check_alignment()
+    write_json(required_check_alignment_path, required_check_alignment)
 
     checks = [
         {
@@ -89,6 +94,14 @@ def run_final_check(*, workflow_path: Path, output_dir: Path) -> dict[str, Any]:
             "markdown_sha256": file_sha256(summary_md_path),
             "payload_hash": summary.get("summary_hash"),
         },
+        {
+            "name": "preflight_required_check_alignment",
+            "status": required_check_alignment["status"],
+            "errors": required_check_alignment["errors"],
+            "artifact": str(required_check_alignment_path),
+            "artifact_sha256": file_sha256(required_check_alignment_path),
+            "payload_hash": required_check_alignment["alignment_hash"],
+        },
     ]
     failures = [check for check in checks if check["status"] != "pass" or check["errors"]]
     payload = {
@@ -104,6 +117,29 @@ def run_final_check(*, workflow_path: Path, output_dir: Path) -> dict[str, Any]:
     }
     payload["checks_hash"] = hash_payload(checks)
     payload["final_check_hash"] = hash_payload({key: value for key, value in payload.items() if key != "final_check_hash"})
+    return payload
+
+
+def build_required_check_alignment() -> dict[str, Any]:
+    preflight_checks = list(preflight.REQUIRED_CHECKS)
+    audit_checks = list(production_audit.REQUIRED_PREFLIGHT_CHECKS)
+    errors = []
+    if preflight_checks != audit_checks:
+        errors.append("preflight.REQUIRED_CHECKS does not match production_audit.REQUIRED_PREFLIGHT_CHECKS")
+    for required in ("final_portfolio_check", "verify_final_portfolio_check"):
+        if required not in preflight_checks:
+            errors.append(f"preflight required checks missing {required}")
+        if required not in audit_checks:
+            errors.append(f"production audit required checks missing {required}")
+    payload = {
+        "schema": "agentic-rag-preflight-required-check-alignment-v1",
+        "status": "pass" if not errors else "fail",
+        "preflight_required_checks": preflight_checks,
+        "production_audit_required_checks": audit_checks,
+        "required_check_count": len(preflight_checks),
+        "errors": errors,
+    }
+    payload["alignment_hash"] = hash_payload({key: value for key, value in payload.items() if key != "alignment_hash"})
     return payload
 
 

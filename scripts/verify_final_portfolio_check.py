@@ -83,7 +83,12 @@ def validate_final_check(payload: Any, *, base_dir: Path | None = None) -> list[
             validate_artifact_hash(check, "markdown_artifact", "markdown_sha256", base_dir=base_dir, errors=errors)
         require_hash(check, "payload_hash", errors)
 
-    for expected in ("portfolio_readiness_matrix", "ci_production_evidence_chain", "portfolio_submission_summary"):
+    for expected in (
+        "portfolio_readiness_matrix",
+        "ci_production_evidence_chain",
+        "portfolio_submission_summary",
+        "preflight_required_check_alignment",
+    ):
         if expected not in seen_names:
             errors.append(f"missing required check {expected}")
 
