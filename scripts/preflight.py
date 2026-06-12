@@ -33,6 +33,7 @@ REQUIRED_CHECKS = [
     "data_refresh_cli_validate",
     "golden_response",
     "golden_value",
+    "final_portfolio_check",
     "manual_backend_tests",
 ]
 
@@ -112,6 +113,22 @@ def main() -> int:
         )
         checks.append(run_check("golden_response", [sys.executable, "scripts/golden_response_test.py"], cwd=BACKEND))
         checks.append(run_check("golden_value", [sys.executable, "scripts/golden_value_test.py"], cwd=BACKEND))
+        checks.append(
+            run_check(
+                "final_portfolio_check",
+                [
+                    sys.executable,
+                    "scripts/final_portfolio_check.py",
+                    "--workflow",
+                    ".github/workflows/ci.yml",
+                    "--output-dir",
+                    "backend/app/data/runtime",
+                    "--output-json",
+                    "backend/app/data/runtime/final_portfolio_check.json",
+                ],
+                cwd=ROOT,
+            )
+        )
         if not args.skip_manual_backend_tests:
             checks.append(
                 run_check(

@@ -90,11 +90,18 @@ REQUIREMENTS: list[dict[str, Any]] = [
         "id": "verification_and_audit",
         "title": "Automated tests, preflight, production audit, and CI evidence",
         "evidence": [
-            {"path": "scripts/preflight.py", "contains": ["preflight_hash", "frontend_smoke"]},
+            {"path": "scripts/preflight.py", "contains": ["preflight_hash", "frontend_smoke", "final_portfolio_check"]},
             {"path": "scripts/compose_preflight.py", "contains": ["static_evidence_hash", "synthetic_env_keys_hash", "required_production_tokens_hash"]},
             {
                 "path": "scripts/production_audit.py",
-                "contains": ["audit_hash", "preflight_evidence", "api_consistency", "archive_freshness_failures", "proof_checklist_hash"],
+                "contains": [
+                    "audit_hash",
+                    "preflight_evidence",
+                    "api_consistency",
+                    "archive_freshness_failures",
+                    "proof_checklist_hash",
+                    "final_portfolio_check",
+                ],
             },
             {
                 "path": "backend/app/services/production_audit_service.py",
@@ -208,6 +215,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "verify_final_portfolio_check.py",
                     "final_portfolio_check.json",
                     "portfolio submission",
+                    "final portfolio evidence check",
                 ],
             },
             {
@@ -221,6 +229,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "final_portfolio_check.py --workflow",
                     "verify_final_portfolio_check.py",
                     "backend-final-portfolio-check",
+                    "final portfolio evidence check",
                 ],
             },
         ],

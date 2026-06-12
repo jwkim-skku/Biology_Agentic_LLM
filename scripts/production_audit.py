@@ -100,6 +100,7 @@ REQUIRED_PREFLIGHT_CHECKS = [
     "data_refresh_cli_validate",
     "golden_response",
     "golden_value",
+    "final_portfolio_check",
     "manual_backend_tests",
 ]
 
