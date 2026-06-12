@@ -23,8 +23,8 @@ jobs:
       - run: python scripts/api_contract_test.py
       - run: python scripts/golden_response_test.py
       - run: python scripts/golden_value_test.py
-      - run: python ../scripts/verify_ci_production_evidence_chain.py --workflow ../.github/workflows/ci.yml
       - run: mkdir -p app/data/runtime
+      - run: python ../scripts/verify_ci_production_evidence_chain.py --workflow ../.github/workflows/ci.yml --output app/data/runtime/ci_production_evidence_chain.json
       - run: |
           python ../scripts/portfolio_readiness_matrix.py --strict > app/data/runtime/portfolio_readiness_matrix.json
           python ../scripts/verify_portfolio_readiness_matrix.py --path app/data/runtime/portfolio_readiness_matrix.json
@@ -35,6 +35,11 @@ jobs:
           python ../scripts/production_promotion_runbook.py --write-result app/data/runtime/production_audit_write_result.json --output app/data/runtime/production_promotion_runbook.md
           python ../scripts/production_promotion_runbook.py --write-result app/data/runtime/production_audit_write_result.json --format json --output app/data/runtime/production_promotion_runbook.json
           python ../scripts/verify_production_promotion_runbook.py --path app/data/runtime/production_promotion_runbook.json --markdown-path app/data/runtime/production_promotion_runbook.md
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-ci-production-evidence-chain
+          path: backend/app/data/runtime/ci_production_evidence_chain.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

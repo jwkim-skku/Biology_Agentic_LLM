@@ -137,12 +137,16 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "--markdown-path",
                     "verify_portfolio_readiness_matrix.py",
                     "verify_ci_production_evidence_chain.py",
+                    "backend-ci-production-evidence-chain",
+                    "ci_production_evidence_chain.json",
                 ],
             },
             {
                 "path": "scripts/verify_ci_production_evidence_chain.py",
                 "contains": [
                     "EVIDENCE_CHAIN_SCHEMA",
+                    "--output",
+                    "ci_production_evidence_chain",
                     "backend-production-audit-write-result",
                     "backend-production-promotion-runbook",
                     "evidence_hash",

@@ -43,16 +43,24 @@ REQUIRED_TOKENS: dict[str, list[str]] = {
         "name: backend-production-audit",
         "backend/app/data/runtime/production_audits/*",
     ],
+    "ci_production_evidence_chain": [
+        "python ../scripts/verify_ci_production_evidence_chain.py --workflow ../.github/workflows/ci.yml --output app/data/runtime/ci_production_evidence_chain.json",
+        "name: backend-ci-production-evidence-chain",
+        "backend/app/data/runtime/ci_production_evidence_chain.json",
+    ],
 }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify CI preserves production evidence artifacts.")
     parser.add_argument("--workflow", type=Path, default=DEFAULT_WORKFLOW, help="Path to .github/workflows/ci.yml.")
+    parser.add_argument("--output", type=Path, help="Optional path to write the evidence-chain JSON.")
     args = parser.parse_args()
 
     try:
         evidence = build_evidence(args.workflow)
+        if args.output:
+            write_evidence(args.output, evidence)
     except Exception as exc:
         print(json.dumps({"status": "fail", "errors": [f"invalid workflow input: {exc}"]}, indent=2), file=sys.stderr)
         return 1
@@ -77,6 +85,11 @@ def build_evidence(workflow_path: Path = DEFAULT_WORKFLOW) -> dict[str, Any]:
     payload["checks_hash"] = hash_payload(checks)
     payload["evidence_hash"] = hash_payload({key: value for key, value in payload.items() if key != "evidence_hash"})
     return payload
+
+
+def write_evidence(path: Path, evidence: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(evidence, indent=2, sort_keys=True), encoding="utf-8")
 
 
 def check_token_group(name: str, tokens: list[str], workflow_text: str) -> dict[str, Any]:

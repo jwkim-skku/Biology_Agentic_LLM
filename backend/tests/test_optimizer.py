@@ -1828,6 +1828,9 @@ def test_ci_production_evidence_chain_verifier_covers_uploaded_artifacts(tmp_pat
     assert len(evidence["workflow_sha256"]) == 64
     assert len(evidence["checks_hash"]) == 64
     assert len(evidence["evidence_hash"]) == 64
+    output_path = tmp_path / "ci_production_evidence_chain.json"
+    module.write_evidence(output_path, evidence)
+    assert json.loads(output_path.read_text(encoding="utf-8")) == evidence
 
     tampered_path = tmp_path / "ci.yml"
     tampered_path.write_text(
