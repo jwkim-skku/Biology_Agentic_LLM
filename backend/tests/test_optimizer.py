@@ -1842,6 +1842,52 @@ def test_ci_production_evidence_chain_verifier_covers_uploaded_artifacts(tmp_pat
     assert "backend-production-promotion-runbook" in " ".join(tampered["errors"])
 
 
+def test_portfolio_submission_summary_renders_matrix_and_ci_evidence(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"
+    matrix_spec = importlib.util.spec_from_file_location("portfolio_readiness_matrix_for_summary", matrix_path)
+    assert matrix_spec is not None and matrix_spec.loader is not None
+    matrix_module = importlib.util.module_from_spec(matrix_spec)
+    matrix_spec.loader.exec_module(matrix_module)
+
+    ci_path = root / "scripts" / "verify_ci_production_evidence_chain.py"
+    ci_spec = importlib.util.spec_from_file_location("ci_evidence_for_summary", ci_path)
+    assert ci_spec is not None and ci_spec.loader is not None
+    ci_module = importlib.util.module_from_spec(ci_spec)
+    ci_spec.loader.exec_module(ci_module)
+
+    summary_path = root / "scripts" / "portfolio_submission_summary.py"
+    summary_spec = importlib.util.spec_from_file_location("portfolio_submission_summary", summary_path)
+    assert summary_spec is not None and summary_spec.loader is not None
+    module = importlib.util.module_from_spec(summary_spec)
+    summary_spec.loader.exec_module(module)
+
+    matrix = matrix_module.build_matrix(root)
+    ci_evidence = ci_module.build_evidence(root / ".github" / "workflows" / "ci.yml")
+    summary = module.build_summary(matrix, ci_evidence)
+    markdown = module.render_markdown(summary)
+
+    assert summary["schema"] == module.SUMMARY_SCHEMA
+    assert summary["status"] == "pass"
+    assert summary["matrix_hash"] == matrix["matrix_hash"]
+    assert summary["ci_evidence_hash"] == ci_evidence["evidence_hash"]
+    assert len(summary["summary_hash"]) == 64
+    assert "Agentic RAG Codon Optimization Portfolio Summary" in markdown
+    assert "backend-portfolio-submission-summary" in markdown
+    assert "Real data ingestion and provenance" in markdown
+    assert "portfolio_submission_summary" in {check["name"] for check in summary["ci_checks"]}
+
+    json_path = tmp_path / "portfolio_submission_summary.json"
+    md_path = tmp_path / "portfolio_submission_summary.md"
+    module.write_text(json_path, json.dumps(summary, indent=2, sort_keys=True))
+    module.write_text(md_path, markdown)
+    assert json.loads(json_path.read_text(encoding="utf-8")) == summary
+    assert md_path.read_text(encoding="utf-8") == markdown
+
+    failed = module.build_summary({**matrix, "summary": {**matrix["summary"], "status": "fail"}}, ci_evidence)
+    assert failed["status"] == "fail"
+
+
 def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
     root = Path(__file__).resolve().parents[2]
     matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"

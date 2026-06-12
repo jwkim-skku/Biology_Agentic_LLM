@@ -138,7 +138,19 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "verify_portfolio_readiness_matrix.py",
                     "verify_ci_production_evidence_chain.py",
                     "backend-ci-production-evidence-chain",
+                    "backend-portfolio-submission-summary",
                     "ci_production_evidence_chain.json",
+                    "portfolio_submission_summary.json",
+                ],
+            },
+            {
+                "path": "scripts/portfolio_submission_summary.py",
+                "contains": [
+                    "SUMMARY_SCHEMA",
+                    "readiness_statement",
+                    "artifact_references",
+                    "summary_hash",
+                    "render_markdown",
                 ],
             },
             {
@@ -147,6 +159,7 @@ REQUIREMENTS: list[dict[str, Any]] = [
                     "EVIDENCE_CHAIN_SCHEMA",
                     "--output",
                     "ci_production_evidence_chain",
+                    "portfolio_submission_summary",
                     "backend-production-audit-write-result",
                     "backend-production-promotion-runbook",
                     "evidence_hash",
