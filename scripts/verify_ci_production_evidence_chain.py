@@ -21,6 +21,7 @@ REQUIRED_TOKENS: dict[str, list[str]] = {
     ],
     "portfolio_submission_summary": [
         "python ../scripts/portfolio_submission_summary.py --matrix app/data/runtime/portfolio_readiness_matrix.json --ci-evidence app/data/runtime/ci_production_evidence_chain.json --output-json app/data/runtime/portfolio_submission_summary.json --output-md app/data/runtime/portfolio_submission_summary.md",
+        "python ../scripts/verify_portfolio_submission_summary.py --path app/data/runtime/portfolio_submission_summary.json --markdown-path app/data/runtime/portfolio_submission_summary.md --matrix app/data/runtime/portfolio_readiness_matrix.json --ci-evidence app/data/runtime/ci_production_evidence_chain.json",
         "name: backend-portfolio-submission-summary",
         "backend/app/data/runtime/portfolio_submission_summary.json",
         "backend/app/data/runtime/portfolio_submission_summary.md",

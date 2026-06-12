@@ -154,12 +154,23 @@ REQUIREMENTS: list[dict[str, Any]] = [
                 ],
             },
             {
+                "path": "scripts/verify_portfolio_submission_summary.py",
+                "contains": [
+                    "SUMMARY_SCHEMA",
+                    "summary_hash",
+                    "validate_matrix_linkage",
+                    "validate_ci_linkage",
+                    "markdown_failures",
+                ],
+            },
+            {
                 "path": "scripts/verify_ci_production_evidence_chain.py",
                 "contains": [
                     "EVIDENCE_CHAIN_SCHEMA",
                     "--output",
                     "ci_production_evidence_chain",
                     "portfolio_submission_summary",
+                    "verify_portfolio_submission_summary.py",
                     "backend-production-audit-write-result",
                     "backend-production-promotion-runbook",
                     "evidence_hash",

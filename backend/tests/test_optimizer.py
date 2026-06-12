@@ -1888,6 +1888,54 @@ def test_portfolio_submission_summary_renders_matrix_and_ci_evidence(tmp_path: P
     assert failed["status"] == "fail"
 
 
+def test_portfolio_submission_summary_verifier_recomputes_links() -> None:
+    root = Path(__file__).resolve().parents[2]
+    matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"
+    matrix_spec = importlib.util.spec_from_file_location("portfolio_readiness_matrix_for_summary_verify", matrix_path)
+    assert matrix_spec is not None and matrix_spec.loader is not None
+    matrix_module = importlib.util.module_from_spec(matrix_spec)
+    matrix_spec.loader.exec_module(matrix_module)
+
+    ci_path = root / "scripts" / "verify_ci_production_evidence_chain.py"
+    ci_spec = importlib.util.spec_from_file_location("ci_evidence_for_summary_verify", ci_path)
+    assert ci_spec is not None and ci_spec.loader is not None
+    ci_module = importlib.util.module_from_spec(ci_spec)
+    ci_spec.loader.exec_module(ci_module)
+
+    summary_path = root / "scripts" / "portfolio_submission_summary.py"
+    summary_spec = importlib.util.spec_from_file_location("portfolio_submission_summary_for_verify", summary_path)
+    assert summary_spec is not None and summary_spec.loader is not None
+    summary_module = importlib.util.module_from_spec(summary_spec)
+    summary_spec.loader.exec_module(summary_module)
+
+    verifier_path = root / "scripts" / "verify_portfolio_submission_summary.py"
+    verifier_spec = importlib.util.spec_from_file_location("verify_portfolio_submission_summary", verifier_path)
+    assert verifier_spec is not None and verifier_spec.loader is not None
+    verifier = importlib.util.module_from_spec(verifier_spec)
+    verifier_spec.loader.exec_module(verifier)
+
+    matrix = matrix_module.build_matrix(root)
+    ci_evidence = ci_module.build_evidence(root / ".github" / "workflows" / "ci.yml")
+    summary = summary_module.build_summary(matrix, ci_evidence)
+    markdown = summary_module.render_markdown(summary)
+    assert verifier.validate_summary(summary, markdown=markdown, matrix=matrix, ci_evidence=ci_evidence) == []
+
+    tampered = {**summary, "summary_hash": "0" * 64}
+    assert "summary_hash" in " ".join(verifier.validate_summary(tampered, markdown=markdown, matrix=matrix, ci_evidence=ci_evidence))
+
+    tampered = json.loads(json.dumps(summary))
+    tampered["requirements"][0]["evidence_hash"] = "0" * 64
+    tampered["requirements_hash"] = verifier.hash_payload(tampered["requirements"])
+    tampered["summary_hash"] = verifier.hash_payload({key: value for key, value in tampered.items() if key != "summary_hash"})
+    assert "requirements do not match matrix artifact" in " ".join(
+        verifier.validate_summary(tampered, markdown=markdown, matrix=matrix, ci_evidence=ci_evidence)
+    )
+
+    assert "markdown missing" in " ".join(
+        verifier.validate_summary(summary, markdown=markdown.replace("Requirement Coverage", "Missing Coverage"), matrix=matrix, ci_evidence=ci_evidence)
+    )
+
+
 def test_portfolio_readiness_matrix_verifier_recomputes_hashes() -> None:
     root = Path(__file__).resolve().parents[2]
     matrix_path = root / "scripts" / "portfolio_readiness_matrix.py"
