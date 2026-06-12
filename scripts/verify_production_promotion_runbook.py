@@ -69,6 +69,13 @@ def validate_runbook(payload: Any) -> list[str]:
         errors.append("proof_checklist_count does not match proof_checklist")
     if payload.get("proof_checklist_hash") != hash_payload(proof_checklist):
         errors.append("proof_checklist_hash does not match proof_checklist")
+    for item in proof_checklist:
+        if not isinstance(item, dict):
+            errors.append("proof_checklist contains a non-object item")
+            continue
+        expected_item_hash = hash_payload({key: value for key, value in item.items() if key != "proof_item_hash"})
+        if item.get("proof_item_hash") != expected_item_hash:
+            errors.append(f"proof_item_hash does not match proof_checklist item for {item.get('area', 'unknown')}")
 
     source_count = safe_int(payload.get("source_proof_checklist_count"), -1)
     if source_count != len(proof_checklist):

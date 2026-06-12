@@ -1269,6 +1269,13 @@ def production_gap_summary_failures(summary: Any, embedded_summary: Any | None =
         failures.append("production audit status proof_checklist_hash does not match proof_checklist")
     if proof_checklist != production_gap_proof_checklist(gaps):
         failures.append("production audit status proof_checklist does not match gaps")
+    for item in proof_checklist:
+        if not isinstance(item, dict):
+            failures.append("production audit status proof_checklist contains a non-object item")
+            continue
+        expected_item_hash = compact_hash_payload({key: value for key, value in item.items() if key != "proof_item_hash"})
+        if item.get("proof_item_hash") != expected_item_hash:
+            failures.append(f"production audit status proof_item_hash does not match proof_checklist item for {item.get('area', 'unknown')}")
     for gap in gaps:
         if not isinstance(gap, dict):
             failures.append("production audit status production_gap_summary contains a non-object gap")
@@ -1315,17 +1322,17 @@ def production_gap_proof_checklist(gaps: list[Any]) -> list[dict[str, Any]]:
     for gap in gaps:
         if not isinstance(gap, dict):
             continue
-        items.append(
-            {
-                "area": gap.get("area"),
-                "priority": gap.get("priority"),
-                "resolution_scope": gap.get("resolution_scope"),
-                "resolution_mode": gap.get("resolution_mode"),
-                "proof_artifact": gap.get("proof_artifact"),
-                "proof_command": gap.get("proof_command"),
-                "gap_hash": gap.get("gap_hash"),
-            }
-        )
+        item = {
+            "area": gap.get("area"),
+            "priority": gap.get("priority"),
+            "resolution_scope": gap.get("resolution_scope"),
+            "resolution_mode": gap.get("resolution_mode"),
+            "proof_artifact": gap.get("proof_artifact"),
+            "proof_command": gap.get("proof_command"),
+            "gap_hash": gap.get("gap_hash"),
+        }
+        item["proof_item_hash"] = compact_hash_payload(item)
+        items.append(item)
     return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
 
 

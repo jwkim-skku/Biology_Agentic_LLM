@@ -129,15 +129,17 @@ def _proof_checklist(groups: list[dict[str, Any]]) -> list[dict[str, Any]]:
             if not isinstance(item, dict):
                 continue
             items.append(
-                {
-                    "area": item.get("area"),
-                    "priority": item.get("priority"),
-                    "resolution_scope": group.get("resolution_scope"),
-                    "resolution_mode": item.get("resolution_mode"),
-                    "proof_artifact": item.get("proof_artifact"),
-                    "proof_command": item.get("proof_command"),
-                    "gap_hash": item.get("gap_hash"),
-                }
+                proof_checklist_item(
+                    {
+                        "area": item.get("area"),
+                        "priority": item.get("priority"),
+                        "resolution_scope": group.get("resolution_scope"),
+                        "resolution_mode": item.get("resolution_mode"),
+                        "proof_artifact": item.get("proof_artifact"),
+                        "proof_command": item.get("proof_command"),
+                        "gap_hash": item.get("gap_hash"),
+                    }
+                )
             )
     return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
 
@@ -148,15 +150,17 @@ def _gap_proof_checklist(gaps: list[Any]) -> list[dict[str, Any]]:
         if not isinstance(gap, dict):
             continue
         items.append(
-            {
-                "area": gap.get("area"),
-                "priority": gap.get("priority"),
-                "resolution_scope": gap.get("resolution_scope"),
-                "resolution_mode": gap.get("resolution_mode"),
-                "proof_artifact": gap.get("proof_artifact"),
-                "proof_command": gap.get("proof_command"),
-                "gap_hash": gap.get("gap_hash"),
-            }
+            proof_checklist_item(
+                {
+                    "area": gap.get("area"),
+                    "priority": gap.get("priority"),
+                    "resolution_scope": gap.get("resolution_scope"),
+                    "resolution_mode": gap.get("resolution_mode"),
+                    "proof_artifact": gap.get("proof_artifact"),
+                    "proof_command": gap.get("proof_command"),
+                    "gap_hash": gap.get("gap_hash"),
+                }
+            )
         )
     return sorted(items, key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")))
 
@@ -189,6 +193,12 @@ def _proof_evidence(gap: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def proof_checklist_item(item: dict[str, Any]) -> dict[str, Any]:
+    payload = dict(item)
+    payload["proof_item_hash"] = hash_payload(payload)
+    return payload
+
+
 def verify_gap_summary(summary: dict[str, Any]) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []
@@ -215,6 +225,13 @@ def verify_gap_summary(summary: dict[str, Any]) -> dict[str, Any]:
         errors.append("proof_checklist_hash does not match proof_checklist.")
     if proof_checklist != expected_proof_checklist:
         errors.append("proof_checklist does not match gaps.")
+    for item in proof_checklist:
+        if not isinstance(item, dict):
+            errors.append("proof_checklist contains a non-object item.")
+            continue
+        expected_hash = hash_payload({key: value for key, value in item.items() if key != "proof_item_hash"})
+        if item.get("proof_item_hash") != expected_hash:
+            errors.append(f"proof_item_hash does not match proof_checklist item for {item.get('area', 'unknown')}.")
     for gap in gaps:
         if not isinstance(gap, dict):
             errors.append("production_gap_summary contains a non-object gap.")
@@ -266,18 +283,19 @@ def render_markdown(runbook: dict[str, Any]) -> str:
             [
                 "## Promotion Proof Checklist",
                 "",
-                "| Area | Priority | Scope | Mode | Artifact | Command |",
-                "| --- | --- | --- | --- | --- | --- |",
+                "| Area | Priority | Scope | Mode | Artifact | Proof hash | Command |",
+                "| --- | --- | --- | --- | --- | --- | --- |",
             ]
         )
         for item in runbook.get("proof_checklist") or []:
             lines.append(
-                "| {area} | {priority} | {scope} | {mode} | {artifact} | {command} |".format(
+                "| {area} | {priority} | {scope} | {mode} | {artifact} | {proof_hash} | {command} |".format(
                     area=escape_cell(item.get("area")),
                     priority=escape_cell(item.get("priority")),
                     scope=escape_cell(item.get("resolution_scope")),
                     mode=escape_cell(item.get("resolution_mode")),
                     artifact=escape_cell(item.get("proof_artifact")),
+                    proof_hash=escape_cell(short_hash(item.get("proof_item_hash"))),
                     command=escape_cell(item.get("proof_command")),
                 )
             )
@@ -343,6 +361,11 @@ def safe_int(value: Any, default: int = 0) -> int:
 
 def hash_payload(payload: Any) -> str:
     return sha256(json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def short_hash(value: Any) -> str:
+    text = str(value or "")
+    return text[:12] if len(text) >= 12 else "n/a"
 
 
 def escape_cell(value: Any) -> str:

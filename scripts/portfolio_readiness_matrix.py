@@ -99,11 +99,11 @@ REQUIREMENTS: list[dict[str, Any]] = [
             },
             {
                 "path": "scripts/production_promotion_runbook.py",
-                "contains": ["production_gap_summary", "runbook_hash", "proof_checklist_hash", "proof_checklist_source_match"],
+                "contains": ["production_gap_summary", "runbook_hash", "proof_checklist_hash", "proof_item_hash"],
             },
             {
                 "path": "scripts/verify_production_promotion_runbook.py",
-                "contains": ["RUNBOOK_SCHEMA", "runbook_hash", "proof_checklist_source_match"],
+                "contains": ["RUNBOOK_SCHEMA", "runbook_hash", "proof_item_hash"],
             },
             {"path": "scripts/verify_production_audit_write_result.py", "contains": ["WRITE_RESULT_SCHEMA", "json_sha256"]},
             {"path": ".github/workflows/ci.yml", "contains": ["production_audit_write_result", "backend-production-promotion-runbook"]},

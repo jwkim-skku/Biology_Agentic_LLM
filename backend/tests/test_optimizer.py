@@ -1479,6 +1479,7 @@ def test_cli_production_promotion_runbook_verifier_recomputes_hashes() -> None:
             "gap_hash": valid_hash,
         }
     ]
+    proof_checklist[0]["proof_item_hash"] = module.hash_payload(proof_checklist[0])
     payload = {
         "runbook_schema": module.RUNBOOK_SCHEMA,
         "source_audit_hash": valid_hash,
@@ -1515,6 +1516,12 @@ def test_cli_production_promotion_runbook_verifier_recomputes_hashes() -> None:
     payload["runbook_hash"] = module.hash_payload({key: value for key, value in payload.items() if key != "runbook_hash"})
 
     assert module.validate_runbook(payload) == []
+    tampered = json.loads(json.dumps(payload))
+    tampered["proof_checklist"][0]["proof_item_hash"] = "0" * 64
+    tampered["proof_checklist_hash"] = module.hash_payload(tampered["proof_checklist"])
+    tampered["source_proof_checklist_hash"] = tampered["proof_checklist_hash"]
+    tampered["runbook_hash"] = module.hash_payload({key: value for key, value in tampered.items() if key != "runbook_hash"})
+    assert "proof_item_hash" in " ".join(module.validate_runbook(tampered))
     tampered = {**payload, "runbook_hash": "0" * 64}
     assert "runbook_hash" in " ".join(module.validate_runbook(tampered))
     tampered = {**payload, "proof_checklist_source_match": False}
@@ -1933,10 +1940,12 @@ def test_production_promotion_runbook_groups_gap_evidence(tmp_path: Path) -> Non
     assert runbook["source_proof_checklist_count"] == 1
     assert runbook["source_proof_checklist_hash"] == gap_summary["proof_checklist_hash"]
     assert runbook["proof_checklist_source_match"] is True
+    assert len(runbook["proof_checklist"][0]["proof_item_hash"]) == 64
     assert runbook["proof_checklist"][0]["proof_artifact"] == "evidence/rag_embedding.json"
     assert runbook["proof_checklist"][0]["proof_command"] == "Invoke-RestMethod http://127.0.0.1:8000/api/v1/rag/embedding/status"
     assert "Production Promotion Runbook" in markdown
     assert "Promotion Proof Checklist" in markdown
+    assert "Proof hash" in markdown
     assert "Proof checklist source match" in markdown
     assert "rag_embedding_backend" in markdown
     assert "evidence/rag_embedding.json" in markdown
@@ -2046,6 +2055,7 @@ def test_cli_production_audit_requires_bundle_hash_evidence() -> None:
             "gap_hash": production_gap["gap_hash"],
         }
     ]
+    production_gap_proof_checklist[0]["proof_item_hash"] = module.compact_hash_payload(production_gap_proof_checklist[0])
     production_gap_summary = {
         "gap_schema": "agentic-rag-production-gap-summary-v1",
         "status": "warning",

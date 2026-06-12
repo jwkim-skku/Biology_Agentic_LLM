@@ -1181,20 +1181,23 @@ def _evidence_key_for_check(name: str) -> str:
 
 def _production_gap_proof_checklist(gaps: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
-        [
-            {
-                "area": gap.get("area"),
-                "priority": gap.get("priority"),
-                "resolution_scope": gap.get("resolution_scope"),
-                "resolution_mode": gap.get("resolution_mode"),
-                "proof_artifact": gap.get("proof_artifact"),
-                "proof_command": gap.get("proof_command"),
-                "gap_hash": gap.get("gap_hash"),
-            }
-            for gap in gaps
-        ],
+        [_proof_checklist_item_from_gap(gap) for gap in gaps],
         key=lambda item: (str(item.get("priority") or ""), str(item.get("area") or "")),
     )
+
+
+def _proof_checklist_item_from_gap(gap: dict[str, Any]) -> dict[str, Any]:
+    item = {
+        "area": gap.get("area"),
+        "priority": gap.get("priority"),
+        "resolution_scope": gap.get("resolution_scope"),
+        "resolution_mode": gap.get("resolution_mode"),
+        "proof_artifact": gap.get("proof_artifact"),
+        "proof_command": gap.get("proof_command"),
+        "gap_hash": gap.get("gap_hash"),
+    }
+    item["proof_item_hash"] = _hash_payload(item)
+    return item
 
 
 def _gap_proof_evidence(area: str, evidence_key: str, resolution_mode: str) -> dict[str, str]:
