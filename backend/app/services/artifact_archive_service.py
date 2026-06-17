@@ -1321,6 +1321,14 @@ def backfill_artifact_ledger(*, dry_run: bool = True) -> dict[str, Any]:
 def verify_artifact_ledger() -> dict[str, Any]:
     _ensure_schema()
     entries = _read_ledger_entries()
+    with _connect() as conn:
+        archive_rows = conn.execute(
+            """
+            select artifact_id, sha256, manifest_hash, bytes
+            from archived_artifacts
+            """
+        ).fetchall()
+    archived_by_id = {str(row["artifact_id"]): dict(row) for row in archive_rows}
     errors: list[str] = []
     warnings: list[str] = []
     previous_hash = "GENESIS"
@@ -1356,7 +1364,7 @@ def verify_artifact_ledger() -> dict[str, Any]:
             errors.append(f"Ledger entry_hash mismatch at entry {entry_id or index}.")
         previous_hash = str(entry.get("entry_hash") or "")
 
-        artifact = get_archived_artifact(artifact_id) if artifact_id else None
+        artifact = archived_by_id.get(artifact_id) if artifact_id else None
         if not artifact:
             if event_type == "retention_delete" or artifact_id in deleted_artifact_ids:
                 continue
@@ -1369,7 +1377,7 @@ def verify_artifact_ledger() -> dict[str, Any]:
             if entry.get(field) != artifact.get(field):
                 errors.append(f"Ledger {field} does not match archive index for {artifact_id}.")
 
-    archived_ids = {item["artifact_id"] for item in list_archived_artifacts(limit=500)["artifacts"]}
+    archived_ids = set(archived_by_id)
     missing_from_ledger = sorted(archived_ids - seen_artifact_ids)
     if missing_from_ledger:
         warnings.append(f"{len(missing_from_ledger)} archived artifacts are not present in the ledger, likely created before ledger support.")

@@ -1,4 +1,6 @@
 backend/app/data/runtime/
+.env.production
+.env.*.local
 *.sqlite3
 *.db
 *.log
